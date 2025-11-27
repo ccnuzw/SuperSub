@@ -18,6 +18,7 @@ declare module 'vue' {
     GeneralSettings: typeof import('./src/components/settings/GeneralSettings.vue')['default']
     GroupManagement: typeof import('./src/components/subscription/GroupManagement.vue')['default']
     Layout: typeof import('./src/components/Layout.vue')['default']
+    NSpin: typeof import('naive-ui')['NSpin']
     NText: typeof import('naive-ui')['NText']
     ProfileForm: typeof import('./src/components/settings/ProfileForm.vue')['default']
     ProfileRulesManager: typeof import('./src/components/settings/ProfileRulesManager.vue')['default']
