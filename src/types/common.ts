@@ -75,6 +75,63 @@ export interface ValidationRule {
   max?: number;
   message: string;
   validator?: (value: any) => boolean | string;
+  trigger?: string[] | 'blur' | 'change' | 'input';
+}
+
+// 搜索和筛选类型
+export interface SearchParams {
+  query?: string;
+  filters?: Record<string, any>;
+  sort?: SortParams;
+  pagination?: PaginationParams;
+}
+
+// 排序参数
+export interface SortParams {
+  field: string;
+  order: 'asc' | 'desc';
+}
+
+// 过滤参数
+export interface FilterParams {
+  [key: string]: any;
+}
+
+// 选择器选项
+export interface SelectOption {
+  label: string;
+  value: any;
+  disabled?: boolean;
+  children?: SelectOption[];
+}
+
+// 加载状态
+export interface LoadingState {
+  loading: boolean;
+  error?: string | null;
+  retrying?: boolean;
+}
+
+// 文件上传相关
+export interface UploadFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  url?: string;
+  status: 'uploading' | 'success' | 'error';
+  progress?: number;
+  error?: string;
+}
+
+// 通知消息类型
+export interface NotificationMessage {
+  id: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  title?: string;
+  content: string;
+  duration?: number;
+  timestamp: number;
 }
 
 // 分组相关类型
