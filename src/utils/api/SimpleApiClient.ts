@@ -32,7 +32,7 @@ class SimpleApiClient {
       const data = await response.json();
       return { success: true, data };
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message || 'Unknown error' };
     }
   }
 
@@ -51,6 +51,10 @@ class SimpleApiClient {
 
   delete(endpoint: string) {
     return this.request(endpoint, { method: 'DELETE' });
+  }
+
+  patch(endpoint: string, data?: any) {
+    return this.request(endpoint, { method: 'PATCH', body: data });
   }
 
   private getToken(): string | null {

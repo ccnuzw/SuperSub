@@ -61,6 +61,18 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true }
     },
     {
+      path: '/test-state-management',
+      name: 'test-state-management',
+      component: () => import('../views/TestStateManagement.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/new-subscriptions',
+      name: 'new-subscriptions',
+      component: () => import('../views/NewSubscriptionsView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/login',
       name: 'login',
       component: LoginView

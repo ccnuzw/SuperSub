@@ -101,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, type PropType } from 'vue';
+import { ref, computed, watch, type PropType } from 'vue';
 import { NInput, NIcon, NSpin, NPagination, NButton } from 'naive-ui';
 import { Search as SearchIcon } from '@vicons/ionicons5';
 import type { TableColumn, TableAction } from '@/types/common';
@@ -135,6 +135,10 @@ const props = defineProps({
   pageSize: {
     type: Number,
     default: 20
+  },
+  selectable: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -262,7 +266,7 @@ watch(() => props.data, () => {
   }
 });
 
-watch(() => props.pageSize, (newSize) => {
+watch(() => props.pageSize, (newSize: number) => {
   pageSize.value = newSize;
 });
 </script>
