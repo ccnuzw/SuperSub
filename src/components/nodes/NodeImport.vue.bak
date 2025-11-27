@@ -1,0 +1,257 @@
+<template>
+  <n-modal
+    v-model:show="showModal"
+    preset="card"
+    title="从链接添加节点"
+    style="width: 700px;"
+    :mask-closable="false"
+  >
+    <n-form
+      ref="formRef"
+      :model="form"
+      :rules="formRules"
+      label-placement="left"
+      label-width="auto"
+    >
+      <n-form-item label="节点链接" path="links">
+        <n-input
+          v-model:value="form.links"
+          type="textarea"
+          placeholder="每行一个节点链接，支持vmess、vless、ss、ssr、trojan、hysteria等格式"
+          :rows="8"
+          :disabled="loading"
+        />
+      </n-form-item>
+
+      <n-form-item label="目标分组" path="groupId">
+        <n-select
+          v-model:value="form.groupId"
+          :options="groupOptions"
+          placeholder="选择分组（可选）"
+          clearable
+          :disabled="loading"
+        />
+      </n-form-item>
+
+      <!-- 解析预览 -->
+      <n-form-item label="解析预览" v-if="previewNodes.length > 0">
+        <div class="preview-container">
+          <n-alert type="info" style="margin-bottom: 12px;">
+            已解析出 {{ previewNodes.length }} 个节点，请检查是否正确
+          </n-alert>
+
+          <n-scrollbar style="max-height: 200px;">
+            <div class="preview-list">
+              <div
+                v-for="(node, index) in previewNodes"
+                :key="index"
+                class="preview-item"
+              >
+                <n-thing>
+                  <template #header>{{ node.name || `节点${index + 1}` }}</template>
+                  <template #description>
+                    <n-space size="small">
+                      <n-tag size="small" :type="getTagType(node.type)">{{ node.type }}</n-tag>
+                      <n-tag size="small" v-if="node.server">{{ node.server }}</n-tag>
+                    </n-space>
+                  </template>
+                </n-thing>
+              </div>
+            </div>
+          </n-scrollbar>
+        </div>
+      </n-form-item>
+
+      <n-space justify="end">
+        <n-button @click="handleCancel" :disabled="loading">取消</n-button>
+        <n-button
+          type="primary"
+          @click="handleImport"
+          :loading="loading"
+          :disabled="previewNodes.length === 0"
+        >
+          导入 {{ previewNodes.length }} 个节点
+        </n-button>
+      </n-space>
+    </n-form>
+  </n-modal>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue';
+import { NModal, NForm, NFormItem, NInput, NSelect, NSpace, NButton, NAlert, NScrollbar, NThing, NTag, type FormInst, type FormRules } from 'naive-ui';
+import { useMessage } from 'naive-ui';
+import { parseNodeLinks, type ParsedNode } from '@/utils/nodeParser';
+import { getNaiveTagColor } from '@/utils/colors';
+import { useApi } from '@/composables/useApi';
+import { debounce } from 'lodash-es';
+
+interface Props {
+  show: boolean;
+  groups: Array<{ id: string; name: string }>;
+}
+
+interface Emits {
+  (e: 'update:show', value: boolean): void;
+  (e: 'success'): void;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  show: false,
+  groups: () => []
+});
+
+const emit = defineEmits<Emits>();
+
+const message = useMessage();
+const { post } = useApi();
+const formRef = ref<FormInst | null>(null);
+
+// 表单数据
+const form = ref({
+  links: '',
+  groupId: undefined as string | undefined
+});
+
+const loading = ref(false);
+const previewNodes = ref<ParsedNode[]>([]);
+const showModal = computed({
+  get: () => props.show,
+  set: (value) => emit('update:show', value)
+});
+
+// 分组选项
+const groupOptions = computed(() =>
+  props.groups.map(g => ({ label: g.name, value: g.id }))
+);
+
+// 表单验证规则
+const formRules: FormRules = {
+  links: [
+    { required: true, message: '请输入至少一个节点链接', trigger: ['input', 'blur'] },
+    {
+      validator: (rule, value) => {
+        if (!value || !value.trim()) {
+          return new Error('请输入至少一个节点链接');
+        }
+
+        const links = value.split('\n').map(link => link.trim()).filter(link => link.length > 0);
+        if (links.length === 0) {
+          return new Error('请输入至少一个有效的节点链接');
+        }
+
+        if (links.length > 100) {
+          return new Error('一次最多导入100个节点链接');
+        }
+
+        return true;
+      },
+      trigger: ['input', 'blur']
+    }
+  ]
+};
+
+// 监听显示状态，重置表单
+watch(() => props.show, (newShow) => {
+  if (newShow) {
+    resetForm();
+  }
+});
+
+// 监听链接输入，实时解析预览
+watch(() => form.value.links, debounce((newLinks: string) => {
+  if (newLinks.trim()) {
+    try {
+      previewNodes.value = parseNodeLinks(newLinks);
+    } catch (error) {
+      console.warn('链接解析失败:', error);
+      previewNodes.value = [];
+    }
+  } else {
+    previewNodes.value = [];
+  }
+}, 500));
+
+const resetForm = () => {
+  form.value.links = '';
+  form.value.groupId = undefined;
+  previewNodes.value = [];
+  formRef.value?.restoreValidation();
+};
+
+const handleCancel = () => {
+  showModal.value = false;
+};
+
+const getTagType = (type: string) => {
+  return getNaiveTagColor(type);
+};
+
+const handleImport = async () => {
+  try {
+    await formRef.value?.validate();
+
+    if (previewNodes.value.length === 0) {
+      message.warning('没有有效的节点可导入');
+      return;
+    }
+
+    loading.value = true;
+
+    // 转换解析后的节点为后端需要的格式
+    const nodesData = previewNodes.value.map((node, index) => ({
+      name: node.name || `节点${index + 1}`,
+      link: node.originalLink,
+      group_id: form.value.groupId,
+      sort_order: 0
+    }));
+
+    const response = await post('/nodes/batch', {
+      nodes: nodesData
+    });
+
+    if (response.success) {
+      message.success(`成功导入 ${previewNodes.value.length} 个节点`);
+      showModal.value = false;
+      emit('success');
+    } else {
+      message.error(response.message || '导入失败');
+    }
+  } catch (err: any) {
+    console.error('批量导入节点失败:', err);
+    if (err.message) {
+      message.error(`导入失败: ${err.message}`);
+    } else {
+      message.error('导入失败，请检查网络连接或联系管理员');
+    }
+  } finally {
+    loading.value = false;
+  }
+};
+</script>
+
+<style scoped>
+.preview-container {
+  width: 100%;
+}
+
+.preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview-item {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--n-color-hover);
+  border: 1px solid var(--n-color-border);
+}
+
+/* 深色主题适配 */
+@media (prefers-color-scheme: dark) {
+  .preview-item {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+</style>

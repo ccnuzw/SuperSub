@@ -27,6 +27,30 @@ export default defineConfig({
       ],
     },
   },
+  build: {
+    // 代码分割配置
+    rollupOptions: {
+      output: {
+        // 手动分割代码块
+        manualChunks: {
+          // Vue生态系统
+          'vue-vendor': ['vue', 'vue-router', 'pinia'],
+          // Naive UI组件库
+          'naive-ui': ['naive-ui'],
+          // 工具库
+          'utils': ['date-fns', 'axios'],
+          // 图标库
+          'icons': ['@vicons/ionicons5'],
+          // 拖拽功能
+          'drag': ['vuedraggable']
+        }
+      }
+    },
+    // 增加chunk大小警告阈值
+    chunkSizeWarningLimit: 1000,
+    // 启用CSS代码分割
+    cssCodeSplit: true
+  },
   server: {
     host: '0.0.0.0',
     proxy: {

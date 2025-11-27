@@ -10,6 +10,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     AssetManager: typeof import('./src/components/AssetManager.vue')['default']
     CodeEditor: typeof import('./src/components/CodeEditor.vue')['default']
+    ConfirmDialog: typeof import('./src/components/common/ConfirmDialog.vue')['default']
     ConfirmModal: typeof import('./src/components/common/ConfirmModal.vue')['default']
     ConversionSettings: typeof import('./src/components/settings/ConversionSettings.vue')['default']
     DataTable: typeof import('./src/components/common/DataTable.vue')['default']
@@ -18,6 +19,7 @@ declare module 'vue' {
     GeneralSettings: typeof import('./src/components/settings/GeneralSettings.vue')['default']
     Layout: typeof import('./src/components/Layout.vue')['default']
     LoadingSpinner: typeof import('./src/components/common/LoadingSpinner.vue')['default']
+    NodeForm: typeof import('./src/components/nodes/NodeForm.vue')['default']
     NSpin: typeof import('naive-ui')['NSpin']
     NText: typeof import('naive-ui')['NText']
     ProfileForm: typeof import('./src/components/settings/ProfileForm.vue')['default']
@@ -26,6 +28,7 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     SimpleDataTable: typeof import('./src/components/common/SimpleDataTable.vue')['default']
     SkeletonLoader: typeof import('./src/components/common/SkeletonLoader.vue')['default']
+    SubscriptionImport: typeof import('./src/components/subscription/SubscriptionImport.vue')['default']
     SubscriptionLogModal: typeof import('./src/components/SubscriptionLogModal.vue')['default']
     SubscriptionNodesPreview: typeof import('./src/components/SubscriptionNodesPreview.vue')['default']
   }

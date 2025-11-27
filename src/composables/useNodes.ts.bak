@@ -1,0 +1,365 @@
+import { ref, computed, onMounted } from 'vue';
+import { useMessage } from 'naive-ui';
+import type { Node } from '@/types';
+import { useApi } from './useApi';
+import { useAuthStore } from '@/stores/auth';
+import { useGroupStore } from '@/stores/groups';
+import { useNodeStatusStore } from '@/stores/nodeStatus';
+
+export function useNodes() {
+  const message = useMessage();
+  const authStore = useAuthStore();
+  const groupStore = useGroupStore();
+  const nodeStatusStore = useNodeStatusStore();
+  const { get, post, put, delete: del } = useApi();
+
+  // 响应式状态
+  const nodes = ref<Node[]>([]);
+  const loading = ref(false);
+  const error = ref<string | null>(null);
+
+  // 列表状态
+  const selectedRowKeys = ref<string[]>([]);
+  const searchQuery = ref('');
+  const activeTab = ref('all');
+  const pagination = ref({
+    page: 1,
+    pageSize: 20,
+    itemCount: 0,
+    pageCount: computed(() => Math.ceil(pagination.value.itemCount / pagination.value.pageSize))
+  });
+
+  // 模态框状态
+  const showNodeForm = ref(false);
+  const showNodeImport = ref(false);
+  const editingNode = ref<Node | null>(null);
+
+  // 计算属性
+  const totalNodes = computed(() => nodes.value.length);
+  const onlineNodes = computed(() =>
+    nodes.value.filter(node => node.status === 'online')
+  );
+  const offlineNodes = computed(() =>
+    nodes.value.filter(node => node.status === 'offline')
+  );
+  const errorNodes = computed(() =>
+    nodes.value.filter(node => node.status === 'error')
+  );
+
+  // API调用函数
+  const fetchNodes = async () => {
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const response = await get<Node[]>('/nodes');
+      if (response.success) {
+        nodes.value = response.data || [];
+        pagination.value.itemCount = response.data?.length || 0;
+      } else {
+        throw new Error(response.message || '获取节点列表失败');
+      }
+    } catch (err: any) {
+      error.value = err.message || '获取节点列表失败';
+      message.error(error.value);
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const createNode = async (nodeData: Partial<Node>) => {
+    try {
+      loading.value = true;
+
+      const response = await post('/nodes', nodeData);
+      if (response.success) {
+        const newNode = response.data;
+        nodes.value.push(newNode);
+        pagination.value.itemCount = nodes.value.length;
+        message.success('节点创建成功');
+        return newNode;
+      } else {
+        throw new Error(response.message || '创建节点失败');
+      }
+    } catch (err: any) {
+      error.value = err.message || '创建节点失败';
+      message.error(error.value);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const updateNode = async (id: string, updates: Partial<Node>) => {
+    try {
+      loading.value = true;
+
+      const response = await put(`/nodes/${id}`, updates);
+      if (response.success) {
+        const index = nodes.value.findIndex(node => node.id === id);
+        if (index !== -1) {
+          nodes.value[index] = { ...nodes.value[index], ...response.data };
+        }
+        message.success('节点更新成功');
+        return response.data;
+      } else {
+        throw new Error(response.message || '更新节点失败');
+      }
+    } catch (err: any) {
+      error.value = err.message || '更新节点失败';
+      message.error(error.value);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const deleteNode = async (id: string) => {
+    try {
+      loading.value = true;
+
+      const response = await del(`/nodes/${id}`);
+      if (response.success) {
+        nodes.value = nodes.value.filter(node => node.id !== id);
+        pagination.value.itemCount = nodes.value.length;
+        message.success('节点删除成功');
+      } else {
+        throw new Error(response.message || '删除节点失败');
+      }
+    } catch (err: any) {
+      error.value = err.message || '删除节点失败';
+      message.error(error.value);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const testNode = async (id: string) => {
+    try {
+      const response = await post(`/nodes/${id}/test`);
+      if (response.success) {
+        const index = nodes.value.findIndex(node => node.id === id);
+        if (index !== -1) {
+          nodes.value[index] = { ...nodes.value[index], ...response.data };
+        }
+        message.success('节点测试完成');
+        return response.data;
+      } else {
+        throw new Error(response.message || '节点测试失败');
+      }
+    } catch (err: any) {
+      error.value = err.message || '节点测试失败';
+      message.error(error.value);
+      throw err;
+    }
+  };
+
+  const testAllNodes = async () => {
+    try {
+      await nodeStatusStore.checkAllNodes();
+      // 刷新节点列表以获取最新的状态信息
+      await fetchNodes();
+    } catch (err: any) {
+      error.value = err.message || '批量测试节点失败';
+      message.error(error.value);
+    }
+  };
+
+  // 批量操作
+  const batchUpdate = async (ids: string[], updates: Partial<Node>) => {
+    try {
+      loading.value = true;
+
+      const response = await post('/nodes/batch-update', { ids, updates });
+      if (response.success) {
+        // 更新本地状态
+        nodes.value = nodes.value.map(node => {
+          if (ids.includes(node.id)) {
+            return { ...node, ...updates };
+          }
+          return node;
+        });
+        message.success(`成功更新 ${ids.length} 个节点`);
+        return response.data;
+      } else {
+        throw new Error(response.message || '批量更新失败');
+      }
+    } catch (err: any) {
+      error.value = err.message || '批量更新失败';
+      message.error(error.value);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const batchDelete = async (ids: string[]) => {
+    try {
+      loading.value = true;
+
+      const response = await post('/nodes/batch-delete', { ids });
+      if (response.success) {
+        nodes.value = nodes.value.filter(node => !ids.includes(node.id));
+        pagination.value.itemCount = nodes.value.length;
+        selectedRowKeys.value = [];
+        message.success(`成功删除 ${ids.length} 个节点`);
+        return response.data;
+      } else {
+        throw new Error(response.message || '批量删除失败');
+      }
+    } catch (err: any) {
+      error.value = err.message || '批量删除失败';
+      message.error(error.value);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  // UI交互方法
+  const openNodeForm = (node: Node | null = null) => {
+    editingNode.value = node;
+    showNodeForm.value = true;
+  };
+
+  const closeNodeForm = () => {
+    editingNode.value = null;
+    showNodeForm.value = false;
+  };
+
+  const openNodeImport = () => {
+    showNodeImport.value = true;
+  };
+
+  const closeNodeImport = () => {
+    showNodeImport.value = false;
+  };
+
+  const handleNodeFormSuccess = () => {
+    closeNodeForm();
+    fetchNodes();
+  };
+
+  const handleNodeImportSuccess = () => {
+    closeNodeImport();
+    fetchNodes();
+  };
+
+  const handleNodeAction = ({ key, node }: { key: string; node: Node }) => {
+    switch (key) {
+      case 'edit':
+        openNodeForm(node);
+        break;
+      case 'delete':
+        deleteNode(node.id);
+        break;
+      case 'test':
+        testNode(node.id);
+        break;
+    }
+  };
+
+  const handleSelectionChange = (keys: string[]) => {
+    selectedRowKeys.value = keys;
+  };
+
+  const handleSearchChange = (query: string) => {
+    searchQuery.value = query;
+    pagination.value.page = 1; // 重置到第一页
+  };
+
+  const handleTabChange = (tab: string) => {
+    activeTab.value = tab;
+    pagination.value.page = 1; // 重置到第一页
+  };
+
+  const handlePaginationChange = (newPagination: any) => {
+    pagination.value = { ...pagination.value, ...newPagination };
+  };
+
+  // 统计信息
+  const getStatistics = computed(() => ({
+    total: totalNodes.value,
+    online: onlineNodes.value.length,
+    offline: offlineNodes.value.length,
+    error: errorNodes.value.length,
+    successRate: totalNodes.value > 0
+      ? (onlineNodes.value.length / totalNodes.value * 100).toFixed(1)
+      : '0'
+  }));
+
+  // 清除错误
+  const clearError = () => {
+    error.value = null;
+  };
+
+  // 重置状态
+  const reset = () => {
+    nodes.value = [];
+    loading.value = false;
+    error.value = null;
+    selectedRowKeys.value = [];
+    searchQuery.value = '';
+    activeTab.value = 'all';
+    pagination.value.page = 1;
+    pagination.value.itemCount = 0;
+  };
+
+  // 组件挂载时获取数据
+  onMounted(() => {
+    if (authStore.isAuthenticated) {
+      fetchNodes();
+      // 确保分组数据已加载
+      if (groupStore.groups.length === 0) {
+        groupStore.fetchGroups();
+      }
+    }
+  });
+
+  return {
+    // 状态
+    nodes,
+    loading,
+    error,
+    selectedRowKeys,
+    searchQuery,
+    activeTab,
+    pagination,
+    showNodeForm,
+    showNodeImport,
+    editingNode,
+
+    // 计算属性
+    totalNodes,
+    onlineNodes,
+    offlineNodes,
+    errorNodes,
+    getStatistics,
+
+    // 方法
+    fetchNodes,
+    createNode,
+    updateNode,
+    deleteNode,
+    testNode,
+    testAllNodes,
+    batchUpdate,
+    batchDelete,
+
+    // UI交互
+    openNodeForm,
+    closeNodeForm,
+    openNodeImport,
+    closeNodeImport,
+    handleNodeFormSuccess,
+    handleNodeImportSuccess,
+    handleNodeAction,
+    handleSelectionChange,
+    handleSearchChange,
+    handleTabChange,
+    handlePaginationChange,
+    clearError,
+    reset
+  };
+}

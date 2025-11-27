@@ -12,6 +12,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useSubscriptionGroupStore } from '@/stores/subscriptionGroups'
 import { useGroupStore as useNodeGroupStore } from '@/stores/groups'
 import SubscriptionNodesPreview from '@/components/SubscriptionNodesPreview.vue'
+import SubscriptionImport from '@/components/subscription/SubscriptionImport.vue'
 import { format } from 'date-fns'
 
 const router = useRouter()
@@ -30,11 +31,8 @@ const editingSubscription = ref<Subscription | null>(null)
 const updatingIds = ref(new Set<string>()) // For individual and batch updates
 const activeTab = ref('all')
 
-// For bulk import
+// 批量导入组件状态
 const showImportModal = ref(false)
-const importUrls = ref('')
-const importLoading = ref(false)
-const importGroupId = ref<string | undefined>(undefined)
 
 // For batch actions
 const checkedRowKeys = ref<string[]>([])
@@ -502,9 +500,11 @@ const handleUpdate = async (row: Subscription, silent = false, signal?: AbortSig
 
 
 const openImportModal = () => {
-  importUrls.value = ''
-  importGroupId.value = undefined
   showImportModal.value = true
+}
+
+const onImportSuccess = () => {
+  fetchSubscriptions()
 }
 
 // A generic function to execute updates in a concurrent pool with progress
@@ -685,50 +685,6 @@ const handleClearExpiring = () => {
     }
   });
 };
-
-const handleBulkImport = async () => {
-  if (!importUrls.value.trim()) {
-    message.warning('请输入订阅链接')
-    return
-  }
-  importLoading.value = true
-  const lines = importUrls.value.split('\n').map(line => line.trim()).filter(Boolean)
-  const subscriptionsToCreate: { name: string; url: string }[] = []
-  for (const line of lines) {
-    const parts = line.split(',').map(part => part.trim())
-    if (parts.length === 2 && parts[1].startsWith('http')) {
-      subscriptionsToCreate.push({ name: parts[0], url: parts[1] })
-    } else if (parts.length === 1 && parts[0].startsWith('http')) {
-      try {
-        const urlObj = new URL(parts[0])
-        const name = urlObj.hostname
-        subscriptionsToCreate.push({ name: name, url: parts[0] })
-      } catch (e) { /* Ignore invalid URL */ }
-    }
-  }
-  if (subscriptionsToCreate.length === 0) {
-    message.warning('没有找到有效的订阅链接。格式应为 "名称,链接" 或直接是链接。')
-    importLoading.value = false
-    return
-  }
-  try {
-    const response = await api.post<ApiResponse>('/subscriptions/batch-import', {
-      subscriptions: subscriptionsToCreate,
-      groupId: importGroupId.value
-    })
-    if (response.data.success) {
-      message.success(response.data.data?.message || `成功导入 ${response.data.data?.created || 0} 个订阅`)
-      showImportModal.value = false
-      fetchSubscriptions()
-    } else {
-      message.error(response.data.message || '导入失败')
-    }
-  } catch (error) {
-    message.error('请求失败，请稍后重试')
-  } finally {
-    importLoading.value = false
-  }
-}
 
 const handleBatchDelete = () => {
   if (checkedRowKeys.value.length === 0) {
@@ -1623,36 +1579,12 @@ const handleSortSave = async () => {
       </n-form>
     </n-modal>
 
-    <n-modal
+    <!-- 批量导入组件 -->
+    <SubscriptionImport
       v-model:show="showImportModal"
-      preset="card"
-      title="批量导入订阅"
-      style="width: 600px;"
-      :mask-closable="false"
-    >
-      <n-form @submit.prevent="handleBulkImport">
-        <n-form-item label="订阅链接">
-          <n-input
-            v-model:value="importUrls"
-            type="textarea"
-            placeholder="每行一个订阅，格式为 “名称,链接” 或直接是链接。"
-            :autosize="{ minRows: 10, maxRows: 20 }"
-          />
-        </n-form-item>
-        <n-form-item label="导入到分组">
-          <n-select
-            v-model:value="importGroupId"
-            placeholder="默认导入到“未分组”"
-            :options="subscriptionGroupStore.groups.map(g => ({ label: g.name, value: g.id }))"
-            clearable
-          />
-        </n-form-item>
-        <n-space justify="end">
-          <n-button @click="showImportModal = false">取消</n-button>
-          <n-button type="primary" @click="handleBulkImport" :loading="importLoading">导入</n-button>
-        </n-space>
-      </n-form>
-    </n-modal>
+      :groups="subscriptionGroupStore.groups.map(g => ({ ...g, description: g.description || undefined }))"
+      @success="onImportSuccess"
+    />
 
 
     <n-modal

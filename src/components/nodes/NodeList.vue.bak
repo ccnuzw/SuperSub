@@ -1,0 +1,409 @@
+<template>
+  <div class="node-list-container">
+    <!-- 搜索栏 -->
+    <div class="mb-4 flex items-center gap-4">
+      <n-input
+        v-model:value="localSearchQuery"
+        placeholder="搜索节点..."
+        clearable
+        class="max-w-md"
+        @input="handleSearchInput"
+      >
+        <template #prefix>
+          <n-icon><SearchIcon /></n-icon>
+        </template>
+      </n-input>
+
+      <slot name="actions"></slot>
+    </div>
+
+    <!-- 标签页 -->
+    <n-tabs v-model:value="activeTab" type="line" @update:value="handleTabChange">
+      <n-tab-pane name="all" :tab="`全部 (${totalCount})`" />
+      <n-tab-pane name="online" :tab="`在线 (${onlineCount})`" />
+      <n-tab-pane name="offline" :tab="`离线 (${offlineCount})`" />
+      <n-tab-pane name="error" :tab="`错误 (${errorCount})`" />
+    </n-tabs>
+
+    <!-- 桌面端表格 -->
+    <div v-if="!isMobile" class="desktop-view">
+      <n-data-table
+        :columns="tableColumns"
+        :data="filteredPaginatedItems"
+        :loading="loading"
+        :pagination="paginationConfig"
+        :row-key="rowKey"
+        :checked-row-keys="selectedRowKeys"
+        @update:checked-row-keys="handleSelectionChange"
+        @update:page="handlePageChange"
+        @update:page-size="handlePageSizeChange"
+        size="small"
+        striped
+      />
+    </div>
+
+    <!-- 移动端列表 -->
+    <div v-else class="mobile-view">
+      <n-list>
+        <n-list-item v-for="node in filteredPaginatedItems" :key="node.id">
+          <n-thing>
+            <template #header>
+              <div class="flex items-center justify-between">
+                <span class="font-medium">{{ node.name }}</span>
+                <n-tag :type="getStatusTagType(node.status)" size="small">
+                  {{ getStatusText(node.status) }}
+                </n-tag>
+              </div>
+            </template>
+            <template #description>
+              <div class="space-y-1">
+                <div class="text-sm text-gray-600">
+                  {{ node.server }}:{{ node.port }}
+                </div>
+                <div class="text-sm text-gray-500">
+                  {{ node.protocol }} · {{ node.type }}
+                </div>
+                <div v-if="node.latency" class="text-sm">
+                  延迟: <span :class="getLatencyColor(node.latency)">{{ node.latency }}ms</span>
+                </div>
+              </div>
+            </template>
+            <template #footer>
+              <div class="flex items-center justify-between">
+                <n-checkbox
+                  :checked="selectedRowKeys.includes(node.id)"
+                  @update:checked="(checked) => handleSingleSelection(node.id, checked)"
+                />
+                <n-dropdown
+                  :options="getActionOptions(node)"
+                  @select="handleAction"
+                >
+                  <n-button circle size="small" quaternary>
+                    <template #icon>
+                      <n-icon><MoreIcon /></n-icon>
+                    </template>
+                  </n-button>
+                </n-dropdown>
+              </div>
+            </template>
+          </n-thing>
+        </n-list-item>
+      </n-list>
+
+      <!-- 移动端分页 -->
+      <div class="mt-4 flex justify-center">
+        <n-pagination
+          v-model:page="pagination.page"
+          :page-count="pagination.pageCount"
+          :page-size="pagination.pageSize"
+          :item-count="filteredItems.length"
+          @update:page-size="handlePageSizeChange"
+          show-size-picker
+          :page-sizes="[10, 20, 50]"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch, h } from 'vue';
+import {
+  NInput,
+  NIcon,
+  NCheckbox,
+  NButton,
+  NTabs,
+  NTabPane,
+  NDataTable,
+  NList,
+  NListItem,
+  NThing,
+  NTag,
+  NDropdown,
+  NPagination,
+  type DataTableColumns,
+  type DropdownOption
+} from 'naive-ui';
+import { SearchOutline as SearchIcon, EllipsisVertical as MoreIcon } from '@vicons/ionicons5';
+import type { Node } from '@/types';
+import { getNaiveTagColor } from '@/utils/colors';
+
+interface Props {
+  nodes: Node[];
+  loading?: boolean;
+  isMobile?: boolean;
+  selectedRowKeys?: string[];
+  searchQuery?: string;
+  activeTab?: string;
+  pagination?: {
+    page: number;
+    pageSize: number;
+    itemCount: number;
+    pageCount: number;
+  };
+}
+
+interface Emits {
+  (e: 'update:selectedRowKeys', keys: string[]): void;
+  (e: 'update:searchQuery', query: string): void;
+  (e: 'update:activeTab', tab: string): void;
+  (e: 'update:pagination', pagination: any): void;
+  (e: 'action', { key, node }: { key: string; node: Node }): void;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  loading: false,
+  isMobile: false,
+  selectedRowKeys: () => [],
+  searchQuery: '',
+  activeTab: 'all',
+  pagination: () => ({
+    page: 1,
+    pageSize: 20,
+    itemCount: 0,
+    pageCount: 0
+  })
+});
+
+const emit = defineEmits<Emits>();
+
+// 本地状态
+const localSearchQuery = ref(props.searchQuery);
+
+// 计算属性
+const filteredItems = computed(() => {
+  let filtered = props.nodes;
+
+  // 搜索过滤
+  if (localSearchQuery.value.trim()) {
+    const query = localSearchQuery.value.toLowerCase();
+    filtered = filtered.filter(node =>
+      node.name.toLowerCase().includes(query) ||
+      node.server?.toLowerCase().includes(query) ||
+      node.protocol.toLowerCase().includes(query)
+    );
+  }
+
+  // 标签页过滤
+  switch (props.activeTab) {
+    case 'online':
+      filtered = filtered.filter(node => node.status === 'online');
+      break;
+    case 'offline':
+      filtered = filtered.filter(node => node.status === 'offline');
+      break;
+    case 'error':
+      filtered = filtered.filter(node => node.status === 'error');
+      break;
+  }
+
+  return filtered;
+});
+
+const filteredPaginatedItems = computed(() => {
+  const { page, pageSize } = props.pagination;
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
+  return filteredItems.value.slice(start, end);
+});
+
+// 统计数据
+const totalCount = computed(() => props.nodes.length);
+const onlineCount = computed(() => props.nodes.filter(node => node.status === 'online').length);
+const offlineCount = computed(() => props.nodes.filter(node => node.status === 'offline').length);
+const errorCount = computed(() => props.nodes.filter(node => node.status === 'error').length);
+
+// 分页配置
+const paginationConfig = computed(() => ({
+  ...props.pagination,
+  itemCount: filteredItems.value.length,
+  pageCount: Math.ceil(filteredItems.value.length / props.pagination.pageSize)
+}));
+
+// 表格列定义
+const tableColumns: DataTableColumns<Node> = [
+  {
+    type: 'selection'
+  },
+  {
+    title: '节点名称',
+    key: 'name',
+    width: 200,
+    ellipsis: {
+      tooltip: true
+    }
+  },
+  {
+    title: '服务器',
+    key: 'server',
+    width: 150,
+    render: (row) => `${row.server}:${row.port}`
+  },
+  {
+    title: '协议',
+    key: 'protocol',
+    width: 100
+  },
+  {
+    title: '类型',
+    key: 'type',
+    width: 100,
+    render: (row) => row.type || '-'
+  },
+  {
+    title: '状态',
+    key: 'status',
+    width: 100,
+    render: (row) => h(NTag, { type: getStatusTagType(row.status), size: 'small' }, () => getStatusText(row.status))
+  },
+  {
+    title: '延迟',
+    key: 'latency',
+    width: 100,
+    render: (row) => row.latency ? h('span', { class: getLatencyColor(row.latency) }, `${row.latency}ms`) : '-'
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 80,
+    render: (row) => h(NDropdown, {
+      options: getActionOptions(row),
+      onSelect: (key: string) => emit('action', { key, node: row })
+    }, () => h(NButton, {
+      circle: true,
+      size: 'small',
+      quaternary: true
+    }, () => h(NIcon, null, () => h(MoreIcon))))
+  }
+];
+
+// 方法
+const rowKey = (row: Node) => row.id;
+
+const handleSearchInput = () => {
+  emit('update:searchQuery', localSearchQuery.value);
+  // 重置分页到第一页
+  emit('update:pagination', { ...props.pagination, page: 1 });
+};
+
+const handleTabChange = (tab: string) => {
+  emit('update:activeTab', tab);
+  // 重置分页到第一页
+  emit('update:pagination', { ...props.pagination, page: 1 });
+};
+
+const handleSelectionChange = (keys: string[]) => {
+  emit('update:selectedRowKeys', keys);
+};
+
+const handleSingleSelection = (nodeId: string, checked: boolean) => {
+  let newKeys = [...props.selectedRowKeys];
+  if (checked) {
+    newKeys.push(nodeId);
+  } else {
+    newKeys = newKeys.filter(key => key !== nodeId);
+  }
+  emit('update:selectedRowKeys', newKeys);
+};
+
+const handlePageChange = (page: number) => {
+  emit('update:pagination', { ...props.pagination, page });
+};
+
+const handlePageSizeChange = (pageSize: number) => {
+  emit('update:pagination', { ...props.pagination, pageSize, page: 1 });
+};
+
+const getActionOptions = (node: Node): DropdownOption[] => [
+  {
+    label: '编辑',
+    key: 'edit',
+    props: { disabled: false }
+  },
+  {
+    label: '删除',
+    key: 'delete',
+    props: { disabled: false }
+  },
+  {
+    label: '测试连接',
+    key: 'test',
+    props: { disabled: false }
+  }
+];
+
+const handleAction = (key: string) => {
+  // 这个方法会在父组件中被处理
+};
+
+const getStatusTagType = (status: string) => {
+  switch (status) {
+    case 'online':
+      return 'success';
+    case 'offline':
+      return 'warning';
+    case 'error':
+      return 'error';
+    default:
+      return 'default';
+  }
+};
+
+const getStatusText = (status: string) => {
+  switch (status) {
+    case 'online':
+      return '在线';
+    case 'offline':
+      return '离线';
+    case 'error':
+      return '错误';
+    default:
+      return '未知';
+  }
+};
+
+const getLatencyColor = (latency: number) => {
+  if (latency < 100) return 'text-green-600';
+  if (latency < 300) return 'text-yellow-600';
+  return 'text-red-600';
+};
+
+// 监听props变化
+watch(() => props.searchQuery, (newQuery) => {
+  localSearchQuery.value = newQuery;
+});
+</script>
+
+<style scoped>
+.node-list-container {
+  width: 100%;
+}
+
+.text-green-600 {
+  color: #16a34a;
+}
+
+.text-yellow-600 {
+  color: #ca8a04;
+}
+
+.text-red-600 {
+  color: #dc2626;
+}
+
+/* 深色主题适配 */
+@media (prefers-color-scheme: dark) {
+  .text-green-600 {
+    color: #22c55e;
+  }
+
+  .text-yellow-600 {
+    color: #fbbf24;
+  }
+
+  .text-red-600 {
+    color: #ef4444;
+  }
+}
+</style>
