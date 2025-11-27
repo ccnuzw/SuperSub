@@ -8,6 +8,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ActionButtonGroup: typeof import('./src/components/common/ActionButtonGroup.vue')['default']
     AssetManager: typeof import('./src/components/AssetManager.vue')['default']
     CodeEditor: typeof import('./src/components/CodeEditor.vue')['default']
     ConfirmDialog: typeof import('./src/components/common/ConfirmDialog.vue')['default']
@@ -20,7 +21,6 @@ declare module 'vue' {
     Layout: typeof import('./src/components/Layout.vue')['default']
     LoadingSpinner: typeof import('./src/components/common/LoadingSpinner.vue')['default']
     NodeForm: typeof import('./src/components/nodes/NodeForm.vue')['default']
-    NSpin: typeof import('naive-ui')['NSpin']
     NText: typeof import('naive-ui')['NText']
     ProfileForm: typeof import('./src/components/settings/ProfileForm.vue')['default']
     ProfileRulesManager: typeof import('./src/components/settings/ProfileRulesManager.vue')['default']
@@ -28,6 +28,7 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     SimpleDataTable: typeof import('./src/components/common/SimpleDataTable.vue')['default']
     SkeletonLoader: typeof import('./src/components/common/SkeletonLoader.vue')['default']
+    StatsCard: typeof import('./src/components/common/StatsCard.vue')['default']
     SubscriptionImport: typeof import('./src/components/subscription/SubscriptionImport.vue')['default']
     SubscriptionLogModal: typeof import('./src/components/SubscriptionLogModal.vue')['default']
     SubscriptionNodesPreview: typeof import('./src/components/SubscriptionNodesPreview.vue')['default']

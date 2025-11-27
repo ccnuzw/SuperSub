@@ -3,7 +3,7 @@ import { ref, onMounted, reactive, h, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, useDialog, NButton, NSpace, NTag, NDataTable, NPageHeader, NModal, NForm, NFormItem, NInput, NTooltip, NGrid, NGi, NStatistic, NCard, NSwitch, NSelect, NDynamicTags, NRadioGroup, NRadioButton, NInputGroup, NIcon, NTabs, NTabPane, NDropdown, NProgress, NCollapse, NCollapseItem, NInputNumber, NList, NListItem, NThing, NPagination } from 'naive-ui'
 import draggable from 'vuedraggable'
-import { EyeOutline, FilterOutline, CreateOutline, SyncOutline, TrashOutline, EllipsisVertical as MoreIcon, SettingsOutline, ReorderFourOutline, AddOutline, EllipsisHorizontal } from '@vicons/ionicons5'
+import { CreateOutline, CheckmarkCircleOutline, WarningOutline, StatsChartOutline, EyeOutline, FilterOutline, SyncOutline, TrashOutline, EllipsisVertical as MoreIcon, SettingsOutline, ReorderFourOutline, AddOutline, EllipsisHorizontal } from '@vicons/ionicons5'
 import type { DataTableColumns, FormInst, DropdownOption } from 'naive-ui'
 import { useIsMobile } from '@/composables/useMediaQuery'
 import { Subscription, Node, ApiResponse } from '@/types'
@@ -13,7 +13,10 @@ import { useSubscriptionGroupStore } from '@/stores/subscriptionGroups'
 import { useGroupStore as useNodeGroupStore } from '@/stores/groups'
 import SubscriptionNodesPreview from '@/components/SubscriptionNodesPreview.vue'
 import SubscriptionImport from '@/components/subscription/SubscriptionImport.vue'
+import ActionButtonGroup from '@/components/common/ActionButtonGroup.vue'
+import StatsCard from '@/components/common/StatsCard.vue'
 import { format } from 'date-fns'
+import { performanceMonitor } from '@/utils/performance'
 
 const router = useRouter()
 const message = useMessage()
@@ -21,6 +24,38 @@ const dialog = useDialog()
 const isMobile = useIsMobile()
 const subscriptionGroupStore = useSubscriptionGroupStore()
 const nodeGroupStore = useNodeGroupStore()
+
+// 头部操作按钮配置
+const headerActions = computed(() => [
+  {
+    key: 'add',
+    label: isMobile.value ? '' : '新增订阅',
+    type: 'primary' as const,
+    icon: AddOutline
+  },
+  {
+    key: 'update-all',
+    label: '更新全部',
+    icon: SyncOutline,
+    circle: true,
+    quaternary: true
+  },
+  {
+    key: 'import',
+    label: '批量导入',
+    icon: FilterOutline,
+    circle: true,
+    quaternary: true
+  },
+  {
+    key: 'batch-delete',
+    label: '批量删除',
+    icon: TrashOutline,
+    circle: true,
+    quaternary: true,
+    disabled: checkedRowKeys.value.length === 0
+  }
+])
 
 const subscriptions = ref<Subscription[]>([])
 const loading = ref(true)
@@ -401,6 +436,7 @@ const closeModal = () => {
 }
 
 const fetchSubscriptions = async () => {
+  performanceMonitor.start('fetchSubscriptions')
   const authStore = useAuthStore()
   if (!authStore.isAuthenticated) return
   loading.value = true
@@ -415,6 +451,7 @@ const fetchSubscriptions = async () => {
     message.error('请求失败，请稍后重试')
   } finally {
     loading.value = false
+    performanceMonitor.end('fetchSubscriptions')
   }
 }
 
@@ -462,6 +499,9 @@ const handleDelete = (row: Subscription) => {
 }
 
 const handleUpdate = async (row: Subscription, silent = false, signal?: AbortSignal): Promise<{ success: boolean; data: Subscription; error?: string }> => {
+  const metricName = `updateSubscription-${row.id}`
+  performanceMonitor.start(metricName)
+
   updatingId.value = row.id
   updatingIds.value.add(row.id)
   if (!silent) {
@@ -470,7 +510,7 @@ const handleUpdate = async (row: Subscription, silent = false, signal?: AbortSig
   try {
     const response = await api.post<ApiResponse<Subscription>>(`/subscriptions/${row.id}/update`, {}, { signal })
     const updatedSub = response.data.data
-    
+
     const index = subscriptions.value.findIndex(s => s.id === row.id)
     if (index !== -1 && updatedSub) {
       subscriptions.value[index] = updatedSub
@@ -478,19 +518,23 @@ const handleUpdate = async (row: Subscription, silent = false, signal?: AbortSig
 
     if (response.data.success && updatedSub) {
       if (!silent) message.success(`订阅 [${row.name}] 更新成功`)
+      performanceMonitor.end(metricName)
       return { success: true, data: updatedSub }
     } else {
       const errorMsg = response.data.message || `订阅 [${row.name}] 更新失败`
       if (!silent) message.error(errorMsg)
       // Even on failure, the backend returns the subscription state, so we use it.
+      performanceMonitor.end(metricName)
       return { success: false, data: updatedSub || row, error: errorMsg }
     }
   } catch (err: any) {
     if (err.name === 'AbortError') {
+      performanceMonitor.end(metricName)
       return { success: false, data: row, error: '已中止' }
     }
     const errorMsg = err.message || '请求失败，请稍后重试'
     if (!silent) message.error(errorMsg)
+    performanceMonitor.end(metricName)
     return { success: false, data: row, error: errorMsg }
   } finally {
     updatingId.value = null
@@ -498,6 +542,30 @@ const handleUpdate = async (row: Subscription, silent = false, signal?: AbortSig
   }
 }
 
+// 处理头部操作按钮点击
+const handleHeaderAction = (key: string) => {
+  switch (key) {
+    case 'add':
+      openModal(null)
+      break
+    case 'update-all':
+      handleUpdateAll()
+      break
+    case 'import':
+      openImportModal()
+      break
+    case 'batch-delete':
+      handleBatchDelete()
+      break
+  }
+}
+
+// 成功率计算
+const successRate = computed(() => {
+  const activeCount = subscriptions.value.filter(s => s.enabled && (s.node_count ?? 0) > 0).length
+  const totalCount = subscriptions.value.length
+  return totalCount > 0 ? Math.round((activeCount / totalCount) * 100) : 0
+})
 
 const openImportModal = () => {
   showImportModal.value = true
@@ -1383,6 +1451,26 @@ onMounted(() => {
       })
     }
   }, { deep: true })
+
+  // Development performance monitoring
+  if (import.meta.env.DEV) {
+    // Log performance stats every 30 seconds
+    setInterval(() => {
+      const report = performanceMonitor.generateReport()
+      console.log('🚀 Performance Stats:', report.metrics)
+
+      // Log individual stats for key operations
+      const fetchStats = performanceMonitor.getStats('fetchSubscriptions')
+      if (fetchStats) {
+        console.log(`📊 fetchSubscriptions: avg=${fetchStats.avg.toFixed(2)}ms, count=${fetchStats.count}`)
+      }
+    }, 30000)
+
+    // Cleanup performance metrics on page unload
+    window.addEventListener('beforeunload', () => {
+      performanceMonitor.clearAll()
+    })
+  }
 })
 
 const openSortModal = () => {
@@ -1412,45 +1500,56 @@ const handleSortSave = async () => {
         订阅管理
       </template>
       <template #extra>
-        <n-space>
-          <n-button type="primary" @click="openModal(null)">
-            <template #icon>
-              <n-icon :component="AddOutline" />
-            </template>
-            <template v-if="!isMobile">新增订阅</template>
-          </n-button>
-          <n-dropdown
-            trigger="click"
-            :options="[
-              { label: '更新全部', key: 'update-all' },
-              { label: '批量导入', key: 'import' },
-              { label: '新增分组', key: 'add-group' },
-              { label: '调整顺序', key: 'sort' },
-              { label: '移动到分组', key: 'move-to-group', disabled: checkedRowKeys.length === 0 },
-              { label: '批量删除', key: 'batch-delete', disabled: checkedRowKeys.length === 0 },
-              { label: '清除失败项', key: 'clear-failed' },
-              { label: '一键清除', key: 'clear-current-group' },
-            ]"
-            @select="key => {
-              if (key === 'update-all') handleUpdateAll();
-              if (key === 'import') openImportModal();
-              if (key === 'add-group') showAddGroupModal = true;
-              if (key === 'sort') openSortModal();
-              if (key === 'move-to-group') showMoveToGroupModal = true;
-              if (key === 'batch-delete') handleBatchDelete();
-              if (key === 'clear-failed') handleClearAllFailed();
-              if (key === 'clear-current-group') handleClearCurrentGroup();
-            }"
-          >
-            <n-button>
-              <template #icon>
-                <n-icon :component="EllipsisHorizontal" />
-              </template>
-            </n-button>
-          </n-dropdown>
-        </n-space>
+        <ActionButtonGroup
+          :actions="headerActions"
+          :size="isMobile ? 'small' : 'medium'"
+          @action="handleHeaderAction"
+        />
       </template>
     </n-page-header>
+
+    <!-- 统计卡片 -->
+    <div class="stats-cards mb-4">
+      <n-grid :cols="4" :x-gap="12" :y-gap="12">
+        <n-gi>
+          <StatsCard
+            title="总订阅数"
+            :value="subscriptions.length"
+            icon="CreateOutline"
+            color="primary"
+            size="small"
+          />
+        </n-gi>
+        <n-gi>
+          <StatsCard
+            title="活跃订阅"
+            :value="subscriptions.filter(s => s.enabled).length"
+            icon="CheckmarkCircleOutline"
+            color="success"
+            size="small"
+          />
+        </n-gi>
+        <n-gi>
+          <StatsCard
+            title="失败订阅"
+            :value="subscriptions.filter(s => s.node_count === 0).length"
+            icon="WarningOutline"
+            color="warning"
+            size="small"
+          />
+        </n-gi>
+        <n-gi>
+          <StatsCard
+            title="成功率"
+            :value="successRate"
+            unit="%"
+            icon="StatsChartOutline"
+            :color="successRate >= 90 ? 'success' : successRate >= 70 ? 'warning' : 'error'"
+            size="small"
+          />
+        </n-gi>
+      </n-grid>
+    </div>
 
     <n-tabs type="card" class="mt-4" v-model:value="activeTab" @update:value="showDropdown = false">
       <n-tab-pane name="all" :tab="`全部 (${groupCounts.all})`" />
