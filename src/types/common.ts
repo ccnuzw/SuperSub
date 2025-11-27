@@ -142,14 +142,3 @@ export interface GroupItem extends BaseEntity {
   is_enabled: boolean;
   user_id: string;
 }
-
-// 排序参数
-export interface SortParams {
-  field: string;
-  order: 'asc' | 'desc';
-}
-
-// 过滤参数
-export interface FilterParams {
-  [key: string]: any;
-}

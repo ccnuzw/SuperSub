@@ -166,8 +166,8 @@ const handleReport = () => {
   // 复制错误信息到剪贴板
   navigator.clipboard.writeText(JSON.stringify(errorInfo, null, 2)).then(() => {
     // 显示复制成功提示
-    if (window.$message) {
-      window.$message.success('错误信息已复制到剪贴板');
+    if (typeof window !== 'undefined' && (window as any).$message) {
+      (window as any).$message.success('错误信息已复制到剪贴板');
     }
   });
 };

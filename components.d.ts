@@ -9,7 +9,6 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AssetManager: typeof import('./src/components/AssetManager.vue')['default']
-    BatchActions: typeof import('./src/components/subscription/BatchActions.vue')['default']
     CodeEditor: typeof import('./src/components/CodeEditor.vue')['default']
     ConfirmModal: typeof import('./src/components/common/ConfirmModal.vue')['default']
     ConversionSettings: typeof import('./src/components/settings/ConversionSettings.vue')['default']
@@ -17,7 +16,6 @@ declare module 'vue' {
     EntityForm: typeof import('./src/components/common/EntityForm.vue')['default']
     ErrorBoundary: typeof import('./src/components/common/ErrorBoundary.vue')['default']
     GeneralSettings: typeof import('./src/components/settings/GeneralSettings.vue')['default']
-    GroupManagement: typeof import('./src/components/subscription/GroupManagement.vue')['default']
     Layout: typeof import('./src/components/Layout.vue')['default']
     LoadingSpinner: typeof import('./src/components/common/LoadingSpinner.vue')['default']
     NSpin: typeof import('naive-ui')['NSpin']
@@ -28,8 +26,6 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     SimpleDataTable: typeof import('./src/components/common/SimpleDataTable.vue')['default']
     SkeletonLoader: typeof import('./src/components/common/SkeletonLoader.vue')['default']
-    SubscriptionForm: typeof import('./src/components/subscription/SubscriptionForm.vue')['default']
-    SubscriptionList: typeof import('./src/components/subscription/SubscriptionList.vue')['default']
     SubscriptionLogModal: typeof import('./src/components/SubscriptionLogModal.vue')['default']
     SubscriptionNodesPreview: typeof import('./src/components/SubscriptionNodesPreview.vue')['default']
   }

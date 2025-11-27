@@ -23,7 +23,7 @@
       :data="paginatedItems"
       :loading="loading"
       :pagination="paginationConfig"
-      :row-key="rowKey"
+      :row-key="(record: any) => record.id || JSON.stringify(record)"
       :checked-row-keys="selectedRowKeys"
       @update:checked-row-keys="handleSelectionChange"
       @update:page="handlePageChange"
