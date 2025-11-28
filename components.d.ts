@@ -10,6 +10,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     ActionButtonGroup: typeof import('./src/components/common/ActionButtonGroup.vue')['default']
     AssetManager: typeof import('./src/components/AssetManager.vue')['default']
+    BatchActions: typeof import('./src/components/subscription/BatchActions.vue')['default']
     CodeEditor: typeof import('./src/components/CodeEditor.vue')['default']
     ConfirmDialog: typeof import('./src/components/common/ConfirmDialog.vue')['default']
     ConfirmModal: typeof import('./src/components/common/ConfirmModal.vue')['default']
@@ -18,6 +19,7 @@ declare module 'vue' {
     EntityForm: typeof import('./src/components/common/EntityForm.vue')['default']
     ErrorBoundary: typeof import('./src/components/common/ErrorBoundary.vue')['default']
     GeneralSettings: typeof import('./src/components/settings/GeneralSettings.vue')['default']
+    GroupManagement: typeof import('./src/components/subscription/GroupManagement.vue')['default']
     Layout: typeof import('./src/components/Layout.vue')['default']
     LoadingSpinner: typeof import('./src/components/common/LoadingSpinner.vue')['default']
     NodeForm: typeof import('./src/components/nodes/NodeForm.vue')['default']
@@ -32,5 +34,7 @@ declare module 'vue' {
     SubscriptionImport: typeof import('./src/components/subscription/SubscriptionImport.vue')['default']
     SubscriptionLogModal: typeof import('./src/components/SubscriptionLogModal.vue')['default']
     SubscriptionNodesPreview: typeof import('./src/components/SubscriptionNodesPreview.vue')['default']
+    SubscriptionRules: typeof import('./src/components/subscription/SubscriptionRules.vue')['default']
+    UpdateLogModal: typeof import('./src/components/subscription/UpdateLogModal.vue')['default']
   }
 }

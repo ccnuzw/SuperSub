@@ -15,8 +15,13 @@ import SubscriptionNodesPreview from '@/components/SubscriptionNodesPreview.vue'
 import SubscriptionImport from '@/components/subscription/SubscriptionImport.vue'
 import ActionButtonGroup from '@/components/common/ActionButtonGroup.vue'
 import StatsCard from '@/components/common/StatsCard.vue'
+import GroupManagement from '@/components/subscription/GroupManagement.vue'
+import BatchActions from '@/components/subscription/BatchActions.vue'
+import UpdateLogModal from '@/components/subscription/UpdateLogModal.vue'
+import SubscriptionRules from '@/components/subscription/SubscriptionRules.vue'
 import { format } from 'date-fns'
 import { performanceMonitor } from '@/utils/performance'
+import { formatBytes } from '@/utils/format'
 
 const router = useRouter()
 const message = useMessage()
@@ -1703,412 +1708,86 @@ const handleSortSave = async () => {
       />
     </n-modal>
 
-    <n-modal
+    <!-- 规则管理组件 -->
+    <SubscriptionRules
       v-model:show="showRulesModal"
-      preset="card"
-      :title="ruleModalTitle"
-      style="width: 900px;"
-      :mask-closable="false"
-    >
-      <n-space justify="end" class="mb-4">
-        <n-button type="primary" @click="openRuleFormModal(null)">添加规则</n-button>
-      </n-space>
-      <n-data-table
-        :columns="ruleColumns"
-        :data="rules"
-        :loading="rulesLoading"
-        :bordered="false"
-      />
-    </n-modal>
+      v-model:show-rule-form-modal="showRuleFormModal"
+      v-model:rule-save-loading="ruleSaveLoading"
+      v-model:rules-loading="rulesLoading"
+      v-model:current-rule-context="currentRuleContext"
+      v-model:rules="rules"
+      :rule-modal-title="ruleModalTitle"
+      :rule-form-title="ruleFormTitle"
+      :rule-form-ref="ruleFormRef"
+      :rule-form-state="ruleFormState"
+      :editing-rule="editingRule"
+      @open-rule-form-modal="openRuleFormModal"
+      @save-rule="handleSaveRule"
+      @delete-rule="handleDeleteRule"
+      @update:rule-form-state="ruleFormState = $event"
+    />
 
-    <n-modal
-      v-model:show="showRuleFormModal"
-      :mask-closable="false"
-      preset="dialog"
-      :title="ruleFormTitle"
-      positive-text="保存"
-      negative-text="取消"
-      :positive-button-props="{ loading: ruleSaveLoading }"
-      @positive-click="handleSaveRule"
-    >
-      <n-form ref="ruleFormRef">
-        <n-form-item label="规则名称" required>
-          <n-input v-model:value="ruleFormState.name" placeholder="为规则起个名字" />
-        </n-form-item>
-        <n-form-item label="规则类型" required>
-          <n-select v-model:value="ruleFormState.type" :options="ruleTypeOptions" />
-        </n-form-item>
-        <n-form-item v-if="ruleFormState.type === 'filter_by_name_keyword' || ruleFormState.type === 'exclude_by_name_keyword'" label="关键词" required>
-          <n-dynamic-tags v-model:value="ruleFormState.keywords" />
-          <template #feedback>
-            <span v-if="ruleFormState.type === 'filter_by_name_keyword'">保留节点名包含任意一个关键词的节点。输入后按回车确认。</span>
-            <span v-else>排除节点名包含任意一个关键词的节点。输入后按回车确认。</span>
-          </template>
-          
-          <div class="mt-2">
-            <p class="text-xs text-gray-500 mb-1">常用标签 (点击添加):</p>
-            <n-space :size="'small'" style="flex-wrap: wrap;">
-              <n-tag
-                v-for="keyword in commonKeywords"
-                :key="keyword"
-                size="small"
-                :bordered="false"
-                type="info"
-                style="cursor: pointer;"
-                @click="addKeyword(keyword)"
-              >
-                {{ keyword }}
-              </n-tag>
-            </n-space>
-          </div>
-        </n-form-item>
+    <!-- 批量操作组件 -->
+    <BatchActions
+      v-model:show-move-to-group-modal="showMoveToGroupModal"
+      v-model:show-batch-replace-modal="showBatchReplaceModal"
+      v-model:show-export-modal="showExportModal"
+      v-model:move-to-group-id="moveToGroupId"
+      v-model:move-to-group-loading="moveToGroupLoading"
+      v-model:batch-replace-find="batchReplaceData.find"
+      v-model:batch-replace-replace="batchReplaceData.replace"
+      v-model:batch-replace-count="batchReplaceData.count"
+      v-model:batch-replace-loading="batchReplaceData.loading"
+      v-model:export-urls="exportData.urls"
+      :export-group-name="exportData.groupName"
+      :export-count="exportData.count"
+      :groups="subscriptionGroupStore.groups"
+      @move-to-group="handleMoveToGroup"
+      @batch-replace="handleBatchReplace"
+      @copy-export-urls="handleCopyExportUrls"
+    />
 
-        <n-form-item v-else-if="ruleFormState.type === 'rename_by_regex'" label="重命名规则" required>
-          <n-space vertical style="width: 100%;">
-            <n-input v-model:value="ruleFormState.renameRegex" placeholder="匹配规则 (Regex)" />
-            <div class="text-xs text-gray-400 mt-1">
-              <p>示例 1: 从 "[HK] Node 01" 提取 "HK" 和 "01", 可用 `^\[(.*)\]\s.*(\d+)$`</p>
-              <p>示例 2: 提取 "HK-专线-01" 中的 "HK" 和 "专线", 可用 `(HK)-(专线)`</p>
-            </div>
-            <n-input v-model:value="ruleFormState.renameFormat" placeholder="重命名格式" class="mt-2" />
-            <div class="text-xs text-gray-400 mt-1">
-              <p>用法: `$1`, `$2` 代表上方匹配规则中的第1、2个括号捕获的内容。</p>
-              <p>示例 1: `NewName-$1-$2` 会得到 "NewName-HK-01"。</p>
-              <p>示例 2: `[$2] $1` 会得到 "[专线] HK"。</p>
-            </div>
-          </n-space>
-        </n-form-item>
+    <!-- 分组管理组件 -->
+    <GroupManagement
+      v-model:show-sort-modal="showSortModal"
+      v-model:show-add-group-modal="showAddGroupModal"
+      v-model:show-edit-group-modal="showEditGroupModal"
+      v-model:show-dropdown="showDropdown"
+      v-model:dropdown-x="dropdownX"
+      v-model:dropdown-y="dropdownY"
+      v-model:active-dropdown-group="activeDropdownGroup"
+      v-model:sortable-groups="sortableGroups"
+      v-model:new-group-name="newGroupName"
+      v-model:new-group-description="newGroupDescription"
+      v-model:editing-group-name="editingGroupName"
+      v-model:editing-group-description="editingGroupDescription"
+      v-model:sort-loading="sortLoading"
+      v-model:add-group-loading="addGroupLoading"
+      v-model:edit-group-loading="editGroupLoading"
+      :is-mobile="isMobile"
+      @save-group="handleSaveGroup"
+      @update-group="handleUpdateGroup"
+      @sort-save="handleSortSave"
+      @group-action="handleGroupAction"
+    />
 
-        <n-form-item v-else-if="ruleFormState.type === 'filter_by_name_regex'" label="正则表达式" required>
-          <n-input
-            v-model:value="ruleFormState.regex"
-            placeholder="输入用于过滤的正则表达式"
-          />
-          <template #feedback>
-            <p>保留节点名匹配正则表达式的节点。</p>
-            <p><b>用法示例:</b></p>
-            <ul class="list-disc list-inside">
-              <li>匹配多个关键词 (香港或澳门): `香港|澳门`</li>
-              <li>匹配IEPL且不含广州: `IEPL.*(?!广州)`</li>
-              <li>不区分大小写匹配 "iepl": `(?i)iepl`</li>
-              <li>匹配包含 "VIP" 但不包含 "过期" 的节点: `^(?=.*VIP)(?!.*过期)`</li>
-            </ul>
-          </template>
-        </n-form-item>
-
-        <n-form-item v-else label="规则值 (JSON)" required>
-          <n-input
-            v-model:value="ruleFormState.value"
-            type="textarea"
-            placeholder='这是一个兼容旧版或未知规则类型的输入框'
-            :autosize="{ minRows: 3, maxRows: 5 }"
-          />
-        </n-form-item>
-        <n-form-item label="启用">
-          <n-switch v-model:value="ruleFormState.enabled" :checked-value="1" :unchecked-value="0" />
-        </n-form-item>
-      </n-form>
-    </n-modal>
-
-    <n-modal
-      v-model:show="showMoveToGroupModal"
-      preset="card"
-      title="移动订阅到分组"
-      style="width: 400px;"
-      :mask-closable="false"
-    >
-      <n-form @submit.prevent="handleMoveToGroup">
-        <n-form-item label="目标分组" required>
-          <n-select
-            v-model:value="moveToGroupId"
-            placeholder="请选择目标分组（可清空变为未分组）"
-            :options="subscriptionGroupStore.groups.map(g => ({ label: g.name, value: g.id }))"
-            clearable
-          />
-        </n-form-item>
-        <n-space justify="end">
-          <n-button @click="showMoveToGroupModal = false">取消</n-button>
-          <n-button type="primary" @click="handleMoveToGroup" :loading="moveToGroupLoading">确认移动</n-button>
-        </n-space>
-      </n-form>
-    </n-modal>
-
-    <n-modal
-      v-model:show="showAddGroupModal"
-      preset="card"
-      title="新增分组"
-      style="width: 400px;"
-      :mask-closable="false"
-    >
-      <n-form @submit.prevent="handleSaveGroup">
-        <n-form-item label="分组名称" required>
-          <n-input v-model:value="newGroupName" placeholder="请输入分组名称" />
-        </n-form-item>
-        <n-form-item label="分组备注">
-          <n-input
-            v-model:value="newGroupDescription"
-            type="textarea"
-            placeholder="为分组添加一些备注信息（可选）"
-            :autosize="{ minRows: 2, maxRows: 4 }"
-          />
-        </n-form-item>
-        <n-space justify="end">
-          <n-button @click="showAddGroupModal = false">取消</n-button>
-          <n-button type="primary" @click="handleSaveGroup" :loading="addGroupLoading">保存</n-button>
-        </n-space>
-      </n-form>
-    </n-modal>
-
-    <n-modal
-      v-model:show="showEditGroupModal"
-      preset="card"
-      title="编辑分组标签"
-      style="width: 400px;"
-      :mask-closable="false"
-    >
-      <n-form @submit.prevent="handleUpdateGroup">
-        <n-form-item label="分组名称" required>
-          <n-input v-model:value="editingGroupName" placeholder="请输入新的分组名称" />
-        </n-form-item>
-        <n-form-item label="分组备注">
-          <n-input
-            v-model:value="editingGroupDescription"
-            type="textarea"
-            placeholder="为分组添加一些备注信息（可选）"
-            :autosize="{ minRows: 2, maxRows: 4 }"
-          />
-        </n-form-item>
-        <n-space justify="end">
-          <n-button @click="showEditGroupModal = false">取消</n-button>
-          <n-button type="primary" @click="handleUpdateGroup" :loading="editGroupLoading">保存</n-button>
-        </n-space>
-      </n-form>
-    </n-modal>
-
-    <n-modal
+    <!-- 订阅更新日志组件 -->
+    <UpdateLogModal
       v-model:show="showUpdateLogModal"
-      preset="card"
-      title="订阅更新"
-      style="width: 600px;"
-      :mask-closable="false"
-    >
-      <!-- Configuration Stage -->
-      <div v-if="updateStage === 'config'">
-        <n-form label-placement="left" label-width="auto">
-          <n-form-item label="待更新订阅数">
-            <n-statistic :value="subsToUpdate.length" />
-          </n-form-item>
-          <n-form-item label="并发数">
-            <n-input-number v-model:value="updateSettings.concurrency" :min="1" :max="20" />
-            <template #feedback>同时执行的网络请求数量。较高的值可以加快速度，但可能导致请求失败。</template>
-          </n-form-item>
-          <n-form-item label="失败重试次数">
-            <n-input-number v-model:value="updateSettings.retries" :min="0" :max="5" />
-            <template #feedback>每个订阅在更新失败后自动重试的次数。</template>
-          </n-form-item>
-          <n-form-item label="请求间隔 (ms)">
-            <n-input-number v-model:value="updateSettings.delay" :min="0" :step="100" />
-            <template #feedback>同一批次内，每个并发请求之间的间隔。有助于错开请求峰值。</template>
-          </n-form-item>
-          <n-form-item label="批次间隔 (ms)">
-            <n-input-number v-model:value="updateSettings.batchDelay" :min="0" :step="100" />
-            <template #feedback>每完成一个并发批次后，等待一段时间再开始下一个批次。</template>
-          </n-form-item>
-          <n-form-item label="到期天数阈值">
-           <n-input-number v-model:value="updateSettings.expiringDaysThreshold" :min="0" :step="1" />
-           <template #feedback>当剩余天数小于此值时，将归类为“即将到期”。</template>
-         </n-form-item>
-         <n-form-item label="到期流量阈值 (GB)">
-           <n-input-number v-model:value="updateSettings.expiringTrafficThresholdGB" :min="0" :step="1" />
-           <template #feedback>当剩余流量小于此值 (GB) 时，将归类为“即将到期”。</template>
-         </n-form-item>
-        </n-form>
-      </div>
-
-      <!-- Progress Stage -->
-      <div v-else>
-        <div class="text-center mb-4">
-          <n-progress
-            type="line"
-            :percentage="updateProgress.total > 0 ? Math.floor((updateProgress.current / updateProgress.total) * 100) : 0"
-            :indicator-placement="'inside'"
-            processing
-          />
-          <p class="mt-2">
-            <span v-if="updateLogLoading">正在更新: {{ updateProgress.current }} / {{ updateProgress.total }}</span>
-            <span v-else>更新完成: {{ updateProgress.current }} / {{ updateProgress.total }}</span>
-          </p>
-        </div>
-        <n-collapse>
-          <n-collapse-item :title="`更新成功 (${updateLog.success.length})`" name="success">
-            <div style="max-height: 200px; overflow-y: auto;">
-              <n-tag v-for="sub in updateLog.success" :key="sub.name" type="success" class="m-1">
-                {{ sub.name }}
-              </n-tag>
-              <n-text v-if="updateLog.success.length === 0">没有订阅成功更新。</n-text>
-            </div>
-          </n-collapse-item>
-         <n-collapse-item :title="`即将到期 (${updateLog.expiring.length})`" name="expiring">
-           <div style="max-height: 200px; overflow-y: auto;">
-             <div v-if="updateLog.expiring.length > 0">
-               <div v-for="sub in updateLog.expiring" :key="sub.id" class="mb-2 p-2 border rounded border-yellow-500">
-                 <div class="flex justify-between items-center">
-                   <n-tag type="warning">{{ sub.name }}</n-tag>
-                   <n-space :size="4">
-                     <n-tag v-if="sub.remaining_traffic !== null && sub.remaining_traffic !== undefined" size="small" type="warning">
-                       流量: {{ formatBytes(sub.remaining_traffic) }}
-                     </n-tag>
-                     <n-tag v-if="sub.remaining_days !== null && sub.remaining_days !== undefined" size="small" type="warning">
-                       天数: {{ sub.remaining_days }} 天
-                     </n-tag>
-                   </n-space>
-                 </div>
-               </div>
-             </div>
-             <n-text v-else>没有即将到期的订阅。</n-text>
-           </div>
-         </n-collapse-item>
-          <n-collapse-item :title="`更新失败 (${updateLog.failed.length})`" name="failed">
-             <div style="max-height: 200px; overflow-y: auto;">
-              <div v-if="updateLog.failed.length > 0">
-                <div v-for="sub in updateLog.failed" :key="sub.id" class="mb-2 p-2 border rounded">
-                   <div class="flex justify-between items-center">
-                     <n-tag type="error">{{ sub.name }}</n-tag>
-                     <n-space :size="4">
-                       <n-tag v-if="sub.remaining_traffic !== null && sub.remaining_traffic !== undefined" size="small" :type="sub.remaining_traffic === 0 ? 'error' : 'default'">
-                         流量: {{ formatBytes(sub.remaining_traffic) }}
-                       </n-tag>
-                        <n-tag v-if="sub.remaining_days !== null && sub.remaining_days !== undefined" size="small" :type="sub.remaining_days <= 0 ? 'error' : 'default'">
-                         天数: {{ sub.remaining_days }} 天
-                       </n-tag>
-                     </n-space>
-                   </div>
-                   <n-text class="text-xs text-gray-500 mt-1 block">{{ sub.error }}</n-text>
-                </div>
-              </div>
-              <n-text v-else>没有订阅更新失败。</n-text>
-            </div>
-          </n-collapse-item>
-        </n-collapse>
-      </div>
-
-      <template #footer>
-        <n-space justify="end">
-          <div v-if="updateStage === 'config'">
-            <n-button @click="showUpdateLogModal = false">取消</n-button>
-            <n-button type="primary" @click="executeSubscriptionUpdates">开始更新</n-button>
-          </div>
-          <div v-else>
-            <n-button @click="handleCancelUpdate">{{ updateLogLoading ? '中止' : '关闭' }}</n-button>
-            <n-button
-              type="primary"
-              ghost
-              @click="handleRetryFailed"
-              :disabled="updateLog.failed.filter(s => s.error !== '已中止').length === 0 || updateLogLoading"
-            >
-              重试失败项
-            </n-button>
-             <n-button
-              type="warning"
-              ghost
-              @click="handleClearExpiring"
-              :disabled="updateLog.expiring.length === 0 || updateLogLoading"
-            >
-              清除即将到期
-            </n-button>
-             <n-button
-              type="error"
-              ghost
-              @click="handleClearFailed"
-              :disabled="updateLog.failed.filter(s => s.error !== '已中止').length === 0 || updateLogLoading"
-            >
-              清除失败项
-            </n-button>
-          </div>
-        </n-space>
-      </template>
-    </n-modal>
-
-  </div>
-
-    <n-modal
-      v-model:show="showExportModal"
-      preset="card"
-      :title="`导出分组 '${exportData.groupName}' 的订阅`"
-      style="width: 600px;"
-      :mask-closable="false"
-    >
-      <p class="mb-2">共 {{ exportData.count }} 个订阅链接：</p>
-      <n-input
-        v-model:value="exportData.urls"
-        type="textarea"
-        readonly
-        :autosize="{ minRows: 10, maxRows: 20 }"
-        placeholder="没有订阅链接"
-      />
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showExportModal = false">关闭</n-button>
-          <n-button type="primary" @click="handleCopyExportUrls">复制</n-button>
-        </n-space>
-      </template>
-    </n-modal>
-
-    <n-modal
-      v-model:show="showBatchReplaceModal"
-      preset="card"
-      title="批量替换订阅链接"
-      style="width: 600px;"
-      :mask-closable="false"
-    >
-      <p class="mb-4">将对该分组下的 <b>{{ batchReplaceData.count }}</b> 个订阅链接执行替换操作。</p>
-      <n-form>
-        <n-form-item label="查找内容">
-          <n-input v-model:value="batchReplaceData.find" placeholder="例如，旧的域名或参数" />
-        </n-form-item>
-        <n-form-item label="替换为">
-          <n-input v-model:value="batchReplaceData.replace" placeholder="例如，新的域名或参数（可留空）" />
-        </n-form-item>
-      </n-form>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showBatchReplaceModal = false">取消</n-button>
-          <n-button type="primary" @click="handleBatchReplace" :loading="batchReplaceData.loading">确认替换</n-button>
-        </n-space>
-      </template>
-    </n-modal>
-
-    <n-modal
-      v-model:show="showSortModal"
-      preset="card"
-      title="调整分组顺序"
-      :style="{ width: isMobile ? '90vw' : '500px' }"
-      :mask-closable="false"
-    >
-      <p class="text-gray-500 mb-4">拖动下方的分组名称来调整它们的显示顺序。</p>
-      <n-list bordered>
-        <draggable
-          v-model="sortableGroups"
-          item-key="id"
-          handle=".drag-handle"
-        >
-          <template #item="{ element: group }">
-            <n-list-item>
-              <div class="flex items-center">
-                <n-icon class="drag-handle mr-2 cursor-move" :component="ReorderFourOutline" size="20" />
-                <span>{{ group.name }}</span>
-              </div>
-            </n-list-item>
-          </template>
-        </draggable>
-      </n-list>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showSortModal = false">取消</n-button>
-          <n-button type="primary" @click="handleSortSave" :loading="sortLoading">保存顺序</n-button>
-        </n-space>
-      </template>
-    </n-modal>
+      v-model:update-stage="updateStage"
+      v-model:update-log="updateLog"
+      v-model:update-progress="updateProgress"
+      v-model:subs-to-update="subsToUpdate"
+      v-model:update-settings="updateSettings"
+      v-model:update-log-loading="updateLogLoading"
+      :rule-modal-title="ruleModalTitle"
+      :rule-form-title="ruleFormTitle"
+      @execute-updates="executeSubscriptionUpdates"
+      @retry-failed="handleRetryFailed"
+      @clear-expiring="handleClearExpiring"
+      @clear-failed="handleClearFailed"
+      @cancel-update="handleCancelUpdate"
+    />
 
 </template>
 
