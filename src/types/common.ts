@@ -137,7 +137,7 @@ export interface NotificationMessage {
 // 分组相关类型
 export interface GroupItem extends BaseEntity {
   name: string;
-  description?: string;
+  description?: string | null;
   sort_order: number;
   is_enabled: boolean;
   user_id: string;

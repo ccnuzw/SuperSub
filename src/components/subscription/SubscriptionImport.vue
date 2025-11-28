@@ -168,7 +168,7 @@ const handleImport = async () => {
       .map((url: string) => url.trim())
       .filter((url: string) => url.length > 0);
 
-    const response = await api.post('/subscriptions/bulk', {
+    const response = await api.post('/subscriptions/batch-import', {
       subscriptions: urls.map(url => ({
         name: new URL(url).hostname || '未知订阅',
         url: url

@@ -23,6 +23,7 @@ declare module 'vue' {
     Layout: typeof import('./src/components/Layout.vue')['default']
     LoadingSpinner: typeof import('./src/components/common/LoadingSpinner.vue')['default']
     NodeForm: typeof import('./src/components/nodes/NodeForm.vue')['default']
+    NSpin: typeof import('naive-ui')['NSpin']
     NText: typeof import('naive-ui')['NText']
     ProfileForm: typeof import('./src/components/settings/ProfileForm.vue')['default']
     ProfileRulesManager: typeof import('./src/components/settings/ProfileRulesManager.vue')['default']

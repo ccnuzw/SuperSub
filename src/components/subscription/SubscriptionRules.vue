@@ -1,6 +1,7 @@
 <template>
   <n-modal
-    v-model:show="showRulesModal"
+    :show="showRulesModal"
+    @update:show="$emit('update:showRulesModal', $event)"
     preset="card"
     :title="ruleModalTitle"
     style="width: 900px;"
@@ -19,7 +20,8 @@
 
   <!-- 规则表单模态框 -->
   <n-modal
-    v-model:show="showRuleFormModal"
+    :show="showRuleFormModal"
+    @update:show="$emit('update:showRuleFormModal', $event)"
     :mask-closable="false"
     preset="dialog"
     :title="ruleFormTitle"

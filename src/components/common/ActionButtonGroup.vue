@@ -77,6 +77,8 @@ const handleAction = async (action: ActionButton) => {
 .action-button-group {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .action-button-group.vertical {
@@ -90,7 +92,18 @@ const handleAction = async (action: ActionButton) => {
 /* 响应式设计 */
 @media (max-width: 768px) {
   .action-button-group:not(.vertical) {
-    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .action-button-group:not(.vertical) .n-button {
+    min-width: auto;
+    padding: 0 8px;
+  }
+
+  /* 在移动端，对于没有文本的按钮，减小尺寸 */
+  .action-button-group:not(.vertical) .n-button:not(:has(span)) {
+    width: 32px;
+    height: 32px;
   }
 }
 </style>

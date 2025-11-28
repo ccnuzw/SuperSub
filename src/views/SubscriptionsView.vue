@@ -13,7 +13,6 @@ import { useSubscriptionGroupStore } from '@/stores/subscriptionGroups'
 import { useGroupStore as useNodeGroupStore } from '@/stores/groups'
 import SubscriptionNodesPreview from '@/components/SubscriptionNodesPreview.vue'
 import SubscriptionImport from '@/components/subscription/SubscriptionImport.vue'
-import ActionButtonGroup from '@/components/common/ActionButtonGroup.vue'
 import StatsCard from '@/components/common/StatsCard.vue'
 import GroupManagement from '@/components/subscription/GroupManagement.vue'
 import BatchActions from '@/components/subscription/BatchActions.vue'
@@ -29,38 +28,6 @@ const dialog = useDialog()
 const isMobile = useIsMobile()
 const subscriptionGroupStore = useSubscriptionGroupStore()
 const nodeGroupStore = useNodeGroupStore()
-
-// 头部操作按钮配置
-const headerActions = computed(() => [
-  {
-    key: 'add',
-    label: isMobile.value ? '' : '新增订阅',
-    type: 'primary' as const,
-    icon: AddOutline
-  },
-  {
-    key: 'update-all',
-    label: '更新全部',
-    icon: SyncOutline,
-    circle: true,
-    quaternary: true
-  },
-  {
-    key: 'import',
-    label: '批量导入',
-    icon: FilterOutline,
-    circle: true,
-    quaternary: true
-  },
-  {
-    key: 'batch-delete',
-    label: '批量删除',
-    icon: TrashOutline,
-    circle: true,
-    quaternary: true,
-    disabled: checkedRowKeys.value.length === 0
-  }
-])
 
 const subscriptions = ref<Subscription[]>([])
 const loading = ref(true)
@@ -261,14 +228,6 @@ const groupCounts = computed(() => {
   return counts
 })
 
-const formatBytes = (bytes: number, decimals = 2) => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-}
 
 
 const createColumns = ({ onEdit, onUpdate, onDelete, onPreviewNodes, onManageRules }: {
@@ -402,7 +361,7 @@ const createColumns = ({ onEdit, onUpdate, onDelete, onPreviewNodes, onManageRul
         return h(NSpace, null, {
           default: () => [
             createTooltipButton('预览节点', EyeOutline, () => onPreviewNodes(row)),
-            createTooltipButton('规则', FilterOutline, () => onManageRules(row), { type: 'info' }),
+            createTooltipButton('规则', FilterOutline, () => handleManageRules(row, 'subscription'), { type: 'info' }),
             createTooltipButton('编辑', CreateOutline, () => onEdit(row)),
             createTooltipButton('更新', SyncOutline, () => onUpdate(row), { type: 'primary', loading: updatingId.value === row.id || updatingIds.value.has(row.id) }),
             createTooltipButton('删除', TrashOutline, () => onDelete(row), { type: 'error' }),
@@ -553,14 +512,31 @@ const handleHeaderAction = (key: string) => {
     case 'add':
       openModal(null)
       break
+    case 'add-group':
+      showAddGroupModal.value = true
+      break
     case 'update-all':
       handleUpdateAll()
       break
     case 'import':
       openImportModal()
       break
+    case 'sort':
+      openSortModal()
+      break
+    case 'move-to-group':
+      if (checkedRowKeys.value.length > 0) {
+        showMoveToGroupModal.value = true
+      }
+      break
     case 'batch-delete':
       handleBatchDelete()
+      break
+    case 'clear-failed':
+      handleClearAllFailed()
+      break
+    case 'clear-all':
+      handleClearCurrentGroup()
       break
   }
 }
@@ -967,10 +943,8 @@ const getDropdownOptions = (group: import('@/stores/subscriptionGroups').Subscri
   ]
 }
 
-const handleGroupAction = (key: string) => {
-  showDropdown.value = false
-  const group = activeDropdownGroup.value
-  if (!group) return
+const handleGroupActionForKey = (key: string, group: import('@/stores/subscriptionGroups').SubscriptionGroup) => {
+  console.log('handleGroupActionForKey called with key:', key, 'for group:', group.name)
 
   switch (key) {
     case 'update-group':
@@ -986,7 +960,69 @@ const handleGroupAction = (key: string) => {
       openBatchReplaceModal(group.id)
       break
     case 'group-rules':
-      onManageRules(group, 'group')
+      handleManageRules(group, 'group')
+      break
+    case 'rename':
+      editingGroup.value = group
+      editingGroupName.value = group.name
+      editingGroupDescription.value = group.description || ''
+      showEditGroupModal.value = true
+      break
+    case 'toggle':
+      subscriptionGroupStore.toggleGroup(group.id).catch((err: any) => message.error(err.message || '操作失败'))
+      break
+    case 'delete':
+      dialog.warning({
+        title: '确认删除',
+        content: `确定要删除分组 "${group.name}" 吗��分组下的订阅将变为"未分组"。`,
+        positiveText: '确定',
+        negativeText: '取消',
+        onPositiveClick: async () => {
+          try {
+            const response = await subscriptionGroupStore.deleteGroup(group.id)
+            if (response.success) {
+              message.success('分组删除成功')
+              if (activeTab.value === group.id) {
+                activeTab.value = 'all'
+              }
+            } else {
+              message.error(response.message || '删除失败')
+            }
+          } catch (error: any) {
+            message.error(error.message || '删除失败')
+          }
+        }
+      })
+      break
+  }
+}
+
+const handleGroupAction = (key: string) => {
+  console.log('handleGroupAction called with key:', key)
+  console.log('activeDropdownGroup:', activeDropdownGroup.value?.name)
+  showDropdown.value = false
+  const group = activeDropdownGroup.value
+  if (!group) {
+    console.error('No active dropdown group found!')
+    return
+  }
+
+  console.log('Processing action for group:', group.name, 'key:', key)
+  switch (key) {
+    case 'update-group':
+      handleUpdateGroupSubscriptions(group.id)
+      break
+    case 'deduplicate-group':
+      handleDeduplicateGroup(group.id)
+      break
+    case 'export-group':
+      handleExportGroup(group.id)
+      break
+    case 'batch-replace-group':
+      openBatchReplaceModal(group.id)
+      break
+    case 'group-rules':
+      handleManageRules(group, 'group')
       break
     case 'rename':
       editingGroup.value = group
@@ -1024,13 +1060,19 @@ const handleGroupAction = (key: string) => {
   }
 }
 
+const handleGroupMenuClick = (group: import('@/stores/subscriptionGroups').SubscriptionGroup, event: MouseEvent) => {
+  console.log('handleGroupMenuClick called for group:', group.name)
+  showDropdown.value = true
+  dropdownX.value = event.clientX
+  dropdownY.value = event.clientY
+  activeDropdownGroup.value = group
+}
+
 const handleTabClick = (group: import('@/stores/subscriptionGroups').SubscriptionGroup, event: MouseEvent) => {
   const target = event.target as HTMLElement
   if (target.closest('.group-actions-button')) {
-    showDropdown.value = true
-    dropdownX.value = event.clientX
-    dropdownY.value = event.clientY
-    activeDropdownGroup.value = group
+    // 如果点击的是菜单按钮，不执行标签切换逻辑
+    return
   } else {
     activeTab.value = group.id
   }
@@ -1238,7 +1280,7 @@ const fetchRules = async () => {
   }
 }
 
-const onManageRules = (entity: Subscription | import('@/stores/subscriptionGroups').SubscriptionGroup, type: 'subscription' | 'group') => {
+const handleManageRules = (entity: Subscription | import('@/stores/subscriptionGroups').SubscriptionGroup, type: 'subscription' | 'group') => {
   currentRuleContext.value = { type, entity }
   showRulesModal.value = true
   fetchRules()
@@ -1421,7 +1463,7 @@ const columns = createColumns({
     onUpdate: handleUpdate,
     onDelete: handleDelete,
     onPreviewNodes: onPreviewNodes,
-    onManageRules: (sub) => onManageRules(sub, 'subscription'),
+    onManageRules: (sub) => handleManageRules(sub, 'subscription'),
 })
 
 onMounted(() => {
@@ -1479,8 +1521,15 @@ onMounted(() => {
 })
 
 const openSortModal = () => {
-  sortableGroups.value = [...subscriptionGroupStore.groups]
-  showSortModal.value = true
+  // 确保分组数据是最新的
+  subscriptionGroupStore.fetchGroups().then(() => {
+    // 复制分组数据到可排序数组
+    sortableGroups.value = [...subscriptionGroupStore.groups]
+    showSortModal.value = true
+  }).catch((error) => {
+    message.error('获取分组数据失败')
+    console.error('Failed to fetch groups for sorting:', error)
+  })
 }
 
 const handleSortSave = async () => {
@@ -1505,11 +1554,39 @@ const handleSortSave = async () => {
         订阅管理
       </template>
       <template #extra>
-        <ActionButtonGroup
-          :actions="headerActions"
-          :size="isMobile ? 'small' : 'medium'"
-          @action="handleHeaderAction"
-        />
+        <n-space>
+          <n-button type="primary" @click="handleHeaderAction('add')">
+            <template #icon>
+              <n-icon :component="AddOutline" />
+            </template>
+            新增订阅
+          </n-button>
+          <n-button @click="handleHeaderAction('add-group')">
+            <template #icon>
+              <n-icon :component="AddOutline" />
+            </template>
+            新增分组
+          </n-button>
+          <n-dropdown
+            trigger="click"
+            :options="[
+              { label: '更新全部', key: 'update-all' },
+              { label: '批量导入', key: 'import' },
+              { label: '调整顺序', key: 'sort' },
+              { label: '移动到分组', key: 'move-to-group', disabled: checkedRowKeys.length === 0 },
+              { label: '批量删除', key: 'batch-delete', disabled: checkedRowKeys.length === 0 },
+              { label: '清除失败项', key: 'clear-failed' },
+              { label: '一键清除', key: 'clear-all' },
+            ]"
+            @select="handleHeaderAction"
+          >
+            <n-button>
+              <template #icon>
+                <n-icon :component="MoreIcon" />
+              </template>
+            </n-button>
+          </n-dropdown>
+        </n-space>
       </template>
     </n-page-header>
 
@@ -1573,24 +1650,24 @@ const handleSortSave = async () => {
             <span :style="{ color: group.is_enabled ? '' : '#999', marginRight: '8px' }">
               {{ group.name }} ({{ groupCounts[group.id] || 0 }})
             </span>
-            <n-button v-if="activeTab === group.id" text class="group-actions-button">
-              <n-icon :component="MoreIcon" />
-            </n-button>
+            <n-dropdown
+              trigger="click"
+              placement="bottom-start"
+              :options="getDropdownOptions(group)"
+              @select="handleGroupActionForKey($event, group)"
+            >
+              <n-button
+                text
+                class="group-actions-button"
+                @click.stop
+              >
+                <n-icon :component="MoreIcon" />
+              </n-button>
+            </n-dropdown>
           </div>
         </template>
       </n-tab-pane>
     </n-tabs>
-
-    <n-dropdown
-      placement="bottom-start"
-      trigger="manual"
-      :x="dropdownX"
-      :y="dropdownY"
-      :options="activeDropdownGroup ? getDropdownOptions(activeDropdownGroup) : []"
-      :show="showDropdown"
-      @select="handleGroupAction"
-      @clickoutside="showDropdown = false"
-    />
 
     <n-data-table
       v-if="!isMobile"
@@ -1640,7 +1717,7 @@ const handleSortSave = async () => {
             ]"
             @select="key => {
               if (key === 'preview') onPreviewNodes(sub);
-              if (key === 'rules') onManageRules(sub, 'subscription');
+              if (key === 'rules') handleManageRules(sub, 'subscription');
               if (key === 'edit') openModal(sub);
               if (key === 'update') handleUpdate(sub);
               if (key === 'delete') handleDelete(sub);
@@ -1710,7 +1787,7 @@ const handleSortSave = async () => {
 
     <!-- 规则管理组件 -->
     <SubscriptionRules
-      v-model:show="showRulesModal"
+      v-model:show-rules-modal="showRulesModal"
       v-model:show-rule-form-modal="showRuleFormModal"
       v-model:rule-save-loading="ruleSaveLoading"
       v-model:rules-loading="rulesLoading"
@@ -1724,7 +1801,7 @@ const handleSortSave = async () => {
       @open-rule-form-modal="openRuleFormModal"
       @save-rule="handleSaveRule"
       @delete-rule="handleDeleteRule"
-      @update:rule-form-state="ruleFormState = $event"
+      @update:rule-form-state="Object.assign(ruleFormState, $event)"
     />
 
     <!-- 批量操作组件 -->
@@ -1778,7 +1855,8 @@ const handleSortSave = async () => {
       v-model:update-log="updateLog"
       v-model:update-progress="updateProgress"
       v-model:subs-to-update="subsToUpdate"
-      v-model:update-settings="updateSettings"
+          :update-settings="updateSettings"
+      @update:update-settings="Object.assign(updateSettings, $event)"
       v-model:update-log-loading="updateLogLoading"
       :rule-modal-title="ruleModalTitle"
       :rule-form-title="ruleFormTitle"
@@ -1788,7 +1866,7 @@ const handleSortSave = async () => {
       @clear-failed="handleClearFailed"
       @cancel-update="handleCancelUpdate"
     />
-
+  </div>
 </template>
 
 <style scoped>

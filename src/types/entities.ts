@@ -32,7 +32,7 @@ export interface Subscription extends BaseEntity {
   enabled: boolean;
   node_count: number;
   last_updated?: string;
-  error?: string;
+  error?: string | null;
   include_keywords?: string;
   exclude_keywords?: string;
   expires_at?: string;

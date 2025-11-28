@@ -155,7 +155,7 @@ import { formatBytes } from '@/utils/format'
 
 interface UpdateLog {
   success: { name: string }[]
-  failed: (Subscription & { error?: string })[]
+  failed: (Subscription & { error?: string | null })[]
   expiring: Subscription[]
 }
 
