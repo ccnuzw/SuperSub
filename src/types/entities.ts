@@ -3,6 +3,35 @@ import type { BaseEntity, GroupItem } from './common';
 // 重新导出BaseEntity以供其他模块使用
 export type { BaseEntity, GroupItem } from './common';
 
+// 创建节点数据接口
+export interface CreateNodeData {
+  name: string;
+  link?: string;
+  protocol: string;
+  server?: string;
+  port?: number;
+  password?: string;
+  group_id?: string;
+}
+
+// 节点健康状态接口
+export interface NodeHealthStatus {
+  id: string;
+  status: 'online' | 'offline' | 'error' | 'testing' | 'pending';
+  latency?: number;
+  last_checked?: string;
+  error?: string;
+}
+
+// 健康状态接口
+export interface HealthStatus {
+  node_id: string;
+  status: string;
+  latency?: number;
+  checked_at?: string;
+  error?: string;
+}
+
 // 节点实体
 export interface Node extends BaseEntity {
   user_id: string;
@@ -20,6 +49,8 @@ export interface Node extends BaseEntity {
   status: 'pending' | 'online' | 'offline' | 'error';
   latency?: number;
   last_checked?: string;
+  last_test_at?: string;
+  testing?: boolean;
   error?: string;
 }
 

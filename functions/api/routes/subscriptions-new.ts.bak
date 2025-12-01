@@ -1,0 +1,365 @@
+import { Hono } from 'hono';
+import { manualAuthMiddleware } from '../middleware/auth';
+import type { Env } from '../utils/entity-types';
+import { SubscriptionService } from '../services/subscription/subscriptionService';
+import { SubscriptionUpdateService } from '../services/subscription/subscriptionUpdateService';
+import { RuleService } from '../services/subscription/ruleService';
+import { ImportService } from '../services/subscription/importService';
+
+const subscriptions = new Hono<{ Bindings: Env }>();
+subscriptions.use('*', manualAuthMiddleware);
+
+// GET /subscriptions - Get all subscriptions for a user
+subscriptions.get('/', async (c) => {
+  const user = c.get('jwtPayload');
+  const subscriptionService = new SubscriptionService(c.env.DB);
+
+  try {
+    const results = await subscriptionService.getSubscriptions(user.id);
+    return c.json({ success: true, data: results });
+  } catch (error: any) {
+    console.error('Error fetching subscriptions:', error);
+    return c.json({ success: false, message: 'Failed to fetch subscriptions' }, 500);
+  }
+});
+
+// GET /subscriptions/for-select - Get subscriptions for select dropdown
+subscriptions.get('/for-select', async (c) => {
+  const user = c.get('jwtPayload');
+  const subscriptionService = new SubscriptionService(c.env.DB);
+
+  try {
+    const results = await subscriptionService.getSubscriptionForSelect(user.id);
+    return c.json({ success: true, data: results });
+  } catch (error: any) {
+    console.error('Error fetching subscriptions for select:', error);
+    return c.json({ success: false, message: 'Failed to fetch subscriptions' }, 500);
+  }
+});
+
+// GET /subscriptions/grouped - Get grouped subscriptions
+subscriptions.get('/grouped', async (c) => {
+  const user = c.get('jwtPayload');
+  const subscriptionService = c.get('subscriptionService');
+
+  try {
+    const results = await subscriptionService.getGroupedSubscriptions(user.id);
+    return c.json({ success: true, data: results });
+  } catch (error: any) {
+    console.error('Error fetching grouped subscriptions:', error);
+    return c.json({ success: false, message: 'Failed to fetch grouped subscriptions' }, 500);
+  }
+});
+
+// POST /subscriptions - Create new subscription
+subscriptions.post('/', async (c) => {
+  const user = c.get('jwtPayload');
+  const subscriptionService = c.get('subscriptionService');
+  const body = await c.req.json<any>();
+
+  try {
+    const result = await subscriptionService.createSubscription(user.id, body);
+    return c.json({ success: true, data: result }, 201);
+  } catch (error: any) {
+    console.error('Error creating subscription:', error);
+    return c.json({ success: false, message: 'Failed to create subscription' }, 500);
+  }
+});
+
+// POST /subscriptions/batch-import - Batch import subscriptions
+subscriptions.post('/batch-import', async (c) => {
+  const user = c.get('jwtPayload');
+  const importService = c.get('importService');
+  const { subscriptions: subs, groupId } = await c.req.json<{ subscriptions: any[], groupId?: string }>();
+
+  try {
+    const result = await importService.batchImportSubscriptions(user.id, subs, groupId);
+    return c.json(result);
+  } catch (error: any) {
+    console.error('Error during batch import:', error);
+    return c.json({ success: false, message: 'Failed to import subscriptions' }, 500);
+  }
+});
+
+// POST /subscriptions/update-all - Update all enabled subscriptions
+subscriptions.post('/update-all', async (c) => {
+  const user = c.get('jwtPayload');
+  const subscriptionUpdateService = c.get('subscriptionUpdateService');
+
+  try {
+    const result = await subscriptionUpdateService.updateAllSubscriptions(user.id);
+    return c.json({
+      success: true,
+      message: `Update complete. ${result.updatedCount} succeeded, ${result.failedCount} failed.`
+    });
+  } catch (error: any) {
+    console.error('Error updating all subscriptions:', error);
+    return c.json({ success: false, message: 'Failed to update subscriptions' }, 500);
+  }
+});
+
+// POST /subscriptions/preview - Preview subscription content
+subscriptions.post('/preview', async (c) => {
+  const user = c.get('jwtPayload');
+  const subscriptionService = c.get('subscriptionService');
+  const { url, subscription_id, apply_rules } = await c.req.json<{
+    url: string,
+    subscription_id?: string,
+    apply_rules?: boolean
+  }>();
+
+  if (!url) {
+    return c.json({ success: false, message: 'Missing subscription URL' }, 400);
+  }
+
+  try {
+    const result = await subscriptionService.previewSubscription(
+      url,
+      subscription_id,
+      user.id,
+      apply_rules
+    );
+    return c.json({ success: true, data: result });
+  } catch (error: any) {
+    console.error(`Error fetching/parsing subscription from ${url}:`, error);
+    const errorMessage = error.cause?.message?.includes('ECONNRESET') || error.message?.includes('Network connection lost')
+      ? '获取订阅超时或网络连接失败'
+      : `处理订阅时出错: ${error.message}`;
+    return c.json({ success: false, message: errorMessage }, 500);
+  }
+});
+
+// POST /subscriptions/:id/update - Update single subscription
+subscriptions.post('/:id/update', async (c) => {
+  const user = c.get('jwtPayload');
+  const subscriptionUpdateService = c.get('subscriptionUpdateService');
+  const { id } = c.req.param();
+
+  try {
+    const subscription = await c.env.DB.prepare(
+      'SELECT id, url FROM subscriptions WHERE id = ? AND user_id = ?'
+    ).bind(id, user.id).first<{ id: string, url: string }>();
+
+    if (!subscription) {
+      return c.json({ success: false, message: 'Subscription not found' }, 404);
+    }
+
+    const result = await subscriptionUpdateService.updateSingleSubscription(subscription);
+
+    if (result.success) {
+      return c.json({
+        success: true,
+        message: 'Subscription updated successfully.',
+        data: result.data
+      });
+    } else {
+      return c.json({
+        success: false,
+        message: result.error || 'Failed to update subscription',
+        data: result.data
+      });
+    }
+  } catch (error: any) {
+    console.error('Error updating subscription:', error);
+    return c.json({ success: false, message: 'Failed to update subscription' }, 500);
+  }
+});
+
+// GET /subscriptions/:id/rules - Get subscription rules
+subscriptions.get('/:id/rules', async (c) => {
+  const user = c.get('jwtPayload');
+  const ruleService = c.get('ruleService');
+  const { id } = c.req.param();
+
+  try {
+    const rules = await ruleService.getSubscriptionRules(user.id, id);
+    return c.json({ success: true, data: rules });
+  } catch (error: any) {
+    console.error('Error fetching subscription rules:', error);
+    return c.json({ success: false, message: 'Failed to fetch rules' }, 500);
+  }
+});
+
+// POST /subscriptions/:id/rules - Create subscription rule
+subscriptions.post('/:id/rules', async (c) => {
+  const user = c.get('jwtPayload');
+  const ruleService = c.get('ruleService');
+  const { id: subscription_id } = c.req.param();
+  const body = await c.req.json<any>();
+
+  try {
+    const ruleId = await ruleService.createSubscriptionRule(user.id, subscription_id, body);
+    return c.json({ success: true, data: { id: ruleId } }, 201);
+  } catch (error: any) {
+    console.error('Error creating subscription rule:', error);
+    return c.json({ success: false, message: 'Failed to create rule' }, 500);
+  }
+});
+
+// PUT /subscriptions/:id/rules/:ruleId - Update subscription rule
+subscriptions.put('/:id/rules/:ruleId', async (c) => {
+  const user = c.get('jwtPayload');
+  const ruleService = c.get('ruleService');
+  const { ruleId } = c.req.param();
+  const body = await c.req.json<any>();
+
+  try {
+    await ruleService.updateSubscriptionRule(user.id, parseInt(ruleId), body);
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('Error updating subscription rule:', error);
+    return c.json({ success: false, message: 'Failed to update rule' }, 500);
+  }
+});
+
+// DELETE /subscriptions/:id/rules/:ruleId - Delete subscription rule
+subscriptions.delete('/:id/rules/:ruleId', async (c) => {
+  const user = c.get('jwtPayload');
+  const ruleService = c.get('ruleService');
+  const { ruleId } = c.req.param();
+
+  try {
+    await ruleService.deleteSubscriptionRule(user.id, parseInt(ruleId));
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting subscription rule:', error);
+    return c.json({ success: false, message: 'Failed to delete rule' }, 500);
+  }
+});
+
+// PUT /subscriptions/:id - Update subscription
+subscriptions.put('/:id', async (c) => {
+  const user = c.get('jwtPayload');
+  const subscriptionService = c.get('subscriptionService');
+  const { id } = c.req.param();
+  const body = await c.req.json<any>();
+
+  try {
+    await subscriptionService.updateSubscription(user.id, id, body);
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('Error updating subscription:', error);
+    return c.json({ success: false, message: 'Failed to update subscription' }, 500);
+  }
+});
+
+// DELETE /subscriptions/:id - Delete subscription
+subscriptions.delete('/:id', async (c) => {
+  const user = c.get('jwtPayload');
+  const subscriptionService = c.get('subscriptionService');
+  const { id } = c.req.param();
+
+  try {
+    await subscriptionService.deleteSubscription(user.id, id);
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting subscription:', error);
+    return c.json({ success: false, message: 'Failed to delete subscription' }, 500);
+  }
+});
+
+// POST /subscriptions/batch-delete - Batch delete subscriptions
+subscriptions.post('/batch-delete', async (c) => {
+  const user = c.get('jwtPayload');
+  const subscriptionService = c.get('subscriptionService');
+  const { ids } = await c.req.json<{ ids: string[] }>();
+
+  try {
+    const result = await subscriptionService.batchDeleteSubscriptions(user.id, ids);
+    return c.json(result);
+  } catch (error: any) {
+    console.error('Error during batch delete:', error);
+    return c.json({ success: false, message: 'Failed to delete subscriptions' }, 500);
+  }
+});
+
+// POST /subscriptions/clear-all - Clear all subscriptions
+subscriptions.post('/clear-all', async (c) => {
+  const user = c.get('jwtPayload');
+  const subscriptionService = c.get('subscriptionService');
+
+  try {
+    const result = await subscriptionService.clearAllSubscriptions(user.id);
+    return c.json(result);
+  } catch (error: any) {
+    console.error('Error clearing all subscriptions:', error);
+    return c.json({ success: false, message: 'Failed to clear subscriptions' }, 500);
+  }
+});
+
+// POST /subscriptions/clear-by-group - Clear subscriptions by group
+subscriptions.post('/clear-by-group', async (c) => {
+  const user = c.get('jwtPayload');
+  const subscriptionService = c.get('subscriptionService');
+  const { groupId } = await c.req.json<{ groupId: string | null }>();
+
+  try {
+    const result = await subscriptionService.clearSubscriptionsByGroup(user.id, groupId);
+    return c.json(result);
+  } catch (error: any) {
+    console.error('Error clearing subscriptions by group:', error);
+    return c.json({ success: false, message: 'Failed to clear subscriptions' }, 500);
+  }
+});
+
+// POST /subscriptions/clear-failed - Clear failed subscriptions
+subscriptions.post('/clear-failed', async (c) => {
+  const user = c.get('jwtPayload');
+  const subscriptionService = c.get('subscriptionService');
+  const { groupId } = await c.req.json<{ groupId?: string | null }>();
+
+  try {
+    const failedSubscriptions = await c.env.DB.prepare(
+      'SELECT id FROM subscriptions WHERE user_id = ? AND error IS NOT NULL' +
+      (groupId && groupId !== 'all' ? (groupId === 'ungrouped' ? ' AND group_id IS NULL' : ' AND group_id = ?') : '')
+    ).bind(...(groupId && groupId !== 'all' && groupId !== 'ungrouped' ? [user.id, groupId] : [user.id])).all<{ id: string }>();
+
+    if (!failedSubscriptions.results || failedSubscriptions.results.length === 0) {
+      return c.json({ success: true, message: '该分组内没有检测到失败的订阅。' });
+    }
+
+    const idsToDelete = failedSubscriptions.results.map(sub => sub.id);
+    const result = await subscriptionService.batchDeleteSubscriptions(user.id, idsToDelete);
+    result.message = `成功清除了 ${result.updatedCount || 0} 个失败的订阅。`;
+
+    return c.json(result);
+  } catch (error: any) {
+    console.error('Error clearing failed subscriptions:', error);
+    return c.json({ success: false, message: '清除失败的订阅时出错。' }, 500);
+  }
+});
+
+// POST /subscriptions/batch-update-group - Batch update subscription groups
+subscriptions.post('/batch-update-group', async (c) => {
+  const user = c.get('jwtPayload');
+  const subscriptionService = c.get('subscriptionService');
+  const { subscriptionIds, groupId } = await c.req.json<{
+    subscriptionIds: string[],
+    groupId: string | null
+  }>();
+
+  try {
+    await subscriptionService.batchUpdateGroup(user.id, subscriptionIds, groupId);
+    return c.json({ success: true, message: 'Subscriptions moved successfully.' });
+  } catch (error: any) {
+    console.error('Error updating subscription groups:', error);
+    return c.json({ success: false, message: 'Failed to move subscriptions' }, 500);
+  }
+});
+
+// POST /subscriptions/batch-update-urls - Batch update subscription URLs
+subscriptions.post('/batch-update-urls', async (c) => {
+  const user = c.get('jwtPayload');
+  const subscriptionService = c.get('subscriptionService');
+  const { updates } = await c.req.json<{ updates: { id: string, url: string }[] }>();
+
+  try {
+    const result = await subscriptionService.batchUpdateUrls(user.id, updates);
+    return c.json(result);
+  } catch (error: any) {
+    console.error('Error during batch update URLs:', error);
+    return c.json({ success: false, message: 'Failed to update subscription URLs' }, 500);
+  }
+});
+
+export default subscriptions;

@@ -2,7 +2,7 @@
   <div>
     <n-page-header>
       <template #title>
-        订阅管理
+        重构后的订阅管理演示
       </template>
       <template #extra>
         <n-space>

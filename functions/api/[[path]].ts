@@ -8,6 +8,7 @@ import { manualAuthMiddleware } from './middleware/auth';
 import authRoutes from './routes/auth';
 import nodeRoutes from './routes/nodes';
 import subscriptionRoutes from './routes/subscriptions';
+import subscriptionServiceRoutes from './routes/subscriptionsService'; // New service-based routes
 import profileRoutes from './routes/profiles';
 import adminRoutes from './routes/admin';
 import assetRoutes from './routes/assets';
@@ -23,7 +24,6 @@ export const app = new Hono<{ Bindings: Env }>();
 // Middleware
 app.use('/api/*', methodOverrideMiddleware(app));
 
-
 // API routes
 const api = app.basePath('/api');
 
@@ -35,6 +35,7 @@ api.route('/public', publicRoutes);
 // Authenticated API routes
 api.route('/nodes', nodeRoutes);
 api.route('/subscriptions', subscriptionRoutes);
+api.route('/subscriptions-service', subscriptionServiceRoutes); // New service-based routes
 api.route('/profiles', profileRoutes);
 api.route('/admin', adminRoutes);
 api.route('/assets', assetRoutes);
@@ -64,7 +65,7 @@ api.get('/node-statuses', manualAuthMiddleware, async (c) => {
         const now = Date.now();
         const TESTING_TIMEOUT = 2 * 60 * 1000; // 2 minutes
 
-        const sanitizedResults = results.map(r => {
+        const sanitizedResults = results.map((r: any) => {
             if (r.status === 'testing') {
                 const checkedAt = new Date(r.checked_at).getTime();
                 if (now - checkedAt > TESTING_TIMEOUT) {
