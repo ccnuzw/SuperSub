@@ -72,23 +72,17 @@
       />
 
       <!-- 更多操作下拉 -->
-      <n-dropdown
-        :options="moreActions"
+      <PerfectDropdown
+        :items="moreActions"
         @select="handleMoreAction"
-        placement="bottom-end"
-      >
-        <n-button>
-          <template #icon>
-            <n-icon :component="MoreIcon" />
-          </template>
-        </n-button>
-      </n-dropdown>
+        placement="bottom-right"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, h } from 'vue';
+import { ref, computed, watch } from 'vue';
 import {
   Search as SearchIcon,
   Add as AddIcon,
@@ -100,6 +94,7 @@ import {
   Trash as TrashIcon
 } from '@vicons/ionicons5';
 import SmartActions from './SmartActions.vue';
+import PerfectDropdown from '../PerfectDropdown.vue';
 import type { Node, NodeGroup } from '@/types/entities';
 
 // Props
@@ -166,18 +161,21 @@ const moreActions = computed(() => {
     {
       label: '导入节点',
       key: 'import',
-      icon: () => h(ImportIcon),
+      icon: ImportIcon,
+      description: '从订阅或链接批量导入节点',
     },
     {
       label: '刷新数据',
       key: 'refresh',
-      icon: () => h(RefreshIcon),
+      icon: RefreshIcon,
+      description: '重新获取所有节点数据',
     },
     {
       label: '清空选中',
       key: 'clear-selection',
       disabled: props.selectedNodes.length === 0,
-      icon: () => h(TrashIcon),
+      icon: TrashIcon,
+      description: props.selectedNodes.length === 0 ? '没有选中的节点' : '取消所有选中的节点',
     },
   ];
 
@@ -186,7 +184,8 @@ const moreActions = computed(() => {
     actions.push({
       label: '清空失败项',
       key: 'clear-failed',
-      icon: () => h(RefreshIcon),
+      icon: RefreshIcon,
+      description: '移除所有测试失败的节点',
     });
   }
 
@@ -194,7 +193,8 @@ const moreActions = computed(() => {
     actions.push({
       label: '测试全部',
       key: 'test-all',
-      icon: () => h(FlashIcon),
+      icon: FlashIcon,
+      description: '对所有节点进行连通性测试',
     });
   }
 

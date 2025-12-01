@@ -23,23 +23,11 @@
             </n-button>
 
               <!-- 更多操作下拉菜单 -->
-            <n-dropdown
-              :options="headerMoreActions"
+            <PerfectDropdown
+              :items="headerMoreActions"
               @select="handleHeaderMoreAction"
-              placement="bottom-end"
-              :render-label="renderHeaderActionLabel"
-              class="header-more-dropdown"
-              :show-arrow="false"
-              trigger="click"
-              :x-offset="-10"
-              :y-offset="2"
-            >
-              <n-button size="medium" class="header-more-btn">
-                <template #icon>
-                  <n-icon :component="MoreIcon" class="header-more-icon" />
-                </template>
-              </n-button>
-            </n-dropdown>
+              placement="bottom-right"
+            />
           </n-space>
         </div>
       </div>
@@ -261,18 +249,20 @@
             <div class="selection-right">
               <n-space size="small">
                 <!-- 智能测试按钮 -->
-                <n-dropdown
-                  :options="testDropdownOptions"
-                  @select="handleTestAction"
-                  placement="bottom-end"
-                  :render-label="renderTestDropdownLabel"
-                  class="smart-test-dropdown"
-                >
+              <PerfectDropdown
+                :items="testDropdownOptions"
+                @select="handleTestAction"
+                placement="bottom-right"
+                title="智能测试"
+                class="smart-test-dropdown"
+              >
+                <template #trigger>
                   <n-button type="primary" :loading="testingSelected" class="smart-test-btn">
                     <template #icon><FlashIcon /></template>
                     智能测试
                   </n-button>
-                </n-dropdown>
+                </template>
+              </PerfectDropdown>
 
                 <!-- 快速操作 -->
                 <n-divider vertical style="height: 20px; margin: 0 8px;" />
@@ -284,32 +274,36 @@
                 </n-button>
 
                 <!-- 导出 -->
-                <n-dropdown
-                  :options="exportDropdownOptions"
-                  @select="handleExportAction"
-                  placement="bottom-end"
-                  :render-label="renderExportDropdownLabel"
-                  class="smart-export-dropdown"
-                >
+              <PerfectDropdown
+                :items="exportDropdownOptions"
+                @select="handleExportAction"
+                placement="bottom-right"
+                title="导出设置"
+                class="smart-export-dropdown"
+              >
+                <template #trigger>
                   <n-button type="info" class="smart-export-btn">
                     <template #icon><DownloadIcon /></template>
                     导出
                   </n-button>
-                </n-dropdown>
+                </template>
+              </PerfectDropdown>
 
                 <!-- 更多操作 -->
-                <n-dropdown
-                  :options="moreDropdownOptions"
-                  @select="handleMoreAction"
-                  placement="bottom-end"
-                  :render-label="renderMoreDropdownLabel"
-                  class="smart-more-dropdown"
-                >
+              <PerfectDropdown
+                :items="moreDropdownOptions"
+                @select="handleMoreAction"
+                placement="bottom-right"
+                title="更多操作"
+                class="smart-more-dropdown"
+              >
+                <template #trigger>
                   <n-button type="default" class="smart-more-btn">
                     <template #icon><MoreIcon /></template>
                     更多
                   </n-button>
-                </n-dropdown>
+                </template>
+              </PerfectDropdown>
               </n-space>
             </div>
           </div>
@@ -416,6 +410,7 @@ import { useNodeGroups } from '@/composables/useNodeGroups';
 import { useNodeFilters } from '@/composables/useNodeFilters';
 import { useGroupStore } from '@/stores/groups';
 import SmartActions from './SmartActions.vue';
+import PerfectDropdown from '../PerfectDropdown.vue';
 import NodeModal from '@/views/components/NodeModal.vue';
 import ImportModal from '@/views/components/ImportModal.vue';
 import BatchMoveModal from '@/views/components/BatchMoveModal.vue';
@@ -608,7 +603,8 @@ const testDropdownOptions = computed(() => {
       label: `测试离线 (${offlineNodes.length})`,
       key: 'test-offline',
       type: 'warning',
-      icon: FlashIcon
+      icon: FlashIcon,
+      description: '测试当前离线的节点'
     });
   }
 
@@ -618,8 +614,9 @@ const testDropdownOptions = computed(() => {
     options.push({
       label: `重试错误 (${errorNodes.length})`,
       key: 'retry-errors',
-      type: 'error',
-      icon: RefreshIcon
+      type: 'danger',
+      icon: RefreshIcon,
+      description: '重新测试之前测试失败的节点'
     });
   }
 
@@ -629,17 +626,24 @@ const testDropdownOptions = computed(() => {
     options.push({
       label: `重新测试 (${onlineNodes.length})`,
       key: 'retest-online',
-      type: 'info',
-      icon: RefreshIcon
+      type: 'default',
+      icon: RefreshIcon,
+      description: '重新测试当前在线的节点'
     });
   }
 
   // 默认选项
   options.push({
+    type: 'divider',
+    key: 'divider-1'
+  });
+
+  options.push({
     label: `测试所有选中 (${selected.length})`,
     key: 'test-all',
-    type: 'primary',
-    icon: FlashIcon
+    type: 'default',
+    icon: FlashIcon,
+    description: selected.length > 0 ? '测试所有选中的节点' : '请先选择要测试的节点'
   });
 
   return options;
@@ -694,17 +698,20 @@ const exportDropdownOptions = computed(() => {
     {
       label: '导出选中节点 (JSON)',
       key: 'export-json',
-      icon: DownloadIcon
+      icon: DownloadIcon,
+      description: '将选中的节点导出为JSON格式文件'
     },
     {
       label: '导出选中节点 (订阅链接)',
       key: 'export-subscription',
-      icon: CopyIcon
+      icon: CopyIcon,
+      description: '生成选中节点的订阅链接'
     },
     {
       label: '导出为配置文件',
       key: 'export-config',
-      icon: SettingsIcon
+      icon: SettingsIcon,
+      description: '导出为各种客户端配置文件'
     }
   ];
 });
@@ -721,7 +728,8 @@ const moreDropdownOptions = computed(() => {
     options.push({
       label: `移动到新分组 (${ungroupedNodes.length})`,
       key: 'move-to-new-group',
-      icon: FolderIcon
+      icon: FolderIcon,
+      description: '将未分组节点移动到新分组'
     });
   }
 
@@ -731,23 +739,26 @@ const moreDropdownOptions = computed(() => {
     options.push({
       label: `清理失败项 (${failedNodes.length})`,
       key: 'clear-failures',
-      icon: TrashIcon
+      icon: TrashIcon,
+      description: '删除测试失败的节点'
     });
   }
 
   // 默认操作
   options.push(
-    { type: 'divider' },
+    { type: 'divider', key: 'divider-1' },
     {
       label: '复制链接',
       key: 'copy-links',
-      icon: CopyIcon
+      icon: CopyIcon,
+      description: '复制选中节点的链接到剪贴板'
     },
     {
       label: '删除选中',
       key: 'delete-selected',
       icon: TrashIcon,
-      type: 'error'
+      type: 'danger',
+      description: selected.length > 0 ? `删除 ${selected.length} 个选中的节点` : '请先选择要删除的节点'
     }
   );
 
@@ -811,32 +822,35 @@ const headerMoreActions = computed(() => [
     label: '批量导入',
     key: 'import',
     icon: ImportIcon,
-    color: '#52c41a'
+    description: '从文件或链接批量导入节点',
   },
   {
     label: '批量测试',
     key: 'test-all',
     icon: FlashIcon,
-    color: '#fa8c16'
+    description: '测试所有节点的连通性',
   },
   {
     label: '导出全部',
     key: 'export-all',
     icon: DownloadIcon,
-    color: '#1890ff'
+    description: '导出所有节点配置',
   },
   {
     label: '刷新数据',
     key: 'refresh',
     icon: RefreshIcon,
-    color: '#722ed1'
+    description: '重新获取节点数据',
   },
-  { type: 'divider' },
+  {
+    type: 'divider',
+    key: 'divider-1'
+  },
   {
     label: '设置',
     key: 'settings',
     icon: SettingsIcon,
-    color: '#666666'
+    description: '节点管理设置',
   },
 ]);
 
@@ -1024,55 +1038,6 @@ const renderMoreDropdownLabel = (option: any) => {
         margin-right: 2px;
       `
     }, icon),
-    option.label
-  ]);
-};
-const renderHeaderActionLabel = (option: any) => {
-  if (option.type === 'divider') return null;
-
-  return h('div', {
-    style: `
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      cursor: pointer;
-      background: white;
-      color: #333;
-      font-size: 14px;
-      font-weight: 500;
-      border: none;
-      outline: none;
-      width: 100%;
-      text-align: left;
-      box-sizing: border-box;
-      margin: 0;
-      border-radius: 0;
-      line-height: 1.4;
-      transition: background-color 0.2s ease;
-    `,
-    onMouseenter: (e: MouseEvent) => {
-      const target = e.currentTarget as HTMLElement;
-      target.style.backgroundColor = `${option.color}15`;
-    },
-    onMouseleave: (e: MouseEvent) => {
-      const target = e.currentTarget as HTMLElement;
-      target.style.backgroundColor = 'white';
-    }
-  }, [
-    h('span', {
-      style: `
-        color: ${option.color};
-        font-size: 16px;
-        flex-shrink: 0;
-        display: inline-block;
-        width: 16px;
-        text-align: center;
-        margin-right: 2px;
-      `
-    }, [
-      h(option.icon)
-    ]),
     option.label
   ]);
 };
@@ -2233,7 +2198,8 @@ watch(
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(24, 144, 255, 0.1);
   position: relative;
-  overflow: hidden;
+  /* 移除 overflow: hidden 让下拉菜单能显示出来 */
+  /* overflow: hidden; */
 }
 
 .selection-bar::before {
