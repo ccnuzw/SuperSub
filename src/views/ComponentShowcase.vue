@@ -154,6 +154,43 @@
             </div>
           </div>
         </div>
+
+        <!-- 智能头部操作预览 -->
+        <div class="preview-section">
+          <h4>5. SmartHeaderActions - 智能头部操作</h4>
+          <div class="component-demo">
+            <div class="demo-row">
+              <SmartHeaderActions
+                :items="basicHeaderActions"
+                @select="handleHeaderActionSelect"
+              />
+              <SmartHeaderActions
+                :items="advancedHeaderActions"
+                button-type="primary"
+                @select="handleHeaderActionSelect"
+              />
+              <SmartHeaderActions
+                :items="statusHeaderActions"
+                button-type="success"
+                size="large"
+                @select="handleHeaderActionSelect"
+              />
+            </div>
+            <div class="demo-row" style="background: #f0f9ff; padding: 20px; border-radius: 8px;">
+              <SmartHeaderActions
+                :items="specialHeaderActions"
+                title="智能操作"
+                placement="bottom-left"
+                @select="handleHeaderActionSelect"
+              />
+              <SmartHeaderActions
+                :items="badgeHeaderActions"
+                button-type="warning"
+                @select="handleHeaderActionSelect"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 新增：从 nodes 提取的组件 -->
@@ -641,6 +678,138 @@
             </div>
           </div>
         </div>
+
+        <!-- SmartPagination 预览 -->
+        <div class="preview-section">
+          <h4>12. SmartPagination - 智能分页组件</h4>
+          <div class="component-demo">
+            <div class="demo-description">
+              <p>基于 Naive UI 的二次封装分页组件，提供丰富的功能和灵活的配置选项。</p>
+            </div>
+
+            <!-- 标准分页 -->
+            <div class="demo-row">
+              <div class="pagination-demo">
+                <h5>标准分页</h5>
+                <SmartPagination
+                  :current-page="currentPage"
+                  :page-size="pageSize"
+                  :total-items="totalItems"
+                  :show-size-picker="true"
+                  :show-quick-jumper="true"
+                  :show-info="true"
+                  @page-change="handlePageChange"
+                  @page-size-change="handlePageSizeChange"
+                />
+              </div>
+            </div>
+
+            <!-- 简单分页 -->
+            <div class="demo-row">
+              <div class="pagination-demo">
+                <h5>简单分页</h5>
+                <SmartPagination
+                  :current-page="currentPage"
+                  :page-size="pageSize"
+                  :total-items="totalItems"
+                  :show-size-picker="false"
+                  :show-quick-jumper="false"
+                  :simple="true"
+                  @page-change="handlePageChange"
+                />
+              </div>
+            </div>
+
+            <!-- 带信息的分页 -->
+            <div class="demo-row">
+              <div class="pagination-demo">
+                <h5>显示信息</h5>
+                <SmartPagination
+                  :current-page="currentPage"
+                  :page-size="pageSize"
+                  :total-items="totalItems"
+                  :show-info="true"
+                  :layout="'left'"
+                  @page-change="handlePageChange"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SmartGroupTabs 预览 -->
+        <div class="preview-section">
+          <h4>13. SmartGroupTabs - 智能分组标签组件</h4>
+          <div class="component-demo">
+            <div class="demo-description">
+              <p>基于 Naive UI 的二次封装分组标签组件，提供丰富的分组管理功能和灵活的配置选项。</p>
+            </div>
+
+            <!-- 标准分组标签 -->
+            <div class="demo-row">
+              <div class="group-tabs-demo">
+                <h5>标准分组标签</h5>
+                <SmartGroupTabs
+                  :groups="mockGroups"
+                  :group-counts="mockGroupCounts"
+                  :active-tab="activeGroupTab"
+                  :show-add-button="true"
+                  @update:active-tab="handleGroupTabChange"
+                  @group-action="handleGroupAction"
+                  @add-action="handleAddGroup"
+                />
+              </div>
+            </div>
+
+            <!-- 卡片式分组标签 -->
+            <div class="demo-row">
+              <div class="group-tabs-demo">
+                <h5>卡片式分组标签</h5>
+                <SmartGroupTabs
+                  :groups="mockGroups.slice(0, 4)"
+                  :group-counts="mockGroupCounts"
+                  :active-tab="activeGroupTab"
+                  :tab-type="'card'"
+                  :show-add-button="false"
+                  @update:active-tab="handleGroupTabChange"
+                />
+              </div>
+            </div>
+
+            <!-- 带禁用状态的分组标签 -->
+            <div class="demo-row">
+              <div class="group-tabs-demo">
+                <h5>带禁用状态的分组</h5>
+                <SmartGroupTabs
+                  :groups="mockGroupsWithDisabled"
+                  :group-counts="mockGroupCounts"
+                  :active-tab="activeGroupTab"
+                  :tab-type="'segment'"
+                  @update:active-tab="handleGroupTabChange"
+                />
+              </div>
+            </div>
+
+            <!-- 自定义右键菜单的分组标签 -->
+            <div class="demo-row">
+              <div class="group-tabs-demo">
+                <h5>自定义右键菜单（右键点击分组查看）</h5>
+                <SmartGroupTabs
+                  :groups="mockGroupsWithCustomMenu"
+                  :group-counts="mockGroupCounts"
+                  :active-tab="activeGroupTab"
+                  :tab-type="'segment'"
+                  :enable-inline-actions="false"
+                  :show-add-button="true"
+                  :custom-context-menu-options="getCustomMenuOptions"
+                  @update:active-tab="handleGroupTabChange"
+                  @group-action="handleCustomGroupAction"
+                  @add-action="handleAddGroup"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -664,6 +833,121 @@
             show-line-numbers
           />
         </div>
+
+        <div class="guide-section">
+          <h3>SmartGroupTabs 详细使用</h3>
+          <div class="sub-section">
+            <h4>基础用法</h4>
+            <n-code
+              language="vue"
+              :code="smartGroupTabsBasic"
+              show-line-numbers
+            />
+            <p class="section-desc">最基础的分组标签使用方式，包含"全部"和"未分组"标签。</p>
+          </div>
+
+          <div class="sub-section">
+            <h4>带新增分组功能</h4>
+            <n-code
+              language="vue"
+              :code="smartGroupTabsWithAdd"
+              show-line-numbers
+            />
+            <p class="section-desc">启用新增分组功能，用户可以通过新增分组标签或右键菜单创建新分组。</p>
+          </div>
+
+          <div class="sub-section">
+            <h4>自定义右键菜单</h4>
+            <n-code
+              language="vue"
+              :code="smartGroupTabsCustomMenu"
+              show-line-numbers
+            />
+            <p class="section-desc">自定义分组右键菜单选项，支持添加业务特定的操作。</p>
+          </div>
+        </div>
+
+        <div class="guide-section">
+          <h3>API 参考</h3>
+          <div class="sub-section">
+            <h4>Props</h4>
+            <div class="api-table">
+              <table class="props-table">
+                <thead>
+                  <tr>
+                    <th>属性名</th>
+                    <th>类型</th>
+                    <th>默认值</th>
+                    <th>说明</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>groups</td><td>GroupItem[]</td><td>[]</td><td>分组数据列表</td></tr>
+                  <tr><td>groupCounts</td><td>GroupCount</td><td>{}</td><td>各分组数量统计</td></tr>
+                  <tr><td>activeTab</td><td>string</td><td>'all'</td><td>当前激活的标签</td></tr>
+                  <tr><td>showAddButton</td><td>boolean</td><td>false</td><td>是否显示新增分组按钮</td></tr>
+                  <tr><td>tabType</td><td>string</td><td>'segment'</td><td>标签类型：'line' | 'card' | 'segment'</td></tr>
+                  <tr><td>size</td><td>string</td><td>'medium'</td><td>标签大小：'small' | 'medium' | 'large'</td></tr>
+                  <tr><td>enableContextMenu</td><td>boolean</td><td>true</td><td>是否启用右键菜单</td></tr>
+                  <tr><td>enableInlineActions</td><td>boolean</td><td>true</td><td>是否启用内联操作按钮</td></tr>
+                  <tr><td>customContextMenuOptions</td><td>function</td><td>null</td><td>自定义右键菜单选项</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="sub-section">
+            <h4>Events</h4>
+            <div class="api-table">
+              <table class="events-table">
+                <thead>
+                  <tr>
+                    <th>事件名</th>
+                    <th>参数</th>
+                    <th>说明</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>update:activeTab</td><td>(tabId: string)</td><td>标签切换时触发</td></tr>
+                  <tr><td>group-tab-click</td><td>(group: GroupItem, event: MouseEvent)</td><td>点击分组标签时触发</td></tr>
+                  <tr><td>group-action</td><td>(key: string, group: GroupItem)</td><td>分组操作时触发</td></tr>
+                  <tr><td>add-action</td><td>(key: string, data?: object)</td><td>新增分组时触发</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="sub-section">
+            <h4>类型定义</h4>
+            <n-code
+              language="typescript"
+              :code="typeDefinitions"
+              show-line-numbers
+            />
+          </div>
+        </div>
+
+        <div class="guide-section">
+          <h3>最佳实践</h3>
+          <div class="best-practices">
+            <div class="practice-item">
+              <h5>1. 数据管理</h5>
+              <p>建议使用响应式数据管理分组和计数，确保视图实时更新。</p>
+            </div>
+            <div class="practice-item">
+              <h5>2. 事件处理</h5>
+              <p>合理处理各种事件，特别是新增分组时的表单验证和状态管理。</p>
+            </div>
+            <div class="practice-item">
+              <h5>3. 自定义菜单</h5>
+              <p>根据业务需求自定义右键菜单，提供更丰富的操作选项。</p>
+            </div>
+            <div class="practice-item">
+              <h5>4. 响应式设计</h5>
+              <p>组件已内置响应式支持，在不同屏幕尺寸下都能良好显示。</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -683,14 +967,22 @@ import {
   SettingsOutline,
   DownloadOutline,
   TrashOutline,
-  PersonCircleOutline
+  PersonCircleOutline,
+  CloudUpload,
+  Flash,
+  Refresh,
+  Bulb,
+  CheckmarkCircle,
+  Create,
+  InformationCircle
 } from '@vicons/ionicons5'
 
 // 导入所有组件
 import {
   StatsCard,
   ActionButtonGroup,
-  SmartDropdown
+  SmartDropdown,
+  SmartHeaderActions
 } from '@/components/common'
 
 // 导入从 nodes 提取的新组件
@@ -701,7 +993,9 @@ import {
   ActionTrigger,
   SmartFilterPanel,
   BulkActionsBar,
-  StatsCardGrid
+  StatsCardGrid,
+  SmartPagination,
+  SmartGroupTabs
 } from '@/components/common'
 
 // 导入原有的 nodes 组件以避免冲突
@@ -710,6 +1004,49 @@ import SmartActions from '@/components/nodes/SmartActions.vue'
 // 响应式数据
 const selectedCount = ref(0)
 const mockSelectedCount = ref(0)
+
+// 分页数据
+const currentPage = ref(1)
+const pageSize = ref(20)
+const totalItems = ref(487)
+
+// 分组标签数据
+const activeGroupTab = ref('all')
+
+const mockGroups = ref([
+  { id: 'group1', name: '高速节点', description: '速度最快的节点', is_enabled: true },
+  { id: 'group2', name: '海外节点', description: '国外服务器节点', is_enabled: true },
+  { id: 'group3', name: '游戏节点', description: '游戏专用节点', is_enabled: true },
+  { id: 'group4', name: '备用节点', description: '备用服务器', is_enabled: false },
+  { id: 'group5', name: '测试节点', description: '测试用节点', is_enabled: true }
+])
+
+const mockGroupsWithDisabled = ref([
+  { id: 'group1', name: '高速节点', description: '速度最快的节点', is_enabled: true },
+  { id: 'group2', name: '海外节点', description: '国外服务器节点', is_enabled: false },
+  { id: 'group3', name: '游戏节点', description: '游戏专用节点', is_enabled: true },
+  { id: 'group4', name: '备用节点', description: '备用服务器', disabled: true },
+  { id: 'group5', name: '测试节点', description: '测试用节点', is_enabled: false }
+])
+
+const mockGroupsWithCustomMenu = ref([
+  { id: 'custom1', name: '企业分组', description: '企业专用分组', is_enabled: true, type: 'enterprise' },
+  { id: 'custom2', name: '个人分组', description: '个人使用分组', is_enabled: true, type: 'personal' },
+  { id: 'custom3', name: '共享分组', description: '团队共享分组', is_enabled: false, type: 'shared' }
+])
+
+const mockGroupCounts = ref({
+  all: 156,
+  ungrouped: 23,
+  group1: 45,
+  group2: 32,
+  group3: 28,
+  group4: 15,
+  group5: 13,
+  custom1: 25,
+  custom2: 18,
+  custom3: 33
+})
 
 // 过滤器模型
 const filterModel = ref({
@@ -856,11 +1193,14 @@ import {
   SmartFilterPanel,
   BulkActionsBar,
   StatsCardGrid,
+  SmartPagination,
+  SmartGroupTabs,
 
   // 基础组件
   StatsCard,
   ActionButtonGroup,
   SmartDropdown,
+  SmartHeaderActions,
   SmartActions
 } from '@/components/common'`
 
@@ -906,6 +1246,374 @@ const usageExample = `<template>
   </div>
 </template>`
 
+// SmartGroupTabs 代码示例
+const smartGroupTabsBasic = `<template>
+  <div class="group-management">
+    <SmartGroupTabs
+      :groups="groups"
+      :group-counts="groupCounts"
+      :active-tab="activeTab"
+      @update:active-tab="handleTabChange"
+    />
+  </div>
+</template>
+
+// &lt;script setup lang="ts"&gt;
+import { ref } from 'vue'
+import { SmartGroupTabs } from '@/components/common'
+
+const activeTab = ref('all')
+const groups = ref([
+  { id: 'group1', name: '高速节点', is_enabled: true },
+  { id: 'group2', name: '海外节点', is_enabled: true }
+])
+
+const groupCounts = ref({
+  all: 25,
+  ungrouped: 5,
+  group1: 12,
+  group2: 8
+})
+
+const handleTabChange = (tabId: string) => {
+  activeTab.value = tabId
+}
+// &lt;/script&gt;`
+
+const smartGroupTabsWithAdd = `<template>
+  <div class="group-management">
+    <SmartGroupTabs
+      :groups="groups"
+      :group-counts="groupCounts"
+      :active-tab="activeTab"
+      :show-add-button="true"
+      @update:active-tab="handleTabChange"
+      @group-action="handleGroupAction"
+      @add-action="handleAddGroup"
+    />
+  </div>
+</template>
+
+// &lt;script setup lang="ts"&gt;
+import { ref } from 'vue'
+import { SmartGroupTabs } from '@/components/common'
+
+const activeTab = ref('all')
+const groups = ref([
+  { id: 'group1', name: '高速节点', is_enabled: true },
+  { id: 'group2', name: '海外节点', is_enabled: true }
+])
+
+const groupCounts = ref({
+  all: 25,
+  ungrouped: 5,
+  group1: 12,
+  group2: 8
+})
+
+const handleTabChange = (tabId: string) => {
+  activeTab.value = tabId
+}
+
+const handleGroupAction = (key: string, group: any) => {
+  if (key === 'delete') {
+    // 删除分组逻辑
+    console.log('删除分组:', group.name)
+  } else if (key === 'rename') {
+    // 重命名分组逻辑
+    console.log('重命���分组:', group.name)
+  }
+}
+
+const handleAddGroup = (key: string, data?: { name: string; description: string }) => {
+  if (key === 'add-group' && data) {
+    const newGroup = {
+      id: \`group\${Date.now()}\`,
+      name: data.name,
+      description: data.description,
+      is_enabled: true
+    }
+    groups.value.push(newGroup)
+    groupCounts.value[newGroup.id] = 0
+  }
+}
+// &lt;/script&gt;`
+
+const smartGroupTabsCustomMenu = `<template>
+  <div class="group-management">
+    <SmartGroupTabs
+      :groups="groups"
+      :group-counts="groupCounts"
+      :active-tab="activeTab"
+      :show-add-button="true"
+      :enable-inline-actions="false"
+      :custom-context-menu-options="getCustomMenuOptions"
+      @update:active-tab="handleTabChange"
+      @group-action="handleCustomGroupAction"
+      @add-action="handleAddGroup"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+import { SmartGroupTabs } from '@/components/common'
+
+const activeTab = ref('all')
+const groups = ref([
+  { id: 'group1', name: '高速节点', type: 'premium', is_enabled: true },
+  { id: 'group2', name: '海外节点', type: 'standard', is_enabled: true }
+])
+
+const groupCounts = ref({
+  all: 25,
+  ungrouped: 5,
+  group1: 12,
+  group2: 8
+})
+
+// 自定义右键菜单选项
+const getCustomMenuOptions = (group: any) => {
+  const options = [
+    { label: '查看详情', key: 'view-details', type: 'primary' },
+    { label: '复制分组', key: 'copy-group', type: 'default' }
+  ]
+
+  // 根据分组类型添加特定选项
+  if (group.type === 'premium') {
+    options.push(
+      { label: '管理权限', key: 'manage-permissions', type: 'warning' },
+      { label: '导出报告', key: 'export-report', type: 'info' }
+    )
+  }
+
+  options.push({ label: '删除分组', key: 'delete', type: 'error', danger: true })
+
+  return options
+}
+
+const handleCustomGroupAction = (key: string, group: any) => {
+  console.log('自定义操作:', key, group.name)
+  // 处理各种自定义操作
+}
+
+const handleAddGroup = (key: string, data?: { name: string; description: string }) => {
+  if (key === 'add-group' && data) {
+    const newGroup = {
+      id: \`group\${Date.now()}\`,
+      name: data.name,
+      description: data.description,
+      type: 'standard',
+      is_enabled: true
+    }
+    groups.value.push(newGroup)
+    groupCounts.value[newGroup.id] = 0
+  }
+}
+// &lt;/script&gt;`
+
+// TypeScript 类型定义
+const typeDefinitions = `// 分组项目接口
+interface GroupItem {
+  id: string
+  name: string
+  description?: string
+  is_enabled?: boolean
+  disabled?: boolean
+  [key: string]: any // 支持扩展属性
+}
+
+// 分组计数接口
+interface GroupCount {
+  all: number
+  ungrouped: number
+  [groupId: string]: number
+}
+
+// 操作选项接口
+interface ActionOption {
+  label: string
+  key: string
+  type?: 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error'
+  icon?: Component
+  description?: string
+  danger?: boolean
+  disabled?: boolean
+}
+
+// 组件 Props 接口
+interface SmartGroupTabsProps {
+  groups: GroupItem[]
+  groupCounts: GroupCount
+  activeTab: string
+  showAddButton?: boolean
+  tabType?: 'line' | 'card' | 'segment'
+  size?: 'small' | 'medium' | 'large'
+  enableContextMenu?: boolean
+  enableInlineActions?: boolean
+  customContextMenuOptions?: ((group: GroupItem) => ActionOption[]) | null
+  customInlineActionOptions?: ((group: GroupItem) => ActionOption[]) | null
+}`
+
+// SmartHeaderActions 演示数据
+const basicHeaderActions = [
+  {
+    key: 'import',
+    label: '批量导入',
+    icon: CloudUpload,
+    description: '从文件或链接批量导入'
+  },
+  {
+    key: 'test-all',
+    label: '批量测试',
+    icon: Flash,
+    description: '测试所有节点的连通性'
+  },
+  {
+    key: 'export-all',
+    label: '导出全部',
+    icon: DownloadOutline,
+    description: '导出所有节点配置'
+  },
+  {
+    type: 'divider' as const,
+    key: 'divider-1'
+  },
+  {
+    key: 'refresh',
+    label: '刷新数据',
+    icon: Refresh,
+    description: '重新获取节点数据'
+  }
+];
+
+const advancedHeaderActions = [
+  {
+    key: 'smart-filter',
+    label: '智能筛选',
+    icon: Bulb,
+    description: '基于AI的节点筛选',
+    badge: 'NEW',
+    badgeType: 'success' as const
+  },
+  {
+    key: 'batch-edit',
+    label: '批量编辑',
+    icon: Create,
+    description: '批量编辑节点属性',
+    shortcut: 'Ctrl+E'
+  },
+  {
+    key: 'health-check',
+    label: '健康检查',
+    icon: CheckmarkCircle,
+    description: '执行全面的健康检查',
+    status: '运行中',
+    statusType: 'online' as const
+  },
+  {
+    type: 'divider' as const,
+    key: 'divider-2'
+  },
+  {
+    key: 'settings',
+    label: '高级设置',
+    icon: SettingsOutline,
+    description: '配置高级选项',
+    type: 'warning' as const
+  }
+];
+
+const statusHeaderActions = [
+  {
+    key: 'analytics',
+    label: '数据分析',
+    icon: ServerOutline,
+    description: '查看节点使用分析',
+    badge: 'PRO',
+    badgeType: 'primary' as const
+  },
+  {
+    key: 'backup',
+    label: '备份管理',
+    icon: CloudUpload,
+    description: '管理数据备份',
+    status: '已同步',
+    statusType: 'online' as const
+  },
+  {
+    key: 'monitor',
+    label: '实时监控',
+    icon: CheckmarkCircle,
+    description: '监控节点状态',
+    type: 'success' as const
+  }
+];
+
+const specialHeaderActions = [
+  {
+    key: 'ai-optimizer',
+    label: 'AI优化器',
+    icon: Bulb,
+    description: '智能优化节点选择',
+    badge: 'AI',
+    badgeType: 'warning' as const
+  },
+  {
+    key: 'template-manager',
+    label: '模板管理',
+    icon: SettingsOutline,
+    description: '管理配置模板',
+    shortcut: 'Ctrl+T'
+  },
+  {
+    key: 'export-report',
+    label: '导出报告',
+    icon: DownloadOutline,
+    description: '生成详细报告',
+    type: 'primary' as const
+  },
+  {
+    type: 'divider' as const,
+    key: 'divider-1'
+  },
+  {
+    key: 'help',
+    label: '帮助中心',
+    icon: InformationCircle,
+    description: '获取使用帮助',
+    href: 'https://docs.example.com',
+    target: '_blank'
+  }
+];
+
+const badgeHeaderActions = [
+  {
+    key: 'notifications',
+    label: '通知中心',
+    icon: ServerOutline,
+    description: '查看系统通知',
+    badge: '5',
+    badgeType: 'error' as const
+  },
+  {
+    key: 'tasks',
+    label: '任务队列',
+    icon: Flash,
+    description: '查看后台任务',
+    status: '处理中',
+    statusType: 'busy' as const
+  },
+  {
+    key: 'updates',
+    label: '系统更新',
+    icon: Refresh,
+    description: '检查系统更新',
+    badge: '2',
+    badgeType: 'warning' as const
+  }
+];
+
 // 事件处理函数
 const handleAction = (action: any) => {
   console.log('操作触发:', action)
@@ -921,6 +1629,34 @@ const toggleSelection = () => {
 
 const handleSmartAction = (action: any) => {
   console.log('智能操作:', action)
+}
+
+const handleHeaderActionSelect = (key: string, item: any) => {
+  console.log('头部操作选择:', key, item)
+
+  // 模拟不同操作的反馈
+  switch (key) {
+    case 'import':
+      console.log('打开批量导入对话框')
+      break
+    case 'test-all':
+      console.log('开始批量测试所有节点')
+      break
+    case 'export-all':
+      console.log('导出所有节点配置')
+      break
+    case 'refresh':
+      console.log('刷新节点数据')
+      break
+    case 'ai-optimizer':
+      console.log('启动AI优化器')
+      break
+    case 'help':
+      console.log('打开帮助中心')
+      break
+    default:
+      console.log(`执行操作: ${item.label}`)
+  }
 }
 
 const handleFilterChange = (filters: any, type: string) => {
@@ -945,6 +1681,155 @@ const handleClearSelection = () => {
 
 const handleStatClick = (stat: any) => {
   console.log('统计卡片点击:', stat)
+}
+
+const handlePageChange = (page: number) => {
+  console.log('页码变化:', page)
+  currentPage.value = page
+}
+
+const handlePageSizeChange = (size: number) => {
+  console.log('页面大小变化:', size)
+  pageSize.value = size
+  currentPage.value = 1 // 重置到第一页
+}
+
+const handleGroupTabChange = (tabId: string) => {
+  console.log('分组标签变化:', tabId)
+  activeGroupTab.value = tabId
+}
+
+const handleGroupAction = (key: string, group: any) => {
+  console.log('分组操作:', key, group)
+
+  switch (key) {
+    case 'toggle':
+      console.log(`切换分组状态: ${group.name}`)
+      // 在实际应用中，这里会调用API更新状态
+      group.is_enabled = !group.is_enabled
+      break
+    case 'rename':
+      const newName = prompt(`重命名分组 "${group.name}":`, group.name)
+      if (newName && newName !== group.name) {
+        console.log(`重命名分组: ${group.name} -> ${newName}`)
+        group.name = newName
+      }
+      break
+    case 'delete':
+      if (confirm(`确定要删除分组 "${group.name}" 吗？`)) {
+        console.log(`删除分组: ${group.name}`)
+        // 在实际应用中，这里会调用API删除分组
+      }
+      break
+  }
+}
+
+const handleAddGroup = (key: string, data?: { name: string; description: string }) => {
+  console.log('添加分组操作:', key, data)
+
+  if (key === 'add-group' && data) {
+    const newGroup = {
+      id: `group${Date.now()}`,
+      name: data.name,
+      description: data.description,
+      is_enabled: true
+    }
+    mockGroups.value.push(newGroup)
+    mockGroupCounts.value[newGroup.id] = 0
+    console.log('添加新分组:', data.name, data.description)
+  }
+}
+
+// 自定义菜单选项处理
+const getCustomMenuOptions = (group: any) => {
+  const baseOptions: any[] = [
+    { label: '查看详情', key: 'view-details', type: 'primary' as const },
+    { label: '复制链接', key: 'copy-link', type: 'default' as const }
+  ];
+
+  // 根据分组类型添加特定选项
+  if (group.type === 'enterprise') {
+    baseOptions.push(
+      { label: '管理权限', key: 'manage-permissions', type: 'warning' as const },
+      { label: '导出报告', key: 'export-report', type: 'info' as const }
+    );
+  } else if (group.type === 'personal') {
+    baseOptions.push(
+      { label: '分享设置', key: 'share-settings', type: 'success' as const },
+      { label: '隐私模式', key: 'privacy-mode', type: 'warning' as const }
+    );
+  } else if (group.type === 'shared') {
+    baseOptions.push(
+      { label: '邀请成员', key: 'invite-members', type: 'primary' as const },
+      { label: '查看成员', key: 'view-members', type: 'default' as const }
+    );
+  }
+
+  // 根据状态添加操作
+  if (group.is_enabled) {
+    baseOptions.push({ label: '暂停分组', key: 'pause-group', type: 'warning' as const });
+  } else {
+    baseOptions.push({ label: '启用分组', key: 'enable-group', type: 'success' as const });
+  }
+
+  baseOptions.push(
+    { type: 'divider' as const, key: `divider-${Date.now()}` },
+    { label: '重命名', key: 'rename', type: 'default' as const },
+    { label: '删除', key: 'delete', type: 'error' as const, danger: true }
+  );
+
+  return baseOptions;
+}
+
+const handleCustomGroupAction = (key: string, group: any) => {
+  console.log('自定义分组操作:', key, group);
+
+  switch (key) {
+    case 'view-details':
+      alert(`查看分组详情: ${group.name}`);
+      break;
+    case 'copy-link':
+      navigator.clipboard.writeText(`https://example.com/group/${group.id}`);
+      break;
+    case 'manage-permissions':
+      console.log('管理企业分组权限:', group.name);
+      break;
+    case 'export-report':
+      console.log('导出企业分组报告:', group.name);
+      break;
+    case 'share-settings':
+      console.log('设置个人分组分享:', group.name);
+      break;
+    case 'privacy-mode':
+      console.log('切换个人分组隐私模式:', group.name);
+      break;
+    case 'invite-members':
+      console.log('邀请成员加入共享分组:', group.name);
+      break;
+    case 'view-members':
+      console.log('查看共享分组成员:', group.name);
+      break;
+    case 'pause-group':
+      group.is_enabled = false;
+      console.log('暂停分组:', group.name);
+      break;
+    case 'enable-group':
+      group.is_enabled = true;
+      console.log('启用分组:', group.name);
+      break;
+    case 'rename':
+      const newName = prompt(`重命名分组 "${group.name}":`, group.name);
+      if (newName && newName !== group.name) {
+        group.name = newName;
+        console.log(`重命名分组: ${group.name} -> ${newName}`);
+      }
+      break;
+    case 'delete':
+      if (confirm(`确定要删除分组 "${group.name}" 吗？`)) {
+        console.log(`删除分组: ${group.name}`);
+      }
+      break;
+  }
 }
 </script>
 
@@ -1085,6 +1970,34 @@ const handleStatClick = (stat: any) => {
   border-radius: 8px;
 }
 
+.pagination-demo {
+  margin-bottom: 24px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.pagination-demo h5 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.group-tabs-demo {
+  margin-bottom: 24px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.group-tabs-demo h5 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
 .usage-guide {
   padding: 32px;
   background: #f8f9fa;
@@ -1108,6 +2021,144 @@ const handleStatClick = (stat: any) => {
   font-size: 1.2rem;
   margin: 0 0 12px 0;
   color: #555;
+}
+
+/* 子章节样式 */
+.sub-section {
+  margin-bottom: 24px;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.sub-section h4 {
+  font-size: 1.1rem;
+  margin: 0 0 16px 0;
+  color: #333;
+  font-weight: 600;
+}
+
+.section-desc {
+  margin: 12px 0 0 0;
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* API 表格样式 */
+.api-table {
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.props-table,
+.events-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.props-table th,
+.events-table th {
+  background: #f8f9fa;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.props-table td,
+.events-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #555;
+}
+
+.props-table tr:last-child td,
+.events-table tr:last-child td {
+  border-bottom: none;
+}
+
+.props-table tr:hover,
+.events-table tr:hover {
+  background: #f8f9fa;
+}
+
+/* 代码表格特殊处理 */
+.props-table td:nth-child(2) {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  background: #f1f3f4;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.events-table td:nth-child(2) {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  background: #f1f3f4;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+/* 最佳实践样式 */
+.best-practices {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.practice-item {
+  padding: 16px 20px;
+  background: white;
+  border-left: 4px solid #1890ff;
+  border-radius: 0 6px 6px 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.practice-item h5 {
+  margin: 0 0 8px 0;
+  color: #1890ff;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.practice-item p {
+  margin: 0;
+  color: #555;
+  line-height: 1.5;
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .sub-section {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .api-table {
+    font-size: 0.9rem;
+  }
+
+  .props-table th,
+  .props-table td,
+  .events-table th,
+  .events-table td {
+    padding: 8px 12px;
+  }
+
+  .best-practices {
+    gap: 12px;
+  }
+
+  .practice-item {
+    padding: 12px 16px;
+  }
 }
 
 .smart-actions-context {
