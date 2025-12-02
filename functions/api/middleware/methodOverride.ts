@@ -9,15 +9,11 @@ export const methodOverrideMiddleware = (app: Hono<{ Bindings: Env }>) => {
     if (c.req.method === 'POST' && overrideMethod) {
       const newMethod = overrideMethod.toUpperCase();
       if (['PUT', 'DELETE', 'PATCH'].includes(newMethod)) {
-        // Reconstruct the request with the overridden method.
-        const newReq = new Request(c.req.raw, {
-          method: newMethod,
-        });
-        // Manually dispatch the new request to the Hono app.
-        return app.fetch(newReq, c.env, c.executionCtx);
+        // Store the overridden method in context instead of recreating the request
+        c.set('methodOverride', newMethod);
       }
     }
-    // If no override, continue with the normal flow.
+    // Continue with normal flow, routes will check for methodOverride
     return await next();
   };
 };

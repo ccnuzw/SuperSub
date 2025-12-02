@@ -125,7 +125,12 @@ export class NodeService {
    */
   async batchDeleteNodes(ids: string[]): Promise<BatchResult> {
     const response = await api.post<BatchResult>('/nodes/batch-delete', { ids });
+    // 处理不同的响应格式
     if (response.data?.success) {
+      return response.data;
+    }
+    // 如果直接返回结果
+    if (response.data?.message) {
       return response.data;
     }
     throw new Error(response.data?.message || 'Failed to batch delete nodes');

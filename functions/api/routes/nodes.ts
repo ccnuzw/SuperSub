@@ -243,6 +243,16 @@ nodes.post('/batch-delete', manualAuthMiddleware, async (c) => {
     }
 
     try {
+        let nodesDeleted = 0;
+
+        // 统计实际会删除多少节点记录
+        for (const id of ids) {
+            const checkQuery = 'SELECT COUNT(*) as count FROM nodes WHERE id = ? AND user_id = ?';
+            const result = await c.env.DB.prepare(checkQuery).bind(id, user.id).first<{ count: number }>();
+            const recordCount = result?.count || 0;
+            nodesDeleted += recordCount;
+        }
+
         let totalDeleted = 0;
         for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
             const chunk = ids.slice(i, i + CHUNK_SIZE);
@@ -252,7 +262,9 @@ nodes.post('/batch-delete', manualAuthMiddleware, async (c) => {
             const { meta: { changes } } = await c.env.DB.prepare(query).bind(...bindings).run();
             totalDeleted += changes || 0;
         }
-        return c.json({ success: true, message: `Successfully deleted ${totalDeleted} nodes.` });
+
+        // 使用实际删除的节点数量，而不是包含级联删除的总数
+        return c.json({ success: true, message: `Successfully deleted ${nodesDeleted} nodes.` });
     } catch (error: any) {
         console.error('Failed to batch delete nodes:', error);
         return c.json({ success: false, message: `Database error: ${error.message}` }, 500);

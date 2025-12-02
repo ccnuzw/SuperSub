@@ -469,6 +469,7 @@ const nodeFilters = useNodeFilters(
 // 基础状态
 const loading = ref(false);
 const testingSelected = ref(false);
+const deleting = ref(false); // 防止重复删除的标志
 const sidebarCollapsed = ref(true); // 默认为折叠状态
 
 // 搜索和筛选状态
@@ -965,16 +966,17 @@ const smartActions = computed(() => {
     }
   }
 
-  if (nodeStats.value.errorCount > 0) {
-    actions.push({
-      key: 'clear-errors',
-      label: `清理失败项 (${nodeStats.value.errorCount})`,
-      type: 'warning' as const,
-      icon: TrashIcon,
-      action: () => clearFailedNodes(),
-      loading: false
-    });
-  }
+  // 移除智能操作中的自动删除功能，避免与用户手动删除冲突
+  // if (nodeStats.value.errorCount > 0) {
+  //   actions.push({
+  //     key: 'clear-errors',
+  //     label: `清理失败项 (${nodeStats.value.errorCount})`,
+  //     type: 'warning' as const,
+  //     icon: TrashIcon,
+  //     action: () => clearFailedNodes(),
+  //     loading: false
+  //   });
+  // }
 
   return actions.slice(0, 3);
 });
@@ -1673,6 +1675,8 @@ const handleSaveMoveToGroup = async () => {
 
 const handleSelectionChange = (keys: string[]) => {
   selectedNodes.value = keys;
+  // 同步到nodeManagement的选中状态
+  nodeManagement.checkedRowKeys.value = keys;
 };
 
 const handlePageChange = (page: number) => {
@@ -1775,6 +1779,7 @@ const handleMoreAction = async (key: string) => {
       copySelectedLinks();
       break;
     case 'delete-selected':
+      // 调用统一的删除函数
       await deleteSelectedNodes();
       break;
   }
@@ -2023,25 +2028,45 @@ const exportSelectedNodes = (format?: string) => {
 };
 
 const deleteSelectedNodes = async () => {
-  if (selectedNodes.value.length === 0) {
+  // 检查是否已经在删除过程中
+  if (deleting.value) {
+    return;
+  }
+
+  // 使用同步后的选中状态（优先使用nodeManagement的状态）
+  const currentSelectedNodes = nodeManagement.checkedRowKeys.value.length > 0
+    ? nodeManagement.checkedRowKeys.value
+    : selectedNodes.value;
+
+  if (currentSelectedNodes.length === 0) {
     message.warning('没有选中的节点可以删除');
     return;
   }
 
+  deleting.value = true;
+
   dialog.warning({
     title: '确认批量删除',
-    content: `确定要删除选中的 ${selectedNodes.value.length} 个节点吗？此操作不可撤销。`,
+    content: `确定要删除选中的 ${currentSelectedNodes.length} 个节点吗？此操作不可撤销。`,
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        await nodeManagement.batchDeleteNodes(selectedNodes.value);
-        message.success(`已删除 ${selectedNodes.value.length} 个节点`);
+        // 使用统一的批量删除方法
+        await nodeManagement.batchDeleteNodes(currentSelectedNodes);
+
+        // 清空本地选中状态
         selectedNodes.value = [];
+        // nodeManagement.batchDeleteNodes 已经会显示成功消息，这里不需要重复显示
       } catch (error) {
-        message.error('批量删除失败');
+        // 错误已经在nodeManagement中处理
+      } finally {
+        deleting.value = false;
       }
     },
+    onClose: () => {
+      deleting.value = false;
+    }
   });
 };
 
@@ -2084,6 +2109,11 @@ const refreshData = async () => {
 };
 
 const clearFailedNodes = async () => {
+  // 检查是否已经在删除过程中
+  if (deleting.value) {
+    return;
+  }
+
   try {
     // 找到所有失败的节点
     const failedNodes = nodeManagement.nodes.value.filter(node => {
@@ -2091,14 +2121,34 @@ const clearFailedNodes = async () => {
       return healthStatus.status === 'error';
     });
 
-    if (failedNodes.length > 0) {
-      await nodeManagement.batchDeleteNodes(failedNodes.map(n => n.id));
-      message.success(`已清理 ${failedNodes.length} 个失败项`);
-    } else {
+    if (failedNodes.length === 0) {
       message.info('没有失败的节点需要清理');
+      return;
     }
+
+    deleting.value = true;
+
+    dialog.warning({
+      title: '清理失败节点',
+      content: `确定要清理 ${failedNodes.length} 个失败的节点吗？此操作不可撤销。`,
+      positiveText: '清理',
+      negativeText: '取消',
+      onPositiveClick: async () => {
+        try {
+          await nodeManagement.batchDeleteNodes(failedNodes.map(n => n.id));
+          message.success(`已清理 ${failedNodes.length} 个失败项`);
+        } catch (error) {
+          message.error('清理失败');
+        } finally {
+          deleting.value = false;
+        }
+      },
+      onClose: () => {
+        deleting.value = false;
+      }
+    });
   } catch (error) {
-    message.error('清理失败');
+    deleting.value = false;
   }
 };
 

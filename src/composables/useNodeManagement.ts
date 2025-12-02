@@ -167,9 +167,26 @@ export function useNodeManagement() {
   const batchDeleteNodes = async (ids: string[]): Promise<void> => {
     try {
       const result = await nodeService.batchDeleteNodes(ids);
-      message.success(result.message || '批量删除成功');
+      // 清空选中状态
       checkedRowKeys.value = [];
+      // 刷新数据
       await fetchNodes();
+
+      // 显示成功消息，使用更准确的描述
+      if (result.message) {
+        // 解析消息中的数量
+        const match = result.message.match(/(\d+)/);
+        const deletedCount = match ? parseInt(match[1]) : ids.length;
+
+        if (deletedCount > ids.length) {
+          // 如果后端报告删除的数量大于发送的ID数量，可能存在重复记录
+          message.success(`已删除 ${deletedCount} 个节点（${ids.length} 个选中）`);
+        } else {
+          message.success(result.message);
+        }
+      } else {
+        message.success(`已删除 ${ids.length} 个节点`);
+      }
     } catch (err: any) {
       message.error(err.message || '批量删除失败');
       throw err;
