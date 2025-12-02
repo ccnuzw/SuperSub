@@ -152,9 +152,9 @@ export interface GroupCount {
 }
 
 export interface ActionOption {
-  label: string;
+  label?: string;
   key: string;
-  type?: 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error';
+  type?: 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error' | 'divider';
   icon?: Component;
   description?: string;
   danger?: boolean;
@@ -213,7 +213,7 @@ const emit = defineEmits<{
   'update:activeTab': [value: string];
   'tab-click': [tabId: string];
   'group-tab-click': [group: GroupItem, event: MouseEvent];
-  'group-context-menu': [group: GroupItem, event: MouseEvent];
+  'group-context-menu': [group: GroupItem | null, event: MouseEvent];
   'group-action': [key: string, group: GroupItem];
   'add-action': [key: string, data?: { name: string; description: string }];
 }>();

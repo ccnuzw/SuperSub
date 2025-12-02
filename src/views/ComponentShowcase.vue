@@ -1334,7 +1334,7 @@ const handleAddGroup = (key: string, data?: { name: string; description: string 
       is_enabled: true
     }
     groups.value.push(newGroup)
-    groupCounts.value[newGroup.id] = 0
+    groupCounts.value[newGroup.id as string] = 0
   }
 }
 // &lt;/script&gt;`
@@ -1407,7 +1407,7 @@ const handleAddGroup = (key: string, data?: { name: string; description: string 
       is_enabled: true
     }
     groups.value.push(newGroup)
-    groupCounts.value[newGroup.id] = 0
+    groupCounts.value[newGroup.id as string] = 0
   }
 }
 // &lt;/script&gt;`
@@ -1735,7 +1735,7 @@ const handleAddGroup = (key: string, data?: { name: string; description: string 
       is_enabled: true
     }
     mockGroups.value.push(newGroup)
-    mockGroupCounts.value[newGroup.id] = 0
+    mockGroupCounts.value[newGroup.id as keyof typeof mockGroupCounts.value] = 0
     console.log('添加新分组:', data.name, data.description)
   }
 }
