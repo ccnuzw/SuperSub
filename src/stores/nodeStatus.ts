@@ -47,11 +47,10 @@ export const useNodeStatusStore = defineStore('nodeStatus', () => {
       const response = await api.post('/nodes/health-check', { nodeIds });
       const result = response.data;
       if (response.status === 200 && result.success) {
-        // Immediately fetch statuses to show 'testing' state
+        // 立即获取状态以显示测试中的状态
         fetchStatuses();
-        // Fetch again after a few seconds to get final results
-        setTimeout(() => fetchStatuses(), 3000);
-        setTimeout(() => fetchStatuses(), 8000); // And again to catch slower nodes
+        // 5秒后获取最终结果
+        setTimeout(() => fetchStatuses(), 5000);
         return { success: true, message: result.message || '节点健康检查已启动' }
       } else {
         return { success: false, message: result.message || '启动健康检查失败' }

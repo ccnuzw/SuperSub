@@ -1865,16 +1865,6 @@ const testNode = async (node: Node) => {
   try {
     await nodeHealth.checkNodeHealth(node.id);
     message.success('节点测试已启动');
-
-    // 测试开始后定期刷新状态
-    const refreshInterval = setInterval(() => {
-      nodeHealth.refreshHealthStatus();
-    }, 2000);
-
-    // 10秒后停止刷新
-    setTimeout(() => {
-      clearInterval(refreshInterval);
-    }, 10000);
   } catch (error) {
     message.error('启动测试失败');
   }
@@ -1916,16 +1906,6 @@ const testSelectedNodes = async (filters?: string[]) => {
 
     await nodeHealth.checkNodesHealth(nodesToTest);
     message.success(`已开始测试 ${nodesToTest.length} 个节点`);
-
-    // 测试开始后定期刷新状态
-    const refreshInterval = setInterval(() => {
-      nodeHealth.refreshHealthStatus();
-    }, 2000);
-
-    // 15秒后停止刷新（批量测试可能需要更长时间）
-    setTimeout(() => {
-      clearInterval(refreshInterval);
-    }, 15000);
   } catch (error) {
     message.error('批量测试失败');
   } finally {
@@ -2198,10 +2178,8 @@ onMounted(async () => {
     // 更新分组计数
     nodeGroups.updateGroupCounts();
 
-    // 启动定时刷新健康状态（每30秒）
-    healthCheckInterval = setInterval(() => {
-      nodeHealth.refreshHealthStatus();
-    }, 30000);
+    // 健康状态数据将在手动检查时更新
+    console.log('节点数据加载完成');
   } catch (error) {
     message.error('加载数据失败');
   } finally {
