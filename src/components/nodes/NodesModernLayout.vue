@@ -22,11 +22,14 @@
               添加节点
             </n-button>
 
-              <!-- 更多操作下拉菜单 -->
-            <PerfectDropdown
-              :items="headerMoreActions"
+            <!-- 更多操作下拉菜单 -->
+            <SmartHeaderActions
+              :items="headerSmartActions"
               @select="handleHeaderMoreAction"
               placement="bottom-right"
+              button-type="default"
+              :ghost="false"
+              size="medium"
             />
           </n-space>
         </div>
@@ -34,63 +37,14 @@
 
       <!-- 统计卡片 -->
       <div class="stats-section">
-        <div class="stats-grid">
-          <div
-            class="stat-card"
-            :class="{ active: activeView === 'all' }"
-            @click="handleViewChange('all')"
-          >
-            <div class="stat-icon">
-              <n-icon :component="NodesIcon" />
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ nodeStats.totalCount }}</div>
-              <div class="stat-label">全部节点</div>
-            </div>
-          </div>
-
-          <div
-            class="stat-card online"
-            :class="{ active: activeView === 'online' }"
-            @click="handleViewChange('online')"
-          >
-            <div class="stat-icon">
-              <n-icon :component="CheckCircleIcon" />
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ nodeStats.onlineCount }}</div>
-              <div class="stat-label">在线节点</div>
-            </div>
-          </div>
-
-          <div
-            class="stat-card offline"
-            :class="{ active: activeView === 'offline' }"
-            @click="handleViewChange('offline')"
-          >
-            <div class="stat-icon">
-              <n-icon :component="CloseCircleIcon" />
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ nodeStats.offlineCount }}</div>
-              <div class="stat-label">离线节点</div>
-            </div>
-          </div>
-
-          <div
-            class="stat-card error"
-            :class="{ active: activeView === 'error' }"
-            @click="handleViewChange('error')"
-          >
-            <div class="stat-icon">
-              <n-icon :component="WarningIcon" />
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ nodeStats.errorCount }}</div>
-              <div class="stat-label">异常节点</div>
-            </div>
-          </div>
-        </div>
+        <StatsCardGrid
+          :stats="nodeStatsCards"
+          :columns="4"
+          :animated="true"
+          :clickable="true"
+          size="medium"
+          @card-click="handleStatsCardClick"
+        />
       </div>
     </div>
 
@@ -483,6 +437,11 @@ import { useNodeGroups } from '@/composables/useNodeGroups';
 import { useNodeFilters } from '@/composables/useNodeFilters';
 import { useGroupStore } from '@/stores/groups';
 import NodeSmartActions from './NodeSmartActions.vue';
+import SmartHeaderActions from '../common/SmartHeaderActions.vue';
+import StatsCardGrid from '../common/StatsCardGrid.vue';
+import LatencyIndicator from '../common/LatencyIndicator.vue';
+import ProtocolTag from '../common/ProtocolTag.vue';
+import StatusBadge from '../common/StatusBadge.vue';
 import PerfectDropdown from '../PerfectDropdown.vue';
 import NodeModal from '@/views/components/NodeModal.vue';
 import ImportModal from '@/views/components/ImportModal.vue';
@@ -529,6 +488,46 @@ const showEditModal = ref(false);
 const showImportModal = ref(false);
 const showBatchMoveModal = ref(false);
 const editingNode = ref<Node | null>(null);
+
+// 计算属性：统计数据 - StatsCardGrid格式
+const nodeStatsCards = computed(() => [
+  {
+    key: 'all',
+    label: '全部节点',
+    value: nodeStats.value.totalCount,
+    icon: NodesIcon,
+    type: 'primary' as const,
+    tooltip: '点击查看全部节点',
+    onClick: () => handleViewChange('all')
+  },
+  {
+    key: 'online',
+    label: '在线节点',
+    value: nodeStats.value.onlineCount,
+    icon: CheckCircleIcon,
+    type: 'success' as const,
+    tooltip: '点击查看在线节点',
+    onClick: () => handleViewChange('online')
+  },
+  {
+    key: 'offline',
+    label: '离线节点',
+    value: nodeStats.value.offlineCount,
+    icon: CloseCircleIcon,
+    type: 'warning' as const,
+    tooltip: '点击查看离线节点',
+    onClick: () => handleViewChange('offline')
+  },
+  {
+    key: 'error',
+    label: '异常节点',
+    value: nodeStats.value.errorCount,
+    icon: WarningIcon,
+    type: 'error' as const,
+    tooltip: '点击查看异常节点',
+    onClick: () => handleViewChange('error')
+  }
+]);
 
 // 计算属性：统计数据
 const nodeStats = computed(() => {
@@ -954,7 +953,50 @@ const smartActions = computed(() => {
   return actions.slice(0, 3);
 });
 
-// 右上角更多操作
+// 右上角更多操作 - SmartHeaderActions格式
+const headerSmartActions = computed(() => [
+  {
+    key: 'import',
+    label: '批量导入',
+    description: '从文件或链接批量导入节点',
+    icon: ImportIcon,
+    type: 'primary' as const
+  },
+  {
+    key: 'test-all',
+    label: '批量测试',
+    description: '测试所有节点的连通性',
+    icon: FlashIcon,
+    type: 'success' as const
+  },
+  {
+    key: 'export-all',
+    label: '导出全部',
+    description: '导出所有节点配置',
+    icon: DownloadIcon,
+    type: 'default' as const
+  },
+  {
+    key: 'refresh',
+    label: '刷新数据',
+    description: '重新获取节点数据',
+    icon: RefreshIcon,
+    type: 'default' as const
+  },
+  {
+    type: 'divider' as const,
+    key: 'divider-1'
+  },
+  {
+    key: 'settings',
+    label: '设置',
+    description: '节点管理设置',
+    icon: SettingsIcon,
+    type: 'default' as const
+  }
+]);
+
+// 右上角更多操作 - 保留原格式用于兼容
 const headerMoreActions = computed(() => [
   {
     label: '批量导入',
@@ -1214,118 +1256,21 @@ const tableColumns = computed(() => [
     key: 'protocol',
     width: 100,
     render: (row: any) => {
-      const protocol = row.protocol?.toUpperCase() || 'UNKNOWN';
+      const protocol = row.protocol?.toLowerCase() || 'unknown';
 
-      if (protocol === 'UNKNOWN') {
+      if (protocol === 'unknown') {
         return h('span', { style: 'color: #999; font-size: 12px;' }, '未知');
       }
 
-      // 协议颜色配置 - 使用现代配色方案
-      const protocolStyles: Record<string, { bg: string; color: string; border: string }> = {
-        // VLESS - 翠绿色系
-        'VLESS': {
-          bg: '#f6ffed',
-          color: '#52c41a',
-          border: '#b7eb8f'
-        },
-        // VMESS - 蓝色系
-        'VMESS': {
-          bg: '#f0f9ff',
-          color: '#1890ff',
-          border: '#91d5ff'
-        },
-        // Trojan - 橙色系
-        'TROJAN': {
-          bg: '#fff7e6',
-          color: '#fa8c16',
-          border: '#ffd591'
-        },
-        // Shadowsocks - 紫色系
-        'SS': {
-          bg: '#f9f0ff',
-          color: '#722ed1',
-          border: '#d3adf7'
-        },
-        // ShadowsocksR - 粉色系
-        'SSR': {
-          bg: '#fff0f6',
-          color: '#eb2f96',
-          border: '#ffadd2'
-        },
-        // Hysteria2 - 青色系
-        'HYSTERIA2': {
-          bg: '#e6fffb',
-          color: '#13c2c2',
-          border: '#87e8de'
-        },
-        // TUIC - 橙红色系
-        'TUIC': {
-          bg: '#fff1f0',
-          color: '#ff7875',
-          border: '#ffccc7'
-        },
-        // AnyTLS - 红色系
-        'ANYTLS': {
-          bg: '#fff2f0',
-          color: '#ff4d4f',
-          border: '#ffccc7'
-        },
-        // SOCKS5 - 深蓝色系
-        'SOCKS5': {
-          bg: '#e6f7ff',
-          color: '#4096ff',
-          border: '#91d5ff'
-        },
-        // HTTP - 灰色系
-        'HTTP': {
-          bg: '#fafafa',
-          color: '#595959',
-          border: '#d9d9d9'
-        },
-        // HTTPS - 蓝绿色系
-        'HTTPS': {
-          bg: '#f6ffed',
-          color: '#389e0d',
-          border: '#b7eb8f'
-        },
-        // WIREGUARD - 深绿色系
-        'WIREGUARD': {
-          bg: '#f0f9ff',
-          color: '#0958d9',
-          border: '#91d5ff'
-        },
-        // MESH - 深紫色系
-        'MESH': {
-          bg: '#f9f0ff',
-          color: '#531dab',
-          border: '#d3adf7'
-        }
-      };
-
-      const style = protocolStyles[protocol] || {
-        bg: '#fafafa',
-        color: '#666666',
-        border: '#d9d9d9'
-      };
-
-      // 使用原生HTML元素创建协议标签
-      return h('div', {
-        style: `
-          display: inline-block;
-          padding: 2px 8px;
-          border-radius: 4px;
-          font-size: 11px;
-          font-weight: 600;
-          line-height: 1.2;
-          background-color: ${style.bg};
-          color: ${style.color};
-          border: 1px solid ${style.border};
-          text-align: center;
-          white-space: nowrap;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-          transition: all 0.2s ease;
-        `
-      }, protocol);
+      return h(ProtocolTag, {
+        protocol: protocol,
+        size: 'small',
+        variant: 'colorful',
+        showIcon: true,
+        round: true,
+        colorScheme: 'default',
+        uppercase: true
+      });
     }
   },
   { title: '服务器', key: 'server', width: 150, ellipsis: { tooltip: true } },
@@ -1336,23 +1281,45 @@ const tableColumns = computed(() => [
     width: 100,
     render: (row: any) => {
       const healthStatus = nodeHealth.getNodeHealthStatus(row);
-      const statusText = nodeHealth.getStatusText(healthStatus.status);
-      const statusColor = nodeHealth.getStatusColor(healthStatus.status);
 
-      return h('div', {
-        style: `
-          display: inline-block;
-          padding: 2px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-          font-weight: 500;
-          text-align: center;
-          white-space: nowrap;
-          border: 1px solid ${statusColor};
-          color: ${statusColor};
-          background-color: ${statusColor}22;
-        `
-      }, statusText);
+      // 映射健康状态到StatusBadge的状态
+      let badgeStatus: 'online' | 'offline' | 'testing' | 'error' | 'warning' | 'unknown' = 'unknown';
+
+      switch (healthStatus.status) {
+        case 'online':
+          badgeStatus = 'online';
+          break;
+        case 'offline':
+          badgeStatus = 'offline';
+          break;
+        case 'testing':
+          badgeStatus = 'testing';
+          break;
+        case 'error':
+          badgeStatus = 'error';
+          break;
+        case 'pending':
+          badgeStatus = 'unknown';
+          break;
+        default:
+          badgeStatus = 'unknown';
+      }
+
+      return h(StatusBadge, {
+        status: badgeStatus,
+        size: 'small',
+        variant: 'default',
+        showIcon: true,
+        showIndicator: false,
+        bordered: true,
+        round: false,
+        colorScheme: 'default',
+        pulse: healthStatus.status === 'testing',
+        glow: false,
+        tooltip: `节点状态: ${nodeHealth.getStatusText(healthStatus.status)}`,
+        tooltipDescription: `最后检查: ${(healthStatus as any).lastChecked ? new Date((healthStatus as any).lastChecked).toLocaleString() : '从未检查'}`,
+        tooltipPlacement: 'top'
+      });
     }
   },
   {
@@ -1362,24 +1329,28 @@ const tableColumns = computed(() => [
     render: (row: any) => {
       const healthStatus = nodeHealth.getNodeHealthStatus(row);
 
+      let latency: number | null = null;
+
       if (healthStatus.status === 'testing') {
-        return h('span', { style: 'color: #1890ff;' }, '测试中');
+        latency = -1; // 使用负数表示测试中
+      } else if (healthStatus.status === 'pending' || !healthStatus.latency) {
+        latency = null; // 使用null表示未测试
+      } else if (healthStatus.latency === 0 || healthStatus.latency === -1) {
+        latency = -2; // 使用特殊负数表示超时
+      } else {
+        latency = healthStatus.latency;
       }
 
-      if (healthStatus.status === 'pending' || !healthStatus.latency) {
-        return h('span', { style: 'color: #999;' }, '未测试');
-      }
-
-      if (healthStatus.latency === 0 || healthStatus.latency === -1) {
-        return h('span', { style: 'color: #ff4d4f;' }, '超时');
-      }
-
-      const latency = healthStatus.latency;
-      const color = latency < 100 ? '#52c41a' :
-                   latency < 300 ? '#1890ff' :
-                   latency < 1000 ? '#faad14' : '#ff4d4f';
-
-      return h('span', { style: `color: ${color}` }, `${latency}ms`);
+      return h(LatencyIndicator, {
+        latency: latency,
+        size: 'small',
+        showIcon: true,
+        showUnit: true,
+        colorScheme: 'network',
+        thresholds: { good: 100, medium: 300, poor: 500 },
+        loadingLabel: '测试中',
+        unknownLabel: '未测试'
+      });
     }
   },
   {
@@ -1420,6 +1391,14 @@ const tableColumns = computed(() => [
 ]);
 
 // 事件处理方法
+// 处理统计卡片点击
+const handleStatsCardClick = (stat: any, index: number) => {
+  // 调用卡片中定义的onClick方法
+  if (stat.onClick) {
+    stat.onClick();
+  }
+};
+
 const handleViewChange = (view: string) => {
   activeView.value = view;
   paginationState.value.page = 1;
@@ -1529,7 +1508,11 @@ const handlePageSizeChange = (pageSize: number) => {
   paginationState.value.page = 1;
 };
 
-const handleHeaderMoreAction = async (key: string) => {
+const handleHeaderMoreAction = async (key: string, item: any, event?: MouseEvent) => {
+  // SmartHeaderActions格式：参数为 (key, item, event)
+  // PerfectDropdown格式：参数仅为 key
+  // 这里兼容两种格式
+
   switch (key) {
     case 'import':
       showImportModal.value = true;
