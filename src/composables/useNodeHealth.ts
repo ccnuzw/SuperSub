@@ -56,12 +56,15 @@ export function useNodeHealth(nodes?: any) {
         healthStatus = 'online';
       } else if (backendStatus === 'unhealthy') {
         healthStatus = 'offline';
-      } else if (backendStatus === 'error') {
-        healthStatus = 'error';
-      } else if (backendStatus === 'testing') {
-        healthStatus = 'testing';
       } else {
-        healthStatus = 'pending';
+        // 对于 'testing', 'pending' 或其他未知状态，如果存在error信息则设为error
+        if (status.error) {
+          healthStatus = 'error';
+        } else if (backendStatus === 'testing') {
+          healthStatus = 'testing';
+        } else {
+          healthStatus = 'pending';
+        }
       }
 
       latency = status.latency || undefined;

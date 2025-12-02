@@ -6,6 +6,7 @@ import router from './router'
 import naive from './plugins/naive'
 
 import './assets/main.css'
+import './styles/common.css'
 
 const app = createApp(App)
 const pinia = createPinia()

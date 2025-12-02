@@ -64,7 +64,7 @@
       </n-button>
 
       <!-- 智能推荐操作 -->
-      <SmartActions
+      <NodeSmartActions
         :selected-nodes="selectedNodes"
         :context="context"
         :active-tab="localActiveTab"
@@ -93,7 +93,7 @@ import {
   Flash as FlashIcon,
   Trash as TrashIcon
 } from '@vicons/ionicons5';
-import SmartActions from './SmartActions.vue';
+import NodeSmartActions from './NodeSmartActions.vue';
 import PerfectDropdown from '../PerfectDropdown.vue';
 import type { Node, NodeGroup } from '@/types/entities';
 

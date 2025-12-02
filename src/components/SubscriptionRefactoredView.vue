@@ -558,8 +558,9 @@
               return h(NSwitch, {
                 value: row.enabled === 1,
                 onUpdateValue: async (value) => {
-                  if (!currentRuleContext.value) return
-                  const { type, entity } = currentRuleContext.value
+                  const context = unref(currentRuleContext)
+                  if (!context) return
+                  const { type, entity } = context
                   const baseUrl = type === 'subscription' ? '/subscriptions' : '/subscription-groups'
 
                   row.enabled = value ? 1 : 0
@@ -861,7 +862,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed, reactive, nextTick, watch, h } from 'vue'
+import { onMounted, ref, computed, reactive, nextTick, watch, h, type Ref, unref } from 'vue'
 import { formatBytes } from '@/utils/format'
 import type { FormInst } from 'naive-ui'
 import {
@@ -922,6 +923,7 @@ import { useMessage, useDialog } from 'naive-ui'
 import { SubscriptionService } from '@/services/subscriptionService'
 import { api } from '@/utils/api'
 import type { Subscription, SubscriptionGroup, SubscriptionRule } from '@/types/entities'
+import type { ApiResponse } from '@/types/common'
 import { regenerateLink, type ParsedNode } from '@/utils/nodeParser'
 import { getNaiveTagColor } from '@/utils/colors'
 import GroupManagement from '@/components/subscription/GroupManagement.vue'
@@ -997,7 +999,16 @@ const ruleSaveLoading = ref(false)
 const editingRule = ref<SubscriptionRule | null>(null)
 const rules = ref<SubscriptionRule[]>([])
 const ruleFormRef = ref<FormInst | null>(null)
-const currentRuleContext = ref<{ type: 'subscription' | 'group', entity: Subscription | SubscriptionGroup } | null>(null)
+const currentRuleContext: Ref<{
+  type: 'subscription' | 'group'
+  entity: Subscription | SubscriptionGroup
+} | null> = ref<{
+  type: 'subscription' | 'group'
+  entity: Subscription | SubscriptionGroup
+} | null>(null)
+
+// Computed property to safely access current context
+const safeCurrentRuleContext = computed(() => currentRuleContext.value)
 
 // 批量更新相关状态
 const showUpdateLogModal = ref(false)
@@ -1061,7 +1072,7 @@ const ruleFormState = reactive({
   name: '',
   type: 'filter_by_name_keyword' as SubscriptionRule['type'] | 'exclude_by_name_keyword' | 'filter_by_name_regex' | 'rename_by_regex',
   value: '',
-  enabled: 1,
+  enabled: true,
   keywords: [] as string[],
   renameRegex: '',
   renameFormat: '',
@@ -1190,7 +1201,7 @@ const columns = createColumns({
   onUpdate: (row) => handleUpdate(row),
   onDelete: (row) => handleDelete(row),
   onPreviewNodes: (row) => handlePreviewNodes(row),
-  onManageRules: (row) => handleManageRules(row, 'subscription')
+  onManageRules: (row) => handleManageRules(row as unknown as Subscription, 'subscription')
 })
 
 // 预览节点功能
@@ -1866,7 +1877,7 @@ const fetchRules = async () => {
   const baseUrl = type === 'subscription' ? '/subscriptions' : '/subscription-groups'
 
   try {
-    const response = await api.get<SubscriptionRule[]>(`${baseUrl}/${entity.id}/rules`)
+    const response = await api.get<ApiResponse<SubscriptionRule[]>>(`${baseUrl}/${entity.id}/rules`)
     if (response.data.success) {
       rules.value = response.data.data || []
     } else {
@@ -1884,7 +1895,7 @@ const openRuleFormModal = (rule: SubscriptionRule | null) => {
   ruleFormState.name = ''
   ruleFormState.type = 'filter_by_name_keyword'
   ruleFormState.value = ''
-  ruleFormState.enabled = 1
+  ruleFormState.enabled = true
   ruleFormState.keywords = []
   ruleFormState.renameRegex = ''
   ruleFormState.renameFormat = ''
@@ -1897,7 +1908,7 @@ const openRuleFormModal = (rule: SubscriptionRule | null) => {
     ruleFormState.name = rule.name
     ruleFormState.type = rule.type
     ruleFormState.value = rule.value
-    ruleFormState.enabled = rule.enabled
+    ruleFormState.enabled = !!rule.enabled
     try {
       const parsedValue = JSON.parse(rule.value)
       if ((rule.type === 'filter_by_name_keyword' || rule.type === 'exclude_by_name_keyword') && parsedValue.keywords) {

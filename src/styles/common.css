@@ -1,0 +1,402 @@
+/* ===== 统一设计系统 ===== */
+
+/* ===== CSS 变量定义 ===== */
+:root {
+  /* === 间距系统 === */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 24px;
+  --spacing-3xl: 32px;
+  --spacing-4xl: 40px;
+
+  /* === 圆角系统 === */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-full: 50%;
+
+  /* === 阴影系统 === */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 10px 40px rgba(0, 0, 0, 0.15);
+  --shadow-glow: 0 0 20px rgba(102, 126, 234, 0.3);
+
+  /* === 主色调 === */
+  --primary-50: #f0f4ff;
+  --primary-100: #e0e8ff;
+  --primary-500: #667eea;
+  --primary-600: #5a67d8;
+  --primary-700: #4c51bf;
+
+  /* === 渐变色 === */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-success: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  --gradient-warning: linear-gradient(135deg, #faad14 0%, #ffc53d 100%);
+  --gradient-error: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%);
+  --gradient-neutral: linear-gradient(135deg, #868e96 0%, #adb5bd 100%);
+
+  /* === 状态色 === */
+  --success: #52c41a;
+  --warning: #faad14;
+  --error: #ff4d4f;
+  --info: #1890ff;
+
+  /* === 背景色 === */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f7fa;
+  --bg-tertiary: #fafbfc;
+  --bg-overlay: rgba(255, 255, 255, 0.95);
+
+  /* === 文字色 === */
+  --text-primary: #1a202c;
+  --text-secondary: #4a5568;
+  --text-tertiary: #718096;
+  --text-quaternary: #a0aec0;
+
+  /* === 边框色 === */
+  --border-primary: #e2e8f0;
+  --border-secondary: #edf2f7;
+  --border-focus: #667eea;
+
+  /* === 动画缓动函数 === */
+  --ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-in-out-cubic: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* === 过渡时间 === */
+  --transition-fast: 0.15s;
+  --transition-normal: 0.2s;
+  --transition-slow: 0.3s;
+}
+
+/* 深色主题变量 */
+.dark {
+  --bg-primary: #18181c;
+  --bg-secondary: #1f1f23;
+  --bg-tertiary: #2a2a2e;
+  --bg-overlay: rgba(24, 24, 28, 0.95);
+
+  --text-primary: #ffffff;
+  --text-secondary: #e5e7eb;
+  --text-tertiary: #d1d5db;
+  --text-quaternary: #9ca3af;
+
+  --border-primary: #303030;
+  --border-secondary: #374151;
+  --border-focus: #667eea;
+}
+
+/* ===== 通用样式类 ===== */
+
+/* === 布局类 === */
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-xs { gap: var(--spacing-xs); }
+.gap-sm { gap: var(--spacing-sm); }
+.gap-md { gap: var(--spacing-md); }
+.gap-lg { gap: var(--spacing-lg); }
+.gap-xl { gap: var(--spacing-xl); }
+
+/* === 卡片样式 === */
+.modern-card {
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-normal) var(--ease-out-cubic);
+  overflow: hidden;
+}
+
+.modern-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
+.modern-card-elevated {
+  box-shadow: var(--shadow-lg);
+}
+
+.modern-card-elevated:hover {
+  box-shadow: var(--shadow-xl);
+  transform: translateY(-2px);
+}
+
+/* === 按钮样式 === */
+.modern-button {
+  position: relative;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  transition: all var(--transition-normal) var(--ease-out-cubic);
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+}
+
+.modern-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--gradient-primary);
+  opacity: 0;
+  transition: opacity var(--transition-normal) var(--ease-out-cubic);
+  border-radius: inherit;
+}
+
+.modern-button:hover::before {
+  opacity: 0.1;
+}
+
+.modern-button:active {
+  transform: scale(0.98);
+}
+
+.modern-button-primary {
+  background: var(--gradient-primary);
+  color: white;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.modern-button-primary:hover {
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+}
+
+.modern-button-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+.modern-button-ghost:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+}
+
+/* === 状态指示器 === */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  transition: all var(--transition-fast) var(--ease-out-cubic);
+}
+
+.status-online {
+  background: rgba(82, 196, 26, 0.1);
+  color: var(--success);
+  border: 1px solid rgba(82, 196, 26, 0.2);
+}
+
+.status-offline {
+  background: rgba(255, 77, 79, 0.1);
+  color: var(--error);
+  border: 1px solid rgba(255, 77, 79, 0.2);
+}
+
+.status-warning {
+  background: rgba(250, 173, 20, 0.1);
+  color: var(--warning);
+  border: 1px solid rgba(250, 173, 20, 0.2);
+}
+
+/* === 输入框样式 === */
+.modern-input {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-normal) var(--ease-out-cubic);
+  color: var(--text-primary);
+}
+
+.modern-input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  outline: none;
+}
+
+.modern-input::placeholder {
+  color: var(--text-quaternary);
+}
+
+/* === 下拉菜单样式 === */
+.modern-dropdown {
+  background: var(--bg-overlay);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  animation: dropdown-appear var(--transition-slow) var(--ease-bounce);
+}
+
+@keyframes dropdown-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* === 滚动条样式 === */
+.modern-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.modern-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modern-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--text-quaternary);
+  border-radius: var(--radius-full);
+  opacity: 0.5;
+  transition: opacity var(--transition-fast) var(--ease-out-cubic);
+}
+
+.modern-scrollbar::-webkit-scrollbar-thumb:hover {
+  opacity: 0.8;
+}
+
+/* === 加载状态 === */
+.loading-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 25%,
+    var(--bg-tertiary) 50%,
+    var(--bg-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* === 响应式工具类 === */
+.container-fluid {
+  width: 100%;
+  padding: 0 var(--spacing-lg);
+}
+
+@media (max-width: 768px) {
+  .container-fluid {
+    padding: 0 var(--spacing-md);
+  }
+}
+
+/* === 深色主题优化 === */
+.dark .modern-card {
+  background: var(--bg-primary);
+  border-color: var(--border-primary);
+}
+
+.dark .modern-button-ghost:hover {
+  background: var(--bg-secondary);
+}
+
+.dark .modern-input {
+  background: var(--bg-secondary);
+  border-color: var(--border-primary);
+}
+
+/* === 可访问性 === */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 焦点样式 */
+.focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* === 动画工具类 === */
+.animate-fade-in {
+  animation: fadeIn var(--transition-normal) var(--ease-out-cubic);
+}
+
+.animate-slide-up {
+  animation: slideUp var(--transition-normal) var(--ease-out-cubic);
+}
+
+.animate-bounce-in {
+  animation: bounceIn var(--transition-slow) var(--ease-bounce);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}

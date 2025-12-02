@@ -103,7 +103,7 @@ import { EllipsisHorizontal as MoreIcon } from '@vicons/ionicons5';
 import type { Component } from 'vue';
 
 // 定义菜单项接口
-interface MenuItem {
+export interface MenuItem {
   key: string;
   label?: string;
   description?: string;
@@ -246,6 +246,13 @@ const adjustPosition = () => {
     panel.style.left = 'auto';
   }
 };
+
+// 暴露方法给父组件
+defineExpose({
+  show: () => { showDropdown.value = true; },
+  hide: () => { showDropdown.value = false; },
+  toggle: () => { showDropdown.value = !showDropdown.value; }
+});
 </script>
 
 <style scoped>

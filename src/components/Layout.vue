@@ -16,6 +16,7 @@ import {
   LogOutOutline as LogoutIcon,
   PeopleOutline as PeopleIcon,
   MenuOutline as MenuIcon,
+  ConstructOutline as ComponentIcon,
 } from '@vicons/ionicons5'
 import { useIsMobile } from '@/composables/useMediaQuery'
 
@@ -41,6 +42,11 @@ const menuOptions = computed(() => {
       label: () => h(RouterLink, { to: { name: 'home' } }, { default: () => 'Dashboard' }),
       key: 'home',
       icon: renderIcon(HomeIcon)
+    },
+    {
+      label: () => h(RouterLink, { to: { name: 'component-showcase' } }, { default: () => '组件展示' }),
+      key: 'component-showcase',
+      icon: renderIcon(ComponentIcon)
     },
     {
       label: () => h(RouterLink, { to: { name: 'subscriptions' } }, { default: () => 'Subscriptions' }),

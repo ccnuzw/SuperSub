@@ -43,6 +43,7 @@ export interface TableColumn<T = any> {
   width?: number;
   sortable?: boolean;
   render?: (value: any, record: T) => any;
+  fixed?: 'left' | 'right';
 }
 
 export interface TableAction<T = any> {

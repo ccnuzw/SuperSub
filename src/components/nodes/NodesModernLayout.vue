@@ -96,10 +96,15 @@
 
     <!-- 主要内容区域 -->
     <div class="layout-content">
-      <div class="content-container">
+      <div class="content-container" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
         <!-- 左侧：搜索和筛选 -->
-        <div class="content-sidebar">
-          <div class="search-panel">
+        <div class="content-sidebar" :class="{ 'collapsed': sidebarCollapsed }">
+          <!-- 折叠按钮 -->
+          <div class="sidebar-toggle" @click="toggleSidebar">
+            <n-icon :component="sidebarCollapsed ? ChevronForwardIcon : ChevronBackIcon" />
+          </div>
+
+          <div class="search-panel" v-show="!sidebarCollapsed">
             <div class="panel-header">
               <h3>搜索与筛选</h3>
             </div>
@@ -124,14 +129,16 @@
                 <label class="form-label">协议类型</label>
                 <div class="protocol-filters">
                   <n-checkbox-group v-model:value="selectedProtocols">
-                    <n-space vertical size="small">
+                    <div class="protocol-grid">
                       <n-checkbox
                         v-for="protocol in protocolOptions"
                         :key="protocol.value"
                         :value="protocol.value"
-                        :label="protocol.label"
-                      />
-                    </n-space>
+                        class="protocol-checkbox"
+                      >
+                        <span class="protocol-label">{{ protocol.label }}</span>
+                      </n-checkbox>
+                    </div>
                   </n-checkbox-group>
                 </div>
               </div>
@@ -141,12 +148,16 @@
                 <label class="form-label">节点状态</label>
                 <div class="status-filters">
                   <n-checkbox-group v-model:value="selectedStatuses">
-                    <n-space vertical size="small">
-                      <n-checkbox value="online" label="在线" />
-                      <n-checkbox value="offline" label="离线" />
-                      <n-checkbox value="testing" label="测试中" />
-                      <n-checkbox value="pending" label="未测试" />
-                    </n-space>
+                    <div class="status-grid">
+                      <n-checkbox
+                        v-for="status in statusListOptions"
+                        :key="status.value"
+                        :value="status.value"
+                        class="status-checkbox"
+                      >
+                        <span class="status-label">{{ status.label }}</span>
+                      </n-checkbox>
+                    </div>
                   </n-checkbox-group>
                 </div>
               </div>
@@ -169,6 +180,22 @@
                 </n-button>
               </div>
             </div>
+          </div>
+
+          <!-- 折叠状态下的快速筛选按钮 -->
+          <div class="collapsed-filters" v-if="sidebarCollapsed">
+            <n-tooltip placement="right" v-for="option in quickFilterOptions" :key="option.key">
+              <template #trigger>
+                <div
+                  class="quick-filter-btn"
+                  :class="{ active: option.active }"
+                  @click="option.action"
+                >
+                  <n-icon :component="option.icon" />
+                </div>
+              </template>
+              {{ option.label }}
+            </n-tooltip>
           </div>
         </div>
 
@@ -215,8 +242,39 @@
                 v-for="group in groups"
                 :key="group.id"
                 :name="group.id"
-                :tab="`${group.name} (${groupCounts[group.id] || 0})`"
-              />
+              >
+                <template #tab>
+                  <div
+                    class="group-tab-wrapper"
+                    @click.prevent="handleGroupTabClick(group, $event)"
+                    @contextmenu.prevent.stop="handleGroupContextMenu(group, $event)"
+                  >
+                    <span :style="{ color: group.is_enabled ? '' : '#999', marginRight: '8px' }">
+                      {{ group.name }} ({{ groupCounts[group.id] || 0 }})
+                    </span>
+
+                    <!-- 更多操作按钮 -->
+                    <n-dropdown
+                      :options="getGroupDropdownOptions(group)"
+                      placement="bottom-end"
+                      @select="(key: string) => handleGroupAction(key, group)"
+                      trigger="click"
+                    >
+                      <n-button
+                        text
+                        size="small"
+                        class="group-actions-button"
+                      >
+                        <template #icon>
+                          <n-icon>
+                            <MoreIcon />
+                          </n-icon>
+                        </template>
+                      </n-button>
+                    </n-dropdown>
+                  </div>
+                </template>
+              </n-tab-pane>
             </n-tabs>
           </div>
 
@@ -376,6 +434,17 @@
       @update:show="showBatchMoveModal = $event"
       @move="handleBatchMove"
     />
+
+    <!-- 分组右键菜单 -->
+    <n-dropdown
+      :show="showContextMenu"
+      :x="contextMenuX"
+      :y="contextMenuY"
+      :options="contextMenuGroup ? getGroupDropdownOptions(contextMenuGroup) : []"
+      placement="bottom-start"
+      @clickoutside="closeContextMenu"
+      @select="handleContextMenuAction"
+    />
   </div>
 </template>
 
@@ -402,14 +471,18 @@ import {
   Menu as SidebarIcon,
   Create as EditIcon,
   Link as LinkIcon,
-  InformationCircle as DetailsIcon
+  InformationCircle as DetailsIcon,
+  ChevronBack as ChevronBackIcon,
+  ChevronForward as ChevronForwardIcon,
+  Filter as FilterIcon,
+  Close as CloseIcon
 } from '@vicons/ionicons5';
 import { useNodeManagement } from '@/composables/useNodeManagement';
 import { useNodeHealth } from '@/composables/useNodeHealth';
 import { useNodeGroups } from '@/composables/useNodeGroups';
 import { useNodeFilters } from '@/composables/useNodeFilters';
 import { useGroupStore } from '@/stores/groups';
-import SmartActions from './SmartActions.vue';
+import NodeSmartActions from './NodeSmartActions.vue';
 import PerfectDropdown from '../PerfectDropdown.vue';
 import NodeModal from '@/views/components/NodeModal.vue';
 import ImportModal from '@/views/components/ImportModal.vue';
@@ -437,7 +510,7 @@ const nodeFilters = useNodeFilters(
 // 基础状态
 const loading = ref(false);
 const testingSelected = ref(false);
-const sidebarCollapsed = ref(false);
+const sidebarCollapsed = ref(true); // 默认为折叠状态
 
 // 搜索和筛选状态
 const searchQuery = ref('');
@@ -485,6 +558,13 @@ const protocolOptions = computed(() => {
   }));
 });
 
+const statusListOptions = [
+  { label: '在线', value: 'online' },
+  { label: '离线', value: 'offline' },
+  { label: '测试中', value: 'testing' },
+  { label: '未测试', value: 'pending' }
+];
+
 const latencyOptions = [
   { label: '优秀 (< 100ms)', value: 'excellent' },
   { label: '良好 (100-300ms)', value: 'good' },
@@ -496,18 +576,6 @@ const latencyOptions = [
 const filteredNodes = computed(() => {
   let result = nodeManagement.nodes.value;
 
-  // 视图筛选（基于健康检查状态）
-  if (activeView.value === 'online') {
-    const healthStatuses = result.map(node => nodeHealth.getNodeHealthStatus(node));
-    result = result.filter((node, index) => healthStatuses[index].status === 'online');
-  } else if (activeView.value === 'offline') {
-    const healthStatuses = result.map(node => nodeHealth.getNodeHealthStatus(node));
-    result = result.filter((node, index) => healthStatuses[index].status === 'offline');
-  } else if (activeView.value === 'error') {
-    const healthStatuses = result.map(node => nodeHealth.getNodeHealthStatus(node));
-    result = result.filter((node, index) => healthStatuses[index].status === 'error');
-  }
-
   // 搜索筛选
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
@@ -518,14 +586,30 @@ const filteredNodes = computed(() => {
   }
 
   // 协议筛选
-  if (selectedProtocols.value.length > 0) {
-    result = result.filter(node => selectedProtocols.value.includes(node.protocol));
+  if (selectedProtocols.value && selectedProtocols.value.length > 0) {
+    result = result.filter(node =>
+      selectedProtocols.value.includes(node.protocol)
+    );
   }
 
   // 状态筛选（基于健康检查状态）
-  if (selectedStatuses.value.length > 0) {
+  if (selectedStatuses.value && selectedStatuses.value.length > 0) {
     const healthStatuses = result.map(node => nodeHealth.getNodeHealthStatus(node));
-    result = result.filter((node, index) => selectedStatuses.value.includes(healthStatuses[index].status));
+    result = result.filter((node, index) =>
+      selectedStatuses.value.includes(healthStatuses[index].status)
+    );
+  }
+
+  // 视图筛选（基于健康检查状态）
+  if (activeView.value === 'online') {
+    const healthStatuses = result.map(node => nodeHealth.getNodeHealthStatus(node));
+    result = result.filter((node, index) => healthStatuses[index].status === 'online');
+  } else if (activeView.value === 'offline') {
+    const healthStatuses = result.map(node => nodeHealth.getNodeHealthStatus(node));
+    result = result.filter((node, index) => healthStatuses[index].status === 'offline');
+  } else if (activeView.value === 'error') {
+    const healthStatuses = result.map(node => nodeHealth.getNodeHealthStatus(node));
+    result = result.filter((node, index) => healthStatuses[index].status === 'error');
   }
 
   // 延迟筛选
@@ -602,7 +686,7 @@ const testDropdownOptions = computed(() => {
     options.push({
       label: `测试离线 (${offlineNodes.length})`,
       key: 'test-offline',
-      type: 'warning',
+      type: 'warning' as const,
       icon: FlashIcon,
       description: '测试当前离线的节点'
     });
@@ -614,7 +698,7 @@ const testDropdownOptions = computed(() => {
     options.push({
       label: `重试错误 (${errorNodes.length})`,
       key: 'retry-errors',
-      type: 'danger',
+      type: 'danger' as const,
       icon: RefreshIcon,
       description: '重新测试之前测试失败的节点'
     });
@@ -626,7 +710,7 @@ const testDropdownOptions = computed(() => {
     options.push({
       label: `重新测试 (${onlineNodes.length})`,
       key: 'retest-online',
-      type: 'default',
+      type: 'default' as const,
       icon: RefreshIcon,
       description: '重新测试当前在线的节点'
     });
@@ -634,14 +718,14 @@ const testDropdownOptions = computed(() => {
 
   // 默认选项
   options.push({
-    type: 'divider',
+    type: 'divider' as const,
     key: 'divider-1'
   });
 
   options.push({
     label: `测试所有选中 (${selected.length})`,
     key: 'test-all',
-    type: 'default',
+    type: 'default' as const,
     icon: FlashIcon,
     description: selected.length > 0 ? '测试所有选中的节点' : '请先选择要测试的节点'
   });
@@ -746,7 +830,7 @@ const moreDropdownOptions = computed(() => {
 
   // 默认操作
   options.push(
-    { type: 'divider', key: 'divider-1' },
+    { type: 'divider' as const, key: 'divider-1' },
     {
       label: '复制链接',
       key: 'copy-links',
@@ -757,13 +841,64 @@ const moreDropdownOptions = computed(() => {
       label: '删除选中',
       key: 'delete-selected',
       icon: TrashIcon,
-      type: 'danger',
+      type: 'danger' as const,
       description: selected.length > 0 ? `删除 ${selected.length} 个选中的节点` : '请先选择要删除的节点'
     }
   );
 
   return options;
 });
+
+// 快速筛选选项（折叠状态下显示）
+const quickFilterOptions = computed(() => [
+  {
+    key: 'all',
+    label: '全部节点',
+    icon: NodesIcon,
+    active: activeView.value === 'all' && !hasFilters.value,
+    action: () => {
+      activeView.value = 'all';
+      clearFilters();
+    }
+  },
+  {
+    key: 'online',
+    label: '在线节点',
+    icon: CheckCircleIcon,
+    active: activeView.value === 'online',
+    action: () => {
+      activeView.value = 'online';
+    }
+  },
+  {
+    key: 'offline',
+    label: '离线节点',
+    icon: CloseCircleIcon,
+    active: activeView.value === 'offline',
+    action: () => {
+      activeView.value = 'offline';
+    }
+  },
+  {
+    key: 'error',
+    label: '异常节点',
+    icon: WarningIcon,
+    active: activeView.value === 'error',
+    action: () => {
+      activeView.value = 'error';
+    }
+  },
+  {
+    key: 'filtered',
+    label: '筛选模式',
+    icon: FilterIcon,
+    active: hasFilters.value && activeView.value === 'all',
+    action: () => {
+      // 切换侧边栏展开状态以便进行详细筛选
+      sidebarCollapsed.value = false;
+    }
+  }
+]);
 
 // 强制响应式更新
 const paginationKey = computed(() => {
@@ -789,6 +924,7 @@ const smartActions = computed(() => {
         type: 'warning' as const,
         icon: FlashIcon,
         action: () => testSelectedNodes(['offline']),
+        loading: false
       });
     }
 
@@ -799,6 +935,7 @@ const smartActions = computed(() => {
         type: 'error' as const,
         icon: RefreshIcon,
         action: () => testSelectedNodes(['error']),
+        loading: false
       });
     }
   }
@@ -810,6 +947,7 @@ const smartActions = computed(() => {
       type: 'warning' as const,
       icon: TrashIcon,
       action: () => clearFailedNodes(),
+      loading: false
     });
   }
 
@@ -843,7 +981,7 @@ const headerMoreActions = computed(() => [
     description: '重新获取节点数据',
   },
   {
-    type: 'divider',
+    type: 'divider' as const,
     key: 'divider-1'
   },
   {
@@ -1302,6 +1440,82 @@ const handleGroupChange = (groupId: string) => {
   }, 100);
 };
 
+// 右键菜单状态
+const showContextMenu = ref(false);
+const contextMenuX = ref(0);
+const contextMenuY = ref(0);
+const contextMenuGroup = ref<any>(null);
+
+// 分组标签点击处理
+const handleGroupTabClick = (group: any, event: MouseEvent) => {
+  console.log('分组标签点击', group, event);
+  // 可以在这里添加额外的点击逻辑
+};
+
+// 分组右键菜单处理
+const handleGroupContextMenu = (group: any, event: MouseEvent) => {
+  console.log('分组右键菜单', group, event);
+  event.preventDefault();
+  event.stopPropagation();
+
+  // 设置右键菜单状态
+  contextMenuGroup.value = group;
+  contextMenuX.value = event.clientX;
+  contextMenuY.value = event.clientY;
+  showContextMenu.value = true;
+};
+
+// 关闭右键菜单
+const closeContextMenu = () => {
+  showContextMenu.value = false;
+  contextMenuGroup.value = null;
+};
+
+// 处理右键菜单操作
+const handleContextMenuAction = (key: string) => {
+  if (contextMenuGroup.value) {
+    handleGroupAction(key, contextMenuGroup.value);
+  }
+  closeContextMenu();
+};
+
+// 获取分组下拉菜单选项
+const getGroupDropdownOptions = (group: any) => {
+  return [
+    {
+      label: group.is_enabled ? '禁用' : '启用',
+      key: 'toggle'
+    },
+    { label: '重命名', key: 'rename' },
+    { label: '删除', key: 'delete' },
+  ];
+};
+
+// 分组操作处理
+const handleGroupAction = (key: string, group: any) => {
+  console.log('分组操作', key, group);
+
+  switch (key) {
+    case 'toggle':
+      // 切换启用/禁用状态
+      message.info(`${group.is_enabled ? '禁用' : '启用'}分组 "${group.name}"`);
+      break;
+    case 'rename':
+      // 重命名分组
+      const newName = prompt(`重命名分组 "${group.name}":`, group.name);
+      if (newName && newName !== group.name) {
+        message.info(`将分组 "${group.name}" 重命名为 "${newName}"`);
+      }
+      break;
+    case 'delete':
+      // 删除分组
+      if (confirm(`确定要删除分组 "${group.name}" 吗？`)) {
+        message.warning(`删除分组 "${group.name}" 的功能暂未实现`);
+      }
+      break;
+  }
+};
+
 const handleSelectionChange = (keys: string[]) => {
   selectedNodes.value = keys;
 };
@@ -1579,7 +1793,7 @@ const clearSelectedFailures = async () => {
   }
 
   try {
-    await nodeManagement.clearFailedNodes(selected.map(n => n.id));
+    await nodeManagement.batchDeleteNodes(selected.map(n => n.id));
     message.success(`已清理 ${selected.length} 个失败项`);
   } catch (error) {
     message.error('清理失败');
@@ -1712,8 +1926,18 @@ const refreshData = async () => {
 
 const clearFailedNodes = async () => {
   try {
-    await nodeManagement.batchActions('clear', activeGroupId.value);
-    message.success('已清理失败项');
+    // 找到所有失败的节点
+    const failedNodes = nodeManagement.nodes.value.filter(node => {
+      const healthStatus = nodeHealth.getNodeHealthStatus(node);
+      return healthStatus.status === 'error';
+    });
+
+    if (failedNodes.length > 0) {
+      await nodeManagement.batchDeleteNodes(failedNodes.map(n => n.id));
+      message.success(`已清理 ${failedNodes.length} 个失败项`);
+    } else {
+      message.info('没有失败的节点需要清理');
+    }
   } catch (error) {
     message.error('清理失败');
   }
@@ -1725,7 +1949,10 @@ const clearFilters = () => {
   selectedStatuses.value = [];
   latencyFilter.value = '';
   activeView.value = 'all';
-  nodeFilters.pagination.value.page = 1;
+  paginationState.value.page = 1;
+
+  // 重置分组选择到"全部"
+  activeGroupId.value = 'all';
 };
 
 const hasFilters = computed(() => {
@@ -1930,6 +2157,11 @@ watch(
   grid-template-columns: 280px 1fr;
   width: 100%;
   min-height: 600px;
+  transition: grid-template-columns 0.3s ease;
+}
+
+.content-container.sidebar-collapsed {
+  grid-template-columns: 60px 1fr;
 }
 
 /* 侧边栏 */
@@ -1937,6 +2169,95 @@ watch(
   background: #f8fafc;
   border-right: 1px solid #e2e8f0;
   padding: 24px;
+  position: relative;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.content-sidebar.collapsed {
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* 折叠按钮 */
+.sidebar-toggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-toggle:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: scale(1.05);
+}
+
+.content-sidebar.collapsed .sidebar-toggle {
+  position: relative;
+  top: auto;
+  right: auto;
+  margin-bottom: 8px;
+}
+
+/* 折叠状态下的快速筛选按钮 */
+.collapsed-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+}
+
+.quick-filter-btn {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #64748b;
+  font-size: 18px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.quick-filter-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.quick-filter-btn.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.quick-filter-btn.active:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
 }
 
 /* 主内容区域 */
@@ -1987,8 +2308,105 @@ watch(
 
 .protocol-filters,
 .status-filters {
-  max-height: 200px;
-  overflow-y: auto;
+  width: 100%;
+  overflow: visible;
+}
+
+.protocol-grid,
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px 12px;
+  align-items: start;
+  width: 100%;
+}
+
+.protocol-checkbox,
+.status-checkbox {
+  margin: 0;
+  width: 100%;
+  min-width: 0;
+}
+
+.protocol-checkbox :deep(.n-checkbox__label),
+.status-checkbox :deep(.n-checkbox__label) {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.protocol-label,
+.status-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 针对较多协议项的优化 */
+.protocol-grid {
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 6px 8px;
+}
+
+/* 当协议数量很多时，使用更紧凑的布局 */
+@media (max-height: 800px) {
+  .protocol-grid {
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    gap: 4px 6px;
+  }
+
+  .protocol-label,
+  .status-label {
+    font-size: 11px;
+  }
+}
+
+/* 侧边栏折叠状态下的响应式优化 */
+@media (max-width: 768px) {
+  .protocol-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .status-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .protocol-grid {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .status-grid {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .protocol-label,
+  .status-label {
+    font-size: 11px;
+  }
+}
+
+/* 折叠状态下侧边栏的优化 */
+.content-sidebar.collapsed .form-group {
+  display: none;
+}
+
+.content-sidebar.collapsed .sidebar-toggle {
+  display: flex;
+}
+
+.content-sidebar.collapsed .collapsed-filters {
+  display: flex;
 }
 
 /* 主内容 */
@@ -2133,16 +2551,41 @@ watch(
 
 .group-tabs :deep(.n-tabs-tab) {
   flex: 1 1 calc(16.66% - 4px); /* 6个标签，每个占约1/6宽度 */
-  min-width: 100px;
-  max-width: 150px;
-  white-space: nowrap;
+  min-width: 120px;
   padding: 8px 12px;
-  font-size: 12px;
-  text-align: center;
-  margin: 0;
-  box-sizing: border-box;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+}
+
+/* 分组标签内部元素样式 */
+.group-tab-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.group-actions-button {
+  opacity: 1 !important;
+  transition: all 0.2s;
+  background-color: transparent;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 2px;
+  min-width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.group-actions-button:hover {
+  background-color: #f5f5f5 !important;
+  border-color: #d0d0d0;
 }
 
 .group-tabs :deep(.n-tabs-tab:hover) {
@@ -2618,6 +3061,19 @@ watch(
 
   .content-sidebar {
     display: none;
+  }
+
+  .content-sidebar.collapsed {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 60px;
+    background: #f8fafc;
+    border-right: 1px solid #e2e8f0;
+    z-index: 1000;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
   }
 
   .selection-bar {

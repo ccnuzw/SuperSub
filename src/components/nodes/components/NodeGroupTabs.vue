@@ -1,5 +1,5 @@
 <template>
-  <div class="node-group-tabs">
+  <div class="node-group-tabs" @contextmenu="handleGlobalContextMenu">
     <n-tabs
       :model-value="activeTab"
       @update:value="$emit('update:activeTab', $event)"
@@ -19,24 +19,40 @@
           <div
             class="group-tab-wrapper"
             @click.prevent="handleGroupTabClick(group, $event)"
-            @contextmenu.prevent="handleGroupContextMenu(group, $event)"
+            @contextmenu.prevent.stop="handleGroupContextMenu(group, $event)"
           >
             <span :style="{ color: group.disabled ? '#999' : '', marginRight: '8px' }">
               {{ group.name }} ({{ groupCounts[group.id] || 0 }})
             </span>
+
+            <!-- 测试按钮 - 临时用于验证显示 -->
             <n-button
-              v-if="activeTab === group.id"
               text
               size="small"
-              class="group-actions-button"
-              @click.stop="handleGroupMenuClick"
+              style="margin-right: 4px;"
+              @click.stop="() => console.log('测试按钮点击', group)"
             >
-              <template #icon>
-                <n-icon>
-                  <EllipsisVertical as MoreIcon />
-                </n-icon>
-              </template>
+              测试
             </n-button>
+
+            <n-dropdown
+              :options="inlineGroupDropdownOptions"
+              placement="bottom-end"
+              @select="(key: string) => handleGroupAction(key, group)"
+              trigger="click"
+            >
+              <n-button
+                text
+                size="small"
+                class="group-actions-button"
+              >
+                <template #icon>
+                  <n-icon>
+                    <EllipsisVertical as MoreIcon />
+                  </n-icon>
+                </template>
+              </n-button>
+            </n-dropdown>
           </div>
         </template>
       </n-tab-pane>
@@ -66,7 +82,7 @@
       :options="groupDropdownOptions"
       placement="bottom-start"
       @clickoutside="closeContextMenu"
-      @select="handleGroupAction"
+      @select="(key: string) => handleContextMenuAction(key)"
     />
   </div>
 </template>
@@ -120,10 +136,19 @@ const dropdownOptions = [
 ];
 
 const groupDropdownOptions = computed(() => {
-  if (!contextMenuGroup.value) return [];
-
   return [
-    { label: contextMenuGroup.value.is_enabled ? '禁用' : '启用', key: 'toggle' },
+    {
+      label: contextMenuGroup.value?.is_enabled ? '禁用' : '启用',
+      key: 'toggle'
+    },
+    { label: '重命名', key: 'rename' },
+    { label: '删除', key: 'delete' },
+  ];
+});
+
+// 为内联下拉菜单提供选项（不依赖上下文菜单状态）
+const inlineGroupDropdownOptions = computed(() => {
+  return [
     { label: '重命名', key: 'rename' },
     { label: '删除', key: 'delete' },
   ];
@@ -140,6 +165,7 @@ const handleGroupTabClick = (group: any, event: MouseEvent) => {
 };
 
 const handleGroupContextMenu = (group: any, event: MouseEvent) => {
+  console.log('右键菜单触发', group, event); // 调试信息
   contextMenuGroup.value = group;
   contextMenuX.value = event.clientX;
   contextMenuY.value = event.clientY;
@@ -147,8 +173,34 @@ const handleGroupContextMenu = (group: any, event: MouseEvent) => {
   emit('groupContextMenu', group, event);
 };
 
+const handleGlobalContextMenu = (event: MouseEvent) => {
+  // 获取右键点击的目标元素
+  const target = event.target as HTMLElement;
+  const tabWrapper = target.closest('.group-tab-wrapper');
+
+  if (tabWrapper) {
+    // 如果点击在分组标签区域内，阻止默认右键菜单
+    event.preventDefault();
+    event.stopPropagation();
+
+    // 尝试从 DOM 中获取分组信息，或者从 activeTab 推断
+    const groupId = props.activeTab;
+    const group = enabledGroups.value.find(g => g.id === groupId);
+
+    if (group) {
+      console.log('全局右键处理发现分组', group);
+      contextMenuGroup.value = group as any; // 类型转换
+      contextMenuX.value = event.clientX;
+      contextMenuY.value = event.clientY;
+      showContextMenu.value = true;
+      emit('groupContextMenu', group as any, event);
+    }
+  }
+};
+
 const handleGroupMenuClick = () => {
-  // 显示下拉菜单的逻辑
+  // 这个函数现在不需要了，因为我们使用内联下拉菜单
+  console.log('handleGroupMenuClick 已被内联下拉菜单替代');
 };
 
 const handleDropdownSelect = (key: string) => {
@@ -157,7 +209,11 @@ const handleDropdownSelect = (key: string) => {
   }
 };
 
-const handleGroupAction = (key: string) => {
+const handleGroupAction = (key: string, group: any) => {
+  emit('groupAction', key, group);
+};
+
+const handleContextMenuAction = (key: string) => {
   if (contextMenuGroup.value) {
     emit('groupAction', key, contextMenuGroup.value);
   }
@@ -193,12 +249,23 @@ const closeContextMenu = () => {
 }
 
 .group-actions-button {
-  opacity: 0;
-  transition: opacity 0.2s;
+  opacity: 1 !important;
+  transition: all 0.2s;
+  background-color: transparent;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 2px;
+  min-width: 24px;
+  height: 24px;
+}
+
+.group-actions-button:hover {
+  background-color: #f5f5f5 !important;
+  border-color: #d0d0d0;
 }
 
 .group-tab-wrapper:hover .group-actions-button {
-  opacity: 1;
+  opacity: 1 !important;
 }
 
 @media (max-width: 768px) {

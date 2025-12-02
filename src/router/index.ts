@@ -7,6 +7,7 @@ import ProfilesView from '../views/ProfilesView.vue'
 import SettingsView from '../views/SettingsView.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
+import ComponentShowcase from '../views/ComponentShowcase.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -16,6 +17,12 @@ const router = createRouter({
       name: 'home',
       component: HomeView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/component-showcase',
+      name: 'component-showcase',
+      component: ComponentShowcase,
+      meta: { requiresAuth: false } // 组件展示页面不需要认证
     },
     {
       path: '/nodes',
@@ -39,6 +46,12 @@ const router = createRouter({
       path: '/settings',
       name: 'settings',
       component: SettingsView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/home',
+      name: 'home',
+      component: HomeView,
       meta: { requiresAuth: true }
     },
     {
