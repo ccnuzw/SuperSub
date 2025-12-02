@@ -1,191 +1,48 @@
 <template>
   <div class="nodes-modern-layout">
     <!-- 顶部区域：标题 + 统计 + 操作 -->
-    <div class="layout-header">
-      <div class="header-main">
-        <div class="header-left">
-          <div class="page-info">
-            <h1 class="page-title">节点管理</h1>
-            <div class="page-breadcrumb">
-              <span class="breadcrumb-item">代理</span>
-              <span class="breadcrumb-separator">/</span>
-              <span class="breadcrumb-item active">节点</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="header-right">
-          <!-- 主要操作按钮 -->
-          <n-space>
-            <n-button type="primary" size="medium" @click="handleAddNode">
-              <template #icon><AddIcon /></template>
-              添加节点
-            </n-button>
-
-            <!-- 更多操作下拉菜单 -->
-            <SmartHeaderActions
-              :items="headerSmartActions"
-              @select="handleHeaderMoreAction"
-              placement="bottom-right"
-              button-type="default"
-              :ghost="false"
-              size="medium"
-            />
-          </n-space>
-        </div>
-      </div>
-
-      <!-- 统计卡片 -->
-      <div class="stats-section">
-        <StatsCardGrid
-          :stats="nodeStatsCards"
-          :columns="4"
-          :animated="true"
-          :clickable="true"
-          size="medium"
-          @card-click="handleStatsCardClick"
-        />
-      </div>
-    </div>
+    <NodesHeader
+      :node-stats="nodeStats"
+      :header-smart-actions="headerSmartActions"
+      @add-node="() => handleAddNode({} as any)"
+      @header-action="handleHeaderMoreAction"
+      @stats-click="(stat: any, index?: number) => handleStatsCardClick(stat, index || 0)"
+    />
 
     <!-- 主要内容区域 -->
     <div class="layout-content">
       <div class="content-container" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
         <!-- 左侧：搜索和筛选 -->
-        <div class="content-sidebar" :class="{ 'collapsed': sidebarCollapsed }">
-          <!-- 折叠按钮 -->
-          <div class="sidebar-toggle" @click="toggleSidebar">
-            <n-icon :component="sidebarCollapsed ? ChevronForwardIcon : ChevronBackIcon" />
-          </div>
-
-          <div class="search-panel" v-show="!sidebarCollapsed">
-            <div class="panel-header">
-              <h3>搜索与筛选</h3>
-            </div>
-
-            <div class="panel-content">
-              <!-- 搜索框 -->
-              <div class="form-group">
-                <n-input
-                  v-model:value="searchQuery"
-                  placeholder="搜索节点名称、服务器地址..."
-                  class="search-input"
-                  clearable
-                >
-                  <template #prefix>
-                    <n-icon :component="SearchIcon" />
-                  </template>
-                </n-input>
-              </div>
-
-              <!-- 协议筛选 -->
-              <div class="form-group">
-                <label class="form-label">协议类型</label>
-                <div class="protocol-filters">
-                  <n-checkbox-group v-model:value="selectedProtocols">
-                    <div class="protocol-grid">
-                      <n-checkbox
-                        v-for="protocol in protocolOptions"
-                        :key="protocol.value"
-                        :value="protocol.value"
-                        class="protocol-checkbox"
-                      >
-                        <span class="protocol-label">{{ protocol.label }}</span>
-                      </n-checkbox>
-                    </div>
-                  </n-checkbox-group>
-                </div>
-              </div>
-
-              <!-- 状态筛选 -->
-              <div class="form-group">
-                <label class="form-label">节点状态</label>
-                <div class="status-filters">
-                  <n-checkbox-group v-model:value="selectedStatuses">
-                    <div class="status-grid">
-                      <n-checkbox
-                        v-for="status in statusListOptions"
-                        :key="status.value"
-                        :value="status.value"
-                        class="status-checkbox"
-                      >
-                        <span class="status-label">{{ status.label }}</span>
-                      </n-checkbox>
-                    </div>
-                  </n-checkbox-group>
-                </div>
-              </div>
-
-              <!-- 延迟筛选 -->
-              <div class="form-group">
-                <label class="form-label">延迟范围</label>
-                <n-select
-                  v-model:value="latencyFilter"
-                  placeholder="选择延迟范围"
-                  :options="latencyOptions"
-                  clearable
-                />
-              </div>
-
-              <!-- 清除筛选 -->
-              <div class="form-group">
-                <n-button block @click="clearFilters" :disabled="!hasFilters">
-                  清除所有筛选
-                </n-button>
-              </div>
-            </div>
-          </div>
-
-          <!-- 折叠状态下的快速筛选按钮 -->
-          <div class="collapsed-filters" v-if="sidebarCollapsed">
-            <n-tooltip placement="right" v-for="option in quickFilterOptions" :key="option.key">
-              <template #trigger>
-                <div
-                  class="quick-filter-btn"
-                  :class="{ active: option.active }"
-                  @click="option.action"
-                >
-                  <n-icon :component="option.icon" />
-                </div>
-              </template>
-              {{ option.label }}
-            </n-tooltip>
-          </div>
-        </div>
+        <NodesSearchSidebar
+          :sidebar-collapsed="sidebarCollapsed"
+          :search-query="searchQuery"
+          :selected-protocols="selectedProtocols"
+          :selected-statuses="selectedStatuses"
+          :latency-filter="latencyFilter"
+          :has-filters="hasFilters"
+          :protocol-options="protocolOptions"
+          :active-view="activeView"
+          :quick-filter-options="quickFilterOptions"
+          @toggle-sidebar="toggleSidebar"
+          @update:search-query="searchQuery = $event"
+          @update:selected-protocols="selectedProtocols = $event"
+          @update:selected-statuses="selectedStatuses = $event"
+          @update:latency-filter="latencyFilter = $event"
+          @clear-filters="clearFilters"
+        />
 
         <!-- 中间：主内容区域 -->
         <div class="content-main">
           <!-- 智能操作栏 -->
-          <div class="smart-bar" v-if="smartActions.length > 0">
-            <div class="smart-bar-content">
-              <div class="smart-bar-info">
-                <n-icon :component="BulbIcon" class="smart-icon" />
-                <span class="smart-text">智能推荐操作</span>
-              </div>
-              <div class="smart-bar-actions">
-                <n-space>
-                  <n-button
-                    v-for="action in smartActions"
-                    :key="action.key"
-                    :type="action.type"
-                    size="small"
-                    @click="handleSmartAction(action)"
-                    :loading="action.loading"
-                  >
-                    <template #icon v-if="action.icon">
-                      <n-icon :component="action.icon" />
-                    </template>
-                    {{ action.label }}
-                  </n-button>
-                </n-space>
-              </div>
-            </div>
-          </div>
+          <NodesSmartActions
+            :smart-actions="smartActions"
+            @smart-action="handleSmartAction"
+          />
 
           <!-- 分组标签页 -->
           <div class="group-tabs-section">
             <SmartGroupTabs
-              :groups="smartGroups"
+              :groups="smartGroups.map(g => ({ ...g, count: smartGroupCounts[g.id as keyof typeof smartGroupCounts] || 0 }))"
               :group-counts="smartGroupCounts"
               v-model:active-tab="activeGroupId"
               tab-type="segment"
@@ -202,125 +59,35 @@
           </div>
 
           <!-- 选中节点操作栏 -->
-          <div v-if="selectedNodes.length > 0" class="selection-bar">
-            <div class="selection-left">
-              <div class="selection-info">
-                <n-icon :component="CheckCircleIcon" class="selection-icon" />
-                <span class="selection-text">
-                  已选择 <strong>{{ selectedNodes.length }}</strong> 个节点
-                </span>
-              </div>
-              <div class="selection-summary" v-if="selectedNodesSummary.total > 0">
-                <n-space size="small">
-                  <n-tag size="small" type="success">
-                    在线 {{ selectedNodesSummary.online }}
-                  </n-tag>
-                  <n-tag size="small" type="error">
-                    离线 {{ selectedNodesSummary.offline }}
-                  </n-tag>
-                  <n-tag size="small" type="warning">
-                    错误 {{ selectedNodesSummary.error }}
-                  </n-tag>
-                  <n-tag size="small" type="default">
-                    未测试 {{ selectedNodesSummary.pending }}
-                  </n-tag>
-                </n-space>
-              </div>
-            </div>
-            <div class="selection-right">
-              <n-space size="small">
-                <!-- 智能测试按钮 -->
-              <PerfectDropdown
-                :items="testDropdownOptions"
-                @select="handleTestAction"
-                placement="bottom-right"
-                title="智能测试"
-                class="smart-test-dropdown"
-              >
-                <template #trigger>
-                  <n-button type="primary" :loading="testingSelected" class="smart-test-btn">
-                    <template #icon><FlashIcon /></template>
-                    智能测试
-                  </n-button>
-                </template>
-              </PerfectDropdown>
-
-                <!-- 快速操作 -->
-                <n-divider vertical style="height: 20px; margin: 0 8px;" />
-
-                <!-- 移动分组 -->
-                <n-button @click="showBatchMoveModal = true" type="default" class="smart-action-btn">
-                  <template #icon><FolderIcon /></template>
-                  移动分组
-                </n-button>
-
-                <!-- 导出 -->
-              <PerfectDropdown
-                :items="exportDropdownOptions"
-                @select="handleExportAction"
-                placement="bottom-right"
-                title="导出设置"
-                class="smart-export-dropdown"
-              >
-                <template #trigger>
-                  <n-button type="info" class="smart-export-btn">
-                    <template #icon><DownloadIcon /></template>
-                    导出
-                  </n-button>
-                </template>
-              </PerfectDropdown>
-
-                <!-- 更多操作 -->
-              <PerfectDropdown
-                :items="moreDropdownOptions"
-                @select="handleMoreAction"
-                placement="bottom-right"
-                title="更多操作"
-                class="smart-more-dropdown"
-              >
-                <template #trigger>
-                  <n-button type="default" class="smart-more-btn">
-                    <template #icon><MoreIcon /></template>
-                    更多
-                  </n-button>
-                </template>
-              </PerfectDropdown>
-              </n-space>
-            </div>
-          </div>
+          <NodesSelectionBar
+            :selected-nodes-count="selectedNodes.length"
+            :testing-selected="testingSelected"
+            :selected-nodes-summary="selectedNodesSummary"
+            :test-dropdown-options="testDropdownOptions"
+            :export-dropdown-options="exportDropdownOptions"
+            :more-dropdown-options="moreDropdownOptions"
+            @test-action="handleTestAction"
+            @batch-move="showBatchMoveModal = true"
+            @export-action="handleExportAction"
+            @more-action="handleMoreAction"
+          />
 
           <!-- 表格区域 -->
-          <div class="table-section">
-  
-            <!-- 数据表格 - 无内置分页 -->
-            <n-data-table
-              :key="paginationKey"
-              :columns="tableColumns"
-              :data="paginatedNodes"
-              :loading="loading"
-              :pagination="false"
-              :row-key="(row: any) => row.id"
-              :checked-row-keys="selectedNodes"
-              :scroll-x="1400"
-              flex-height
-              style="height: 550px"
-              @update:checked-row-keys="handleSelectionChange"
-            />
-
-            <!-- 自定义分页 - 在表格下方 -->
-            <div class="custom-pagination" v-if="paginationInfo">
-              <n-pagination
-                v-model:page="paginationState.page"
-                v-model:page-size="paginationState.pageSize"
-                :item-count="paginationInfo.itemCount"
-                :page-sizes="paginationInfo.pageSizes"
-                show-size-picker
-                show-quick-jumper
-                @update:page="handlePageChange"
-                @update:page-size="handlePageSizeChange"
-              />
-            </div>
-          </div>
+          <NodesDataTable
+            :nodes-data="paginatedNodes"
+            :loading="loading"
+            :selected-row-keys="selectedNodes"
+            :current-page="paginationState.page"
+            :page-size="paginationState.pageSize"
+            :pagination-info="paginationInfo"
+            :groups="groups"
+            :get-node-health-status="nodeHealth.getNodeHealthStatus"
+            :get-status-text="getStatusTextWrapper"
+            @selection-change="handleSelectionChange"
+            @page-change="handlePageChange"
+            @page-size-change="handlePageSizeChange"
+            @edit-node="editNode"
+          />
         </div>
       </div>
     </div>
@@ -372,18 +139,18 @@
       :new-group-name="nodeManagement.newGroupName.value"
       :move-to-group-id="nodeManagement.moveToGroupId.value"
       :groups="smartGroups"
-      @close-modal="nodeManagement.closeModal"
+      @close-modal="(modal: string) => nodeManagement.closeModal(modal as any)"
       @save-node="nodeManagement.handleSaveNode"
       @batch-import="nodeManagement.handleBatchImport"
       @save-group="handleSaveGroup"
       @save-move-to-group="handleSaveMoveToGroup"
-      @update:node-form-state="(value) => nodeManagement.nodeFormState = value"
-      @update:add-link="(value) => nodeManagement.addLink = value"
-      @update:import-preview="(value) => nodeManagement.importPreview = value"
-      @update:import-group-id="(value) => nodeManagement.importGroupId = value"
-      @update:editing-group-name="(value) => nodeManagement.editingGroupName = value"
-      @update:new-group-name="(value) => nodeManagement.newGroupName = value"
-      @update:move-to-group-id="(value) => nodeManagement.moveToGroupId = value"
+      @update:node-form-state="(value) => { if (typeof value === 'object') nodeManagement.nodeFormState = value as any }"
+      @update:add-link="(value) => { if (typeof value === 'string') nodeManagement.addLink = value as any }"
+      @update:import-preview="(value) => { if (Array.isArray(value)) nodeManagement.importPreview = value as any }"
+      @update:import-group-id="(value) => { if (typeof value === 'string') nodeManagement.importGroupId = value as any }"
+      @update:editing-group-name="(value) => { if (typeof value === 'string') nodeManagement.editingGroupName = value as any }"
+      @update:new-group-name="(value) => { if (typeof value === 'string') nodeManagement.newGroupName = value as any }"
+      @update:move-to-group-id="(value) => { if (typeof value === 'string') nodeManagement.moveToGroupId = value as any }"
     />
 
     <!-- 分组右键菜单 -->
@@ -400,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, h } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useMessage, useDialog } from 'naive-ui';
 import {
   Add as AddIcon,
@@ -435,17 +202,20 @@ import { useNodeFilters } from '@/composables/useNodeFilters';
 import { useGroupStore } from '@/stores/groups';
 import NodeSmartActions from './NodeSmartActions.vue';
 import SmartHeaderActions from '../common/SmartHeaderActions.vue';
-import StatsCardGrid from '../common/StatsCardGrid.vue';
-import LatencyIndicator from '../common/LatencyIndicator.vue';
-import ProtocolTag from '../common/ProtocolTag.vue';
-import StatusBadge from '../common/StatusBadge.vue';
 import SmartGroupTabs from '../common/SmartGroupTabs.vue';
 import PerfectDropdown from '../PerfectDropdown.vue';
 import NodeModal from '@/views/components/NodeModal.vue';
 import ImportModal from '@/views/components/ImportModal.vue';
 import BatchMoveModal from '@/views/components/BatchMoveModal.vue';
-// 导入NodeFormAndImport组件以获得模态框系统
 import NodeFormAndImport from './components/NodeFormAndImport.vue';
+
+// 导入新的组件
+import NodesHeader from './components/NodesHeader.vue';
+import NodesSearchSidebar from './components/NodesSearchSidebar.vue';
+import NodesSmartActions from './components/NodesSmartActions.vue';
+import NodesSelectionBar from './components/NodesSelectionBar.vue';
+import NodesDataTable from './components/NodesDataTable.vue';
+
 import type { Node, NodeGroup } from '@/types/entities';
 
 // 初始化
@@ -490,47 +260,7 @@ const showImportModal = ref(false);
 const showBatchMoveModal = ref(false);
 const editingNode = ref<Node | null>(null);
 
-// 计算属性：统计数据 - StatsCardGrid格式
-const nodeStatsCards = computed(() => [
-  {
-    key: 'all',
-    label: '全部节点',
-    value: nodeStats.value.totalCount,
-    icon: NodesIcon,
-    type: 'primary' as const,
-    tooltip: '点击查看全部节点',
-    onClick: () => handleViewChange('all')
-  },
-  {
-    key: 'online',
-    label: '在线节点',
-    value: nodeStats.value.onlineCount,
-    icon: CheckCircleIcon,
-    type: 'success' as const,
-    tooltip: '点击查看在线节点',
-    onClick: () => handleViewChange('online')
-  },
-  {
-    key: 'offline',
-    label: '离线节点',
-    value: nodeStats.value.offlineCount,
-    icon: CloseCircleIcon,
-    type: 'warning' as const,
-    tooltip: '点击查看离线节点',
-    onClick: () => handleViewChange('offline')
-  },
-  {
-    key: 'error',
-    label: '异常节点',
-    value: nodeStats.value.errorCount,
-    icon: WarningIcon,
-    type: 'error' as const,
-    tooltip: '点击查看异常节点',
-    onClick: () => handleViewChange('error')
-  }
-]);
-
-// 计算属性：统计数据
+// 计算属性：统计数据 - 直接返回nodeStats格式
 const nodeStats = computed(() => {
   const nodes = nodeManagement.nodes.value;
   const healthStatuses = nodes.map(node => nodeHealth.getNodeHealthStatus(node));
@@ -543,6 +273,8 @@ const nodeStats = computed(() => {
   };
 });
 
+// 删除原来复杂的nodeStatsCards计算属性，因为现在在NodesHeader组件内部处理
+
 // 分组数据 - 直接使用groupStore的数据
 const groups = computed(() => {
   return groupStore.groups || [];
@@ -550,12 +282,14 @@ const groups = computed(() => {
 
 // 转换为SmartGroupTabs的GroupItem格式
 const smartGroups = computed(() => {
+  const counts = smartGroupCounts.value;
   return groups.value.map(group => ({
     id: group.id,
     name: group.name,
     description: group.description || undefined,
     is_enabled: group.is_enabled,
-    disabled: !group.is_enabled
+    disabled: !group.is_enabled,
+    count: counts[group.id as keyof typeof counts] || 0
   }));
 });
 
@@ -575,7 +309,7 @@ const smartGroupCounts = computed(() => {
   };
 });
 
-// 筛选选项
+// 筛选选项 - 只保留协议选项，其他的已移到组件内部
 const protocolOptions = computed(() => {
   const protocols = Array.from(new Set(nodeManagement.nodes.value.map(n => n.protocol).filter(Boolean)));
   return protocols.map(protocol => ({
@@ -584,19 +318,7 @@ const protocolOptions = computed(() => {
   }));
 });
 
-const statusListOptions = [
-  { label: '在线', value: 'online' },
-  { label: '离线', value: 'offline' },
-  { label: '测试中', value: 'testing' },
-  { label: '未测试', value: 'pending' }
-];
-
-const latencyOptions = [
-  { label: '优秀 (< 100ms)', value: 'excellent' },
-  { label: '良好 (100-300ms)', value: 'good' },
-  { label: '一般 (300-1000ms)', value: 'medium' },
-  { label: '较差 (> 1000ms)', value: 'poor' },
-];
+// 删除状态选项、延迟选项等已移到组件内部
 
 // 筛选后的节点
 const filteredNodes = computed(() => {
@@ -745,7 +467,8 @@ const testDropdownOptions = computed(() => {
   // 默认选项
   options.push({
     type: 'divider' as const,
-    key: 'divider-1'
+    key: 'divider-1',
+    label: ''
   });
 
   options.push({
@@ -856,7 +579,7 @@ const moreDropdownOptions = computed(() => {
 
   // 默认操作
   options.push(
-    { type: 'divider' as const, key: 'divider-1' },
+    { type: 'divider' as const, key: 'divider-1', label: '' },
     {
       label: '复制链接',
       key: 'copy-links',
@@ -918,7 +641,7 @@ const quickFilterOptions = computed(() => [
     key: 'filtered',
     label: '筛选模式',
     icon: FilterIcon,
-    active: hasFilters.value && activeView.value === 'all',
+    active: Boolean(hasFilters.value && activeView.value === 'all'),
     action: () => {
       // 切换侧边栏展开状态以便进行详细筛选
       sidebarCollapsed.value = false;
@@ -926,10 +649,10 @@ const quickFilterOptions = computed(() => [
   }
 ]);
 
-// 强制响应式更新
-const paginationKey = computed(() => {
-  return `${nodeManagement.nodes.value?.length || 0}-${filteredNodes.value.length}-${paginationState.value.page}-${paginationState.value.pageSize}`;
-});
+// Wrapper function for getStatusText to handle string parameter
+const getStatusTextWrapper = (status: string): string => {
+  return nodeHealth.getStatusText(status as any);
+};
 
 // 智能操作
 const smartActions = computed(() => {
@@ -1062,368 +785,23 @@ const headerMoreActions = computed(() => [
   },
 ]);
 
-// 渲染智能测试下拉菜单标签
-const renderTestDropdownLabel = (option: any) => {
-  const getIconAndColor = () => {
-    switch (option.key) {
-      case 'test-offline':
-        return { icon: '🔥', color: '#fa8c16' };
-      case 'retry-errors':
-        return { icon: '🔄', color: '#722ed1' };
-      case 'retest-online':
-        return { icon: '✨', color: '#1890ff' };
-      default:
-        return { icon: '⚡', color: '#fa8c16' };
-    }
-  };
-
-  const { icon, color } = getIconAndColor();
-
-  return h('div', {
-    style: `
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      cursor: pointer;
-      background: white;
-      color: #333;
-      font-size: 14px;
-      font-weight: 500;
-      border: none;
-      outline: none;
-      width: 100%;
-      text-align: left;
-      box-sizing: border-box;
-      margin: 0;
-      border-radius: 0;
-      line-height: 1.4;
-      transition: background-color 0.2s ease;
-    `,
-    onMouseenter: (e: MouseEvent) => {
-      const target = e.currentTarget as HTMLElement;
-      target.style.backgroundColor = `${color}15`;
-    },
-    onMouseleave: (e: MouseEvent) => {
-      const target = e.currentTarget as HTMLElement;
-      target.style.backgroundColor = 'white';
-    }
-  }, [
-    h('span', {
-      style: `
-        color: ${color};
-        font-size: 16px;
-        flex-shrink: 0;
-        display: inline-block;
-        width: 16px;
-        text-align: center;
-        margin-right: 2px;
-      `
-    }, icon),
-    option.label
-  ]);
-};
-
-// 渲染导出下拉菜单标签
-const renderExportDropdownLabel = (option: any) => {
-  const getIconAndColor = () => {
-    switch (option.key) {
-      case 'export-json':
-        return { icon: '📄', color: '#52c41a' };
-      case 'export-subscription':
-        return { icon: '🔗', color: '#1890ff' };
-      case 'export-config':
-        return { icon: '⚙️', color: '#722ed1' };
-      default:
-        return { icon: '📥', color: '#52c41a' };
-    }
-  };
-
-  const { icon, color } = getIconAndColor();
-
-  return h('div', {
-    style: `
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      cursor: pointer;
-      background: white;
-      color: #333;
-      font-size: 14px;
-      font-weight: 500;
-      border: none;
-      outline: none;
-      width: 100%;
-      text-align: left;
-      box-sizing: border-box;
-      margin: 0;
-      border-radius: 0;
-      line-height: 1.4;
-      transition: background-color 0.2s ease;
-    `,
-    onMouseenter: (e: MouseEvent) => {
-      const target = e.currentTarget as HTMLElement;
-      target.style.backgroundColor = `${color}15`;
-    },
-    onMouseleave: (e: MouseEvent) => {
-      const target = e.currentTarget as HTMLElement;
-      target.style.backgroundColor = 'white';
-    }
-  }, [
-    h('span', {
-      style: `
-        color: ${color};
-        font-size: 16px;
-        flex-shrink: 0;
-        display: inline-block;
-        width: 16px;
-        text-align: center;
-        margin-right: 2px;
-      `
-    }, icon),
-    option.label
-  ]);
-};
-
-// 渲染更多操作下拉菜单标签
-const renderMoreDropdownLabel = (option: any) => {
-  const getIconAndColor = () => {
-    switch (option.key) {
-      case 'move-to-new-group':
-        return { icon: '📁', color: '#1890ff', bg: '#f0f9ff' };
-      case 'clear-failures':
-        return { icon: '🧹', color: '#faad14', bg: '#fff7e6' };
-      case 'copy-links':
-        return { icon: '📋', color: '#52c41a', bg: '#f6ffed' };
-      case 'delete-selected':
-        return { icon: '🗑️', color: '#ff4d4f', bg: '#fff2f0' };
-      default:
-        return { icon: '⚙️', color: '#666666', bg: '#fafafa' };
-    }
-  };
-
-  const { icon, color } = getIconAndColor();
-
-  return h('div', {
-    style: `
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      cursor: pointer;
-      background: white;
-      color: #333;
-      font-size: 14px;
-      font-weight: 500;
-      border: none;
-      outline: none;
-      width: 100%;
-      text-align: left;
-      box-sizing: border-box;
-      margin: 0;
-      border-radius: 0;
-      line-height: 1.4;
-      transition: background-color 0.2s ease;
-    `,
-    onMouseenter: (e: MouseEvent) => {
-      const target = e.currentTarget as HTMLElement;
-      target.style.backgroundColor = `${color}15`;
-    },
-    onMouseleave: (e: MouseEvent) => {
-      const target = e.currentTarget as HTMLElement;
-      target.style.backgroundColor = 'white';
-    }
-  }, [
-    h('span', {
-      style: `
-        color: ${color};
-        font-size: 16px;
-        flex-shrink: 0;
-        display: inline-block;
-        width: 16px;
-        text-align: center;
-        margin-right: 2px;
-      `
-    }, icon),
-    option.label
-  ]);
-};
-const tableColumns = computed(() => [
-  { type: 'selection', fixed: 'left' as const },
-  {
-    title: '节点名称',
-    key: 'name',
-    width: 200,
-    fixed: 'left' as const,
-    ellipsis: { tooltip: true },
-    render: (row: any) => {
-      return h('span', {
-        style: `
-          color: #1890ff;
-          cursor: pointer;
-          font-weight: 500;
-          transition: color 0.2s ease;
-        `,
-        onClick: () => editNode(row),
-        onMouseenter: (e: MouseEvent) => {
-          const target = e.currentTarget as HTMLElement;
-          target.style.color = '#40a9ff';
-          target.style.textDecoration = 'underline';
-        },
-        onMouseleave: (e: MouseEvent) => {
-          const target = e.currentTarget as HTMLElement;
-          target.style.color = '#1890ff';
-          target.style.textDecoration = 'none';
-        }
-      }, row.name);
-    }
-  },
-  {
-    title: '协议',
-    key: 'protocol',
-    width: 100,
-    render: (row: any) => {
-      const protocol = row.protocol?.toLowerCase() || 'unknown';
-
-      if (protocol === 'unknown') {
-        return h('span', { style: 'color: #999; font-size: 12px;' }, '未知');
-      }
-
-      return h(ProtocolTag, {
-        protocol: protocol,
-        size: 'small',
-        variant: 'colorful',
-        showIcon: true,
-        round: true,
-        colorScheme: 'default',
-        uppercase: true
-      });
-    }
-  },
-  { title: '服务器', key: 'server', width: 150, ellipsis: { tooltip: true } },
-  { title: '端口', key: 'port', width: 80 },
-  {
-    title: '状态',
-    key: 'status',
-    width: 100,
-    render: (row: any) => {
-      const healthStatus = nodeHealth.getNodeHealthStatus(row);
-
-      // 映射健康状态到StatusBadge的状态
-      let badgeStatus: 'online' | 'offline' | 'testing' | 'error' | 'warning' | 'unknown' = 'unknown';
-
-      switch (healthStatus.status) {
-        case 'online':
-          badgeStatus = 'online';
-          break;
-        case 'offline':
-          badgeStatus = 'offline';
-          break;
-        case 'testing':
-          badgeStatus = 'testing';
-          break;
-        case 'error':
-          badgeStatus = 'error';
-          break;
-        case 'pending':
-          badgeStatus = 'unknown';
-          break;
-        default:
-          badgeStatus = 'unknown';
-      }
-
-      return h(StatusBadge, {
-        status: badgeStatus,
-        size: 'small',
-        variant: 'default',
-        showIcon: true,
-        showIndicator: false,
-        bordered: true,
-        round: false,
-        colorScheme: 'default',
-        pulse: healthStatus.status === 'testing',
-        glow: false,
-        tooltip: `节点状态: ${nodeHealth.getStatusText(healthStatus.status)}`,
-        tooltipDescription: `最后检查: ${(healthStatus as any).lastChecked ? new Date((healthStatus as any).lastChecked).toLocaleString() : '从未检查'}`,
-        tooltipPlacement: 'top'
-      });
-    }
-  },
-  {
-    title: '延迟',
-    key: 'latency',
-    width: 100,
-    render: (row: any) => {
-      const healthStatus = nodeHealth.getNodeHealthStatus(row);
-
-      let latency: number | null = null;
-
-      if (healthStatus.status === 'testing') {
-        latency = -1; // 使用负数表示测试中
-      } else if (healthStatus.status === 'pending' || !healthStatus.latency) {
-        latency = null; // 使用null表示未测试
-      } else if (healthStatus.latency === 0 || healthStatus.latency === -1) {
-        latency = -2; // 使用特殊负数表示超时
-      } else {
-        latency = healthStatus.latency;
-      }
-
-      return h(LatencyIndicator, {
-        latency: latency,
-        size: 'small',
-        showIcon: true,
-        showUnit: true,
-        colorScheme: 'network',
-        thresholds: { good: 100, medium: 300, poor: 500 },
-        loadingLabel: '测试中',
-        unknownLabel: '未测试'
-      });
-    }
-  },
-  {
-    title: '分组',
-    key: 'group',
-    width: 120,
-    render: (row: any) => {
-      if (!row.group_id) {
-        return h('span', {
-          style: 'color: #999; font-size: 12px; padding: 2px 6px; background: #f5f5f5; border-radius: 4px;'
-        }, '未分组');
-      }
-
-      const group = groups.value.find(g => g.id === row.group_id);
-      const groupName = group?.name || '未知分组';
-
-      return h('span', {
-        style: `
-          color: #1890ff;
-          font-size: 12px;
-          padding: 2px 6px;
-          background: #f0f9ff;
-          border: 1px solid #91d5ff;
-          border-radius: 4px;
-          font-weight: 500;
-        `
-      }, groupName);
-    }
-  },
-  {
-    title: '创建时间',
-    key: 'created_at',
-    width: 150,
-    render: (row: any) => {
-      return new Date(row.created_at).toLocaleDateString();
-    }
-  }
-]);
-
 // 事件处理方法
 // 处理统计卡片点击
 const handleStatsCardClick = (stat: any, index: number) => {
-  // 调用卡片中定义的onClick方法
-  if (stat.onClick) {
-    stat.onClick();
+  // 根据卡片类型切换视图
+  switch (stat.key) {
+    case 'all':
+      handleViewChange('all');
+      break;
+    case 'online':
+      handleViewChange('online');
+      break;
+    case 'offline':
+      handleViewChange('offline');
+      break;
+    case 'error':
+      handleViewChange('error');
+      break;
   }
 };
 
@@ -2144,12 +1522,12 @@ const clearFilters = () => {
   activeGroupId.value = 'all';
 };
 
-const hasFilters = computed(() => {
-  return searchQuery.value ||
+const hasFilters = computed((): boolean => {
+  return !!(searchQuery.value ||
          selectedProtocols.value.length > 0 ||
          selectedStatuses.value.length > 0 ||
          latencyFilter.value ||
-         activeView.value !== 'all';
+         activeView.value !== 'all');
 });
 
 const toggleSidebar = () => {
@@ -2214,121 +1592,6 @@ watch(
   padding: 20px;
 }
 
-/* 顶部区域 */
-.layout-header {
-  margin-bottom: 24px;
-}
-
-.header-main {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.page-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.page-title {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 700;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.page-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.breadcrumb-separator {
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.breadcrumb-item.active {
-  color: white;
-  font-weight: 500;
-}
-
-/* 统计卡片 */
-.stats-section {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  padding: 24px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px;
-  background: #f8fafc;
-  border: 2px solid transparent;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-  border-color: #667eea;
-  background: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
-  transform: translateY(-2px);
-}
-
-.stat-card.active {
-  border-color: #667eea;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.stat-icon {
-  font-size: 24px;
-  color: #667eea;
-  opacity: 0.8;
-}
-
-.stat-card.active .stat-icon {
-  color: white;
-  opacity: 1;
-}
-
-.stat-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.stat-number {
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.stat-label {
-  font-size: 14px;
-  opacity: 0.8;
-}
-
-.stat-card.active .stat-label {
-  color: rgba(255, 255, 255, 0.9);
-}
-
 /* 主内容区域 */
 .layout-content {
   background: rgba(255, 255, 255, 0.95);
@@ -2351,102 +1614,6 @@ watch(
   grid-template-columns: 60px 1fr;
 }
 
-/* 侧边栏 */
-.content-sidebar {
-  background: #f8fafc;
-  border-right: 1px solid #e2e8f0;
-  padding: 24px;
-  position: relative;
-  transition: all 0.3s ease;
-  overflow: hidden;
-}
-
-.content-sidebar.collapsed {
-  padding: 12px 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-/* 折叠按钮 */
-.sidebar-toggle {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  z-index: 10;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.sidebar-toggle:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  transform: scale(1.05);
-}
-
-.content-sidebar.collapsed .sidebar-toggle {
-  position: relative;
-  top: auto;
-  right: auto;
-  margin-bottom: 8px;
-}
-
-/* 折叠状态下的快速筛选按钮 */
-.collapsed-filters {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: center;
-  width: 100%;
-}
-
-.quick-filter-btn {
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: #64748b;
-  font-size: 18px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.quick-filter-btn:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.quick-filter-btn.active {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  color: white;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.quick-filter-btn.active:hover {
-  background: #2563eb;
-  border-color: #2563eb;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
-}
-
 /* 主内容区域 */
 .content-main {
   padding: 24px;
@@ -2456,250 +1623,6 @@ watch(
   width: 100%;
   min-width: 0; /* 确保可以收缩 */
   overflow-x: hidden; /* 防止内容溢出 */
-}
-
-.search-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.panel-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.panel-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #475569;
-}
-
-.search-input {
-  width: 100%;
-}
-
-.protocol-filters,
-.status-filters {
-  width: 100%;
-  overflow: visible;
-}
-
-.protocol-grid,
-.status-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 8px 12px;
-  align-items: start;
-  width: 100%;
-}
-
-.protocol-checkbox,
-.status-checkbox {
-  margin: 0;
-  width: 100%;
-  min-width: 0;
-}
-
-.protocol-checkbox :deep(.n-checkbox__label),
-.status-checkbox :deep(.n-checkbox__label) {
-  width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  line-height: 1.2;
-}
-
-.protocol-label,
-.status-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: #475569;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 针对较多协议项的优化 */
-.protocol-grid {
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 6px 8px;
-}
-
-/* 当协议数量很多时，使用更紧凑的布局 */
-@media (max-height: 800px) {
-  .protocol-grid {
-    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-    gap: 4px 6px;
-  }
-
-  .protocol-label,
-  .status-label {
-    font-size: 11px;
-  }
-}
-
-/* 侧边栏折叠状态下的响应式优化 */
-@media (max-width: 768px) {
-  .protocol-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .status-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 480px) {
-  .protocol-grid {
-    grid-template-columns: 1fr;
-    gap: 4px;
-  }
-
-  .status-grid {
-    grid-template-columns: 1fr;
-    gap: 4px;
-  }
-
-  .protocol-label,
-  .status-label {
-    font-size: 11px;
-  }
-}
-
-/* 折叠状态下侧边栏的优化 */
-.content-sidebar.collapsed .form-group {
-  display: none;
-}
-
-.content-sidebar.collapsed .sidebar-toggle {
-  display: flex;
-}
-
-.content-sidebar.collapsed .collapsed-filters {
-  display: flex;
-}
-
-/* 主内容 */
-.content-main {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* 智能操作栏 */
-.smart-bar {
-  background: linear-gradient(135deg, #fff7e6 0%, #fef9e7 100%);
-  border: 1px solid #ffd591;
-  border-radius: 12px;
-  padding: 16px 20px;
-  color: #d46b08;
-  box-shadow: 0 4px 12px rgba(212, 107, 8, 0.1);
-  position: relative;
-  overflow: hidden;
-}
-
-.smart-bar::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #faad14, #ffc53d, #ffd666);
-}
-
-.smart-bar-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.smart-bar-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.smart-icon {
-  font-size: 20px;
-  color: #fa8c16;
-}
-
-.smart-text {
-  font-weight: 700;
-  font-size: 14px;
-  color: #d46b08;
-}
-
-.smart-bar-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.smart-bar-actions :deep(.n-button) {
-  border-radius: 8px;
-  font-weight: 600;
-  box-shadow: 0 2px 6px rgba(212, 107, 8, 0.2);
-  transition: all 0.3s ease;
-  border: 1.5px solid transparent;
-}
-
-.smart-bar-actions :deep(.n-button:hover) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(212, 107, 8, 0.3);
-}
-
-.smart-bar-actions :deep(.n-button--warning) {
-  background: linear-gradient(135deg, #fa8c16 0%, #faad14 100%);
-  border-color: #faad14;
-  color: white;
-}
-
-.smart-bar-actions :deep(.n-button--warning:hover) {
-  background: linear-gradient(135deg, #d46b08 0%, #fa8c16 100%);
-  box-shadow: 0 4px 12px rgba(212, 107, 8, 0.4);
-}
-
-.smart-bar-actions :deep(.n-button--success) {
-  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
-  border-color: #73d13d;
-  color: white;
-}
-
-.smart-bar-actions :deep(.n-button--success:hover) {
-  background: linear-gradient(135deg, #389e0d 0%, #52c41a 100%);
-  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.4);
-}
-
-.smart-bar-actions :deep(.n-button--error) {
-  background: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%);
-  border-color: #ff7875;
-  color: white;
-}
-
-.smart-bar-actions :deep(.n-button--error:hover) {
-  background: linear-gradient(135deg, #cf1322 0%, #ff4d4f 100%);
-  box-shadow: 0 4px 12px rgba(255, 77, 79, 0.4);
 }
 
 /* 分组标签 */
@@ -2713,534 +1636,7 @@ watch(
   box-sizing: border-box;
 }
 
-.group-tabs {
-  width: 100%;
-}
-
-.group-tabs :deep(.n-tabs) {
-  width: 100%;
-}
-
-.group-tabs :deep(.n-tabs-nav) {
-  margin-bottom: 0;
-  display: flex;
-  flex-wrap: wrap;
-  width: 100%;
-  gap: 4px;
-}
-
-.group-tabs :deep(.n-tabs-tab-wrapper) {
-  display: flex;
-  flex-wrap: wrap;
-  width: 100%;
-  gap: 4px;
-}
-
-.group-tabs :deep(.n-tabs-tab) {
-  flex: 1 1 calc(16.66% - 4px); /* 6个标签，每个占约1/6宽度 */
-  min-width: 120px;
-  padding: 8px 12px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  cursor: pointer;
-}
-
-/* 分组标签内部元素样式 */
-.group-tab-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 8px;
-  font-size: 14px;
-}
-
-.group-actions-button {
-  opacity: 1 !important;
-  transition: all 0.2s;
-  background-color: transparent;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  padding: 2px;
-  min-width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-}
-
-.group-actions-button:hover {
-  background-color: #f5f5f5 !important;
-  border-color: #d0d0d0;
-}
-
-.group-tabs :deep(.n-tabs-tab:hover) {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.group-tabs :deep(.n-tabs-tab--active) {
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(32, 128, 240, 0.2);
-}
-
-/* 响应式调整 */
-@media (max-width: 1200px) {
-  .group-tabs :deep(.n-tabs-tab) {
-    flex: 1 1 calc(20% - 4px); /* 5个标签时每行占20% */
-    min-width: 90px;
-    font-size: 11px;
-    padding: 6px 8px;
-  }
-}
-
-@media (max-width: 768px) {
-  .group-tabs :deep(.n-tabs-tab) {
-    flex: 1 1 calc(33.33% - 3px); /* 3个标签时每行占33% */
-    min-width: 80px;
-    font-size: 10px;
-    padding: 4px 6px;
-  }
-
-  .group-tabs-section {
-    padding: 8px;
-  }
-}
-
-@media (max-width: 480px) {
-  .group-tabs :deep(.n-tabs-tab) {
-    flex: 1 1 calc(50% - 2px); /* 2个标签时每行占50% */
-    min-width: 70px;
-    font-size: 9px;
-    padding: 3px 4px;
-  }
-}
-
-/* 选中节点操作栏 */
-.selection-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  background: linear-gradient(135deg, #e6f7ff 0%, #f0f9ff 100%);
-  border: 1px solid #91d5ff;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.1);
-  position: relative;
-  /* 移除 overflow: hidden 让下拉菜单能显示出来 */
-  /* overflow: hidden; */
-}
-
-.selection-bar::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #1890ff, #40a9ff, #69c0ff);
-}
-
-.selection-left {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.selection-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.selection-icon {
-  color: #1890ff;
-  font-size: 18px;
-}
-
-.selection-text {
-  font-size: 14px;
-  color: #1e40af;
-  font-weight: 500;
-}
-
-.selection-text strong {
-  color: #1890ff;
-  font-weight: 700;
-}
-
-.selection-summary {
-  display: flex;
-  align-items: center;
-}
-
-.selection-summary :deep(.n-tag) {
-  font-weight: 600;
-  border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
-}
-
-.selection-summary :deep(.n-tag:hover) {
-  transform: translateY(-1px);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
-}
-
-.selection-right {
-  display: flex;
-  align-items: center;
-}
-
-.selection-right :deep(.n-button) {
-  border-radius: 8px;
-  font-weight: 600;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-  border: 1.5px solid transparent;
-}
-
-.selection-right :deep(.n-button:hover) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.selection-right :deep(.n-button--primary) {
-  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
-  border-color: #40a9ff;
-}
-
-.selection-right :deep(.n-button--primary:hover) {
-  background: linear-gradient(135deg, #096dd9 0%, #1890ff 100%);
-  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
-}
-
-.selection-right :deep(.n-button--info) {
-  background: linear-gradient(135deg, #13c2c2 0%, #36cfc9 100%);
-  border-color: #36cfc9;
-}
-
-.selection-right :deep(.n-button--info:hover) {
-  background: linear-gradient(135deg, #08979c 0%, #13c2c2 100%);
-  box-shadow: 0 4px 12px rgba(19, 194, 194, 0.3);
-}
-
-.selection-right :deep(.n-button--default) {
-  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
-  border-color: #d9d9d9;
-  color: #595959;
-}
-
-.selection-right :deep(.n-button--default:hover) {
-  background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%);
-  border-color: #1890ff;
-  color: #1890ff;
-}
-
-.selection-right :deep(.n-dropdown) {
-  border-radius: 8px;
-}
-
-.selection-right :deep(.n-divider.n-divider--vertical) {
-  background: linear-gradient(180deg, transparent, #1890ff, transparent);
-  width: 2px;
-  margin: 0 12px;
-}
-
-/* 表格区域 */
-.table-section {
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-/* 自定义分页 */
-.custom-pagination {
-  padding: 16px;
-  border-top: 1px solid #f0f0f0;
-  background: #fafafa;
-  display: flex;
-  justify-content: center;
-}
-
-/* 智能感知区域按钮样式 */
-.smart-test-btn,
-.smart-export-btn,
-.smart-more-btn,
-.smart-action-btn {
-  cursor: pointer !important;
-  border-radius: 8px !important;
-  font-weight: 600 !important;
-  font-size: 13px !important;
-  padding: 8px 16px !important;
-  height: 36px !important;
-  min-width: 90px !important;
-  transition: all 0.2s ease !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-}
-
-.smart-test-btn {
-  background: linear-gradient(135deg, #fa8c16 0%, #ff9c6f 100%) !important;
-  border: 1px solid #fa8c16 !important;
-  color: #ffffff !important;
-}
-
-.smart-test-btn:hover {
-  background: linear-gradient(135deg, #d46b08 0%, #fa8c16 100%) !important;
-  border-color: #d46b08 !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 8px rgba(250, 140, 6, 0.3) !important;
-}
-
-.smart-export-btn {
-  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%) !important;
-  border: 1px solid #52c41a !important;
-  color: #ffffff !important;
-}
-
-.smart-export-btn:hover {
-  background: linear-gradient(135deg, #389e0d 0%, #52c41a 100%) !important;
-  border-color: #389e0d !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 8px rgba(82, 196, 26, 0.3) !important;
-}
-
-.smart-more-btn {
-  background: linear-gradient(135deg, #8c8c8c 0%, #bfbfbf 100%) !important;
-  border: 1px solid #8c8c8c !important;
-  color: #ffffff !important;
-}
-
-.smart-more-btn:hover {
-  background: linear-gradient(135deg, #666666 0%, #8c8c8c 100%) !important;
-  border-color: #666666 !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 8px rgba(102, 102, 102, 0.3) !important;
-}
-
-.smart-action-btn {
-  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%) !important;
-  border: 1px solid #1890ff !important;
-  color: #ffffff !important;
-}
-
-.smart-action-btn:hover {
-  background: linear-gradient(135deg, #096dd9 0%, #1890ff 100%) !important;
-  border-color: #096dd9 !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 8px rgba(24, 144, 255, 0.3) !important;
-}
-
-/* 智能感知下拉菜单样式 - 参照顶部折叠菜单 */
-.smart-test-dropdown :deep(.n-dropdown-menu),
-.smart-export-dropdown :deep(.n-dropdown-menu),
-.smart-more-dropdown :deep(.n-dropdown-menu) {
-  border-radius: 8px !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
-  border: 1px solid #e2e8f0 !important;
-  background: #ffffff !important;
-  padding: 0 !important;
-  min-width: 160px !important;
-  max-width: 200px !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-}
-
-.smart-test-dropdown :deep(.n-dropdown-menu-body),
-.smart-export-dropdown :deep(.n-dropdown-menu-body),
-.smart-more-dropdown :deep(.n-dropdown-menu-body),
-.smart-test-dropdown :deep(.n-dropdown-menu-content),
-.smart-export-dropdown :deep(.n-dropdown-menu-content),
-.smart-more-dropdown :deep(.n-dropdown-menu-content) {
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
-.smart-test-dropdown :deep(.n-dropdown-menu-item),
-.smart-export-dropdown :deep(.n-dropdown-menu-item),
-.smart-more-dropdown :deep(.n-dropdown-menu-item) {
-  margin: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  border: none !important;
-  outline: none !important;
-  width: 100% !important;
-  display: block !important;
-  position: static !important;
-}
-
-.smart-test-dropdown :deep(.n-dropdown-menu-item:hover),
-.smart-export-dropdown :deep(.n-dropdown-menu-item:hover),
-.smart-more-dropdown :deep(.n-dropdown-menu-item:hover) {
-  background: transparent !important;
-}
-
-.smart-test-dropdown :deep(.n-dropdown-menu-item.n-dropdown-menu-item--selected),
-.smart-export-dropdown :deep(.n-dropdown-menu-item.n-dropdown-menu-item--selected),
-.smart-more-dropdown :deep(.n-dropdown-menu-item.n-dropdown-menu-item--selected) {
-  background: #f8fafc !important;
-}
-
-.smart-test-dropdown :deep(.n-dropdown-menu-item-content),
-.smart-export-dropdown :deep(.n-dropdown-menu-item-content),
-.smart-more-dropdown :deep(.n-dropdown-menu-item-content) {
-  padding: 0 !important;
-  margin: 0 !important;
-  width: 100% !important;
-  display: block !important;
-  position: static !important;
-  background: transparent !important;
-}
-
-.smart-test-dropdown :deep(.n-dropdown-divider),
-.smart-export-dropdown :deep(.n-dropdown-divider),
-.smart-more-dropdown :deep(.n-dropdown-divider) {
-  margin: 0 !important;
-  border-color: #e2e8f0 !important;
-  height: 1px !important;
-  padding: 0 !important;
-}
-
-/* 添加脉动动画 */
-@keyframes pulse {
-  0% {
-    box-shadow: 0 4px 12px rgba(255, 77, 79, 0.3), 0 0 0 0 rgba(255, 77, 79, 0.4);
-  }
-  70% {
-    box-shadow: 0 4px 12px rgba(255, 77, 79, 0.3), 0 0 0 10px rgba(255, 77, 79, 0.2);
-  }
-  100% {
-    box-shadow: 0 4px 12px rgba(255, 77, 79, 0.3), 0 0 0 0 rgba(255, 77, 79, 0.2);
-  }
-}
-
-.pulse-danger {
-  animation: pulse 2s infinite;
-}
-
-/* 移除所有默认样式 */
-.smart-test-dropdown :deep(*),
-.smart-export-dropdown :deep(*),
-.smart-more-dropdown :deep(*) {
-  box-sizing: border-box !important;
-}
-/* 顶部右侧按钮样式 */
-.header-right :deep(.n-button) {
-  border-radius: 12px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.header-right :deep(.n-button--primary) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-color: #667eea;
-  color: white;
-}
-
-.header-right :deep(.n-button--primary:hover) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
-  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-}
-
-/* 更多操作按钮样式 */
-.header-more-btn {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 2px solid #e2e8f0;
-  color: #64748b;
-  border-radius: 12px;
-  width: 44px;
-  height: 36px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.header-more-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-  border-color: #cbd5e1;
-  color: #475569;
-  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
-}
-
-.header-more-icon {
-  font-size: 18px !important;
-  transition: all 0.3s ease;
-}
-
-.header-more-btn:hover .header-more-icon {
-  transform: rotate(90deg);
-}
-
-/* 下拉菜单样式 - 简化版本 */
-.header-more-dropdown :deep(.n-dropdown-menu) {
-  border-radius: 8px !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
-  border: 1px solid #e2e8f0 !important;
-  background: #ffffff !important;
-  padding: 0 !important;
-  min-width: 160px !important;
-  max-width: 200px !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-}
-
-.header-more-dropdown :deep(.n-dropdown-menu-body) {
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
-.header-more-dropdown :deep(.n-dropdown-menu-content) {
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
-.header-more-dropdown :deep(.n-dropdown-menu-item) {
-  margin: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  border: none !important;
-  outline: none !important;
-  width: 100% !important;
-  display: block !important;
-  position: static !important;
-}
-
-.header-more-dropdown :deep(.n-dropdown-menu-item:hover) {
-  background: transparent !important;
-}
-
-.header-more-dropdown :deep(.n-dropdown-menu-item.n-dropdown-menu-item--selected) {
-  background: #f8fafc !important;
-}
-
-.header-more-dropdown :deep(.n-dropdown-menu-item-content) {
-  padding: 0 !important;
-  margin: 0 !important;
-  width: 100% !important;
-  display: block !important;
-  position: static !important;
-  background: transparent !important;
-}
-
-.header-more-dropdown :deep(.n-dropdown-divider) {
-  margin: 0 !important;
-  border-color: #e2e8f0 !important;
-  height: 1px !important;
-  padding: 0 !important;
-}
-
-/* 移除所有默认样式 */
-.header-more-dropdown :deep(*) {
-  box-sizing: border-box !important;
-}
+/* 响应式设计 */
 @media (max-width: 1024px) {
   .content-container {
     grid-template-columns: 1fr;
@@ -3262,22 +1658,6 @@ watch(
     z-index: 1000;
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
   }
-
-  .selection-bar {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-
-  .selection-left {
-    align-items: center;
-    text-align: center;
-  }
-
-  .selection-right {
-    justify-content: center;
-    flex-wrap: wrap;
-  }
 }
 
 @media (max-width: 768px) {
@@ -3285,85 +1665,12 @@ watch(
     padding: 12px;
   }
 
-  .header-main {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
-
-  .stat-card {
+  .content-main {
     padding: 16px;
-  }
-
-  .smart-bar-content {
-    flex-direction: column;
-    gap: 12px;
-    align-items: stretch;
-    text-align: center;
-  }
-
-  .smart-bar-actions {
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .smart-bar-actions :deep(.n-button) {
-    font-size: 12px;
-    padding: 0 12px;
-  }
-
-  .selection-bar {
-    padding: 12px 16px;
-  }
-
-  .selection-right :deep(.n-button) {
-    font-size: 12px;
-    padding: 0 12px;
   }
 
   .group-tabs-section {
     padding: 8px;
-  }
-
-  .smart-bar {
-    padding: 12px 16px;
-  }
-
-  .smart-text {
-    font-size: 13px;
-  }
-}
-
-@media (max-width: 480px) {
-  .selection-right {
-    gap: 8px;
-  }
-
-  .selection-right :deep(.n-button) {
-    font-size: 11px;
-    padding: 0 8px;
-  }
-
-  .selection-right :deep(.n-button .n-button__content) {
-    gap: 4px;
-  }
-
-  .smart-bar-actions {
-    gap: 6px;
-  }
-
-  .smart-bar-actions :deep(.n-button) {
-    font-size: 11px;
-    padding: 0 8px;
-  }
-
-  .smart-bar-actions :deep(.n-button .n-button__content) {
-    gap: 4px;
   }
 }
 </style>
