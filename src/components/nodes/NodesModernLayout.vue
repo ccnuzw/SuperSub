@@ -184,52 +184,21 @@
 
           <!-- 分组标签页 -->
           <div class="group-tabs-section">
-            <n-tabs
-              v-model:value="activeGroupId"
-              type="segment"
-              @update:value="handleGroupChange"
-              class="group-tabs"
-            >
-              <n-tab-pane name="all" :tab="`全部 (${groupCounts.all || 0})`" />
-              <n-tab-pane name="ungrouped" :tab="`未分组 (${groupCounts.ungrouped || 0})`" />
-              <n-tab-pane
-                v-for="group in groups"
-                :key="group.id"
-                :name="group.id"
-              >
-                <template #tab>
-                  <div
-                    class="group-tab-wrapper"
-                    @click.prevent="handleGroupTabClick(group, $event)"
-                    @contextmenu.prevent.stop="handleGroupContextMenu(group, $event)"
-                  >
-                    <span :style="{ color: group.is_enabled ? '' : '#999', marginRight: '8px' }">
-                      {{ group.name }} ({{ groupCounts[group.id] || 0 }})
-                    </span>
-
-                    <!-- 更多操作按钮 -->
-                    <n-dropdown
-                      :options="getGroupDropdownOptions(group)"
-                      placement="bottom-end"
-                      @select="(key: string) => handleGroupAction(key, group)"
-                      trigger="click"
-                    >
-                      <n-button
-                        text
-                        size="small"
-                        class="group-actions-button"
-                      >
-                        <template #icon>
-                          <n-icon>
-                            <MoreIcon />
-                          </n-icon>
-                        </template>
-                      </n-button>
-                    </n-dropdown>
-                  </div>
-                </template>
-              </n-tab-pane>
-            </n-tabs>
+            <SmartGroupTabs
+              :groups="smartGroups"
+              :group-counts="smartGroupCounts"
+              v-model:active-tab="activeGroupId"
+              tab-type="segment"
+              size="medium"
+              :show-add-button="true"
+              :enable-context-menu="true"
+              :enable-inline-actions="true"
+              @tab-click="handleGroupChange"
+              @group-tab-click="handleGroupTabClick"
+              @group-context-menu="handleGroupContextMenu"
+              @group-action="handleGroupAction"
+              @add-action="handleAddAction"
+            />
           </div>
 
           <!-- 选中节点操作栏 -->
@@ -389,6 +358,34 @@
       @move="handleBatchMove"
     />
 
+    <!-- 节点管理模态框系统 -->
+    <NodeFormAndImport
+      :modal-states="nodeManagement.modalStates.value"
+      :modal-title="nodeManagement.modalTitle.value"
+      :node-form-state="nodeManagement.nodeFormState.value"
+      :editing-node="nodeManagement.editingNode.value"
+      :add-link="nodeManagement.addLink.value"
+      :import-preview="nodeManagement.importPreview.value"
+      :import-group-id="nodeManagement.importGroupId.value"
+      :editing-group="nodeManagement.editingGroup.value"
+      :editing-group-name="nodeManagement.editingGroupName.value"
+      :new-group-name="nodeManagement.newGroupName.value"
+      :move-to-group-id="nodeManagement.moveToGroupId.value"
+      :groups="smartGroups"
+      @close-modal="nodeManagement.closeModal"
+      @save-node="nodeManagement.handleSaveNode"
+      @batch-import="nodeManagement.handleBatchImport"
+      @save-group="handleSaveGroup"
+      @save-move-to-group="handleSaveMoveToGroup"
+      @update:node-form-state="(value) => nodeManagement.nodeFormState = value"
+      @update:add-link="(value) => nodeManagement.addLink = value"
+      @update:import-preview="(value) => nodeManagement.importPreview = value"
+      @update:import-group-id="(value) => nodeManagement.importGroupId = value"
+      @update:editing-group-name="(value) => nodeManagement.editingGroupName = value"
+      @update:new-group-name="(value) => nodeManagement.newGroupName = value"
+      @update:move-to-group-id="(value) => nodeManagement.moveToGroupId = value"
+    />
+
     <!-- 分组右键菜单 -->
     <n-dropdown
       :show="showContextMenu"
@@ -442,10 +439,13 @@ import StatsCardGrid from '../common/StatsCardGrid.vue';
 import LatencyIndicator from '../common/LatencyIndicator.vue';
 import ProtocolTag from '../common/ProtocolTag.vue';
 import StatusBadge from '../common/StatusBadge.vue';
+import SmartGroupTabs from '../common/SmartGroupTabs.vue';
 import PerfectDropdown from '../PerfectDropdown.vue';
 import NodeModal from '@/views/components/NodeModal.vue';
 import ImportModal from '@/views/components/ImportModal.vue';
 import BatchMoveModal from '@/views/components/BatchMoveModal.vue';
+// 导入NodeFormAndImport组件以获得模态框系统
+import NodeFormAndImport from './components/NodeFormAndImport.vue';
 import type { Node, NodeGroup } from '@/types/entities';
 
 // 初始化
@@ -546,7 +546,33 @@ const nodeStats = computed(() => {
 const groups = computed(() => {
   return groupStore.groups || [];
 });
+
+// 转换为SmartGroupTabs的GroupItem格式
+const smartGroups = computed(() => {
+  return groups.value.map(group => ({
+    id: group.id,
+    name: group.name,
+    description: group.description || undefined,
+    is_enabled: group.is_enabled,
+    disabled: !group.is_enabled
+  }));
+});
+
 const groupCounts = computed(() => nodeGroups.groupCounts.value);
+
+// 转换为SmartGroupTabs的GroupCount格式
+const smartGroupCounts = computed(() => {
+  const counts = nodeGroups.groupCounts.value || {};
+  return {
+    all: counts.all || 0,
+    ungrouped: counts.ungrouped || 0,
+    ...Object.fromEntries(
+      Object.entries(counts).filter(([key]) =>
+        key !== 'all' && key !== 'ungrouped'
+      )
+    )
+  };
+});
 
 // 筛选选项
 const protocolOptions = computed(() => {
@@ -1471,27 +1497,177 @@ const getGroupDropdownOptions = (group: any) => {
 };
 
 // 分组操作处理
-const handleGroupAction = (key: string, group: any) => {
+const handleGroupAction = async (key: string, group: any) => {
   console.log('分组操作', key, group);
 
   switch (key) {
     case 'toggle':
       // 切换启用/禁用状态
-      message.info(`${group.is_enabled ? '禁用' : '启用'}分组 "${group.name}"`);
-      break;
-    case 'rename':
-      // 重命名分组
-      const newName = prompt(`重命名分组 "${group.name}":`, group.name);
-      if (newName && newName !== group.name) {
-        message.info(`将分组 "${group.name}" 重命名为 "${newName}"`);
+      try {
+        const result = await groupStore.toggleGroup(group.id);
+        if (result.success) {
+          const statusText = group.is_enabled ? '禁用' : '启用';
+          message.success(`${statusText}分组 "${group.name}"`);
+        } else {
+          message.error(`${result.message || '操作失败'}`);
+        }
+      } catch (error) {
+        console.error('切换分组状态时出错:', error);
+        message.error('操作失败，请重试');
       }
       break;
+
+    case 'rename':
+      // 使用模态框重命名分组
+      await handleRenameGroup(group);
+      break;
+
     case 'delete':
       // 删除分组
-      if (confirm(`确定要删除分组 "${group.name}" 吗？`)) {
-        message.warning(`删除分组 "${group.name}" 的功能暂未实现`);
+      dialog.warning({
+        title: '删除分组',
+        content: `确定要删除分组 "${group.name}" 吗？删除后无法恢复。`,
+        positiveText: '确定删除',
+        negativeText: '取消',
+        onPositiveClick: async () => {
+          try {
+            const result = await groupStore.deleteGroup(group.id);
+            if (result.success) {
+              message.success(`已删除分组 "${group.name}"`);
+
+              // 如果当前在要删除的分组，切换到"全部"
+              if (activeGroupId.value === group.id) {
+                activeGroupId.value = 'all';
+                paginationState.value.page = 1;
+              }
+            } else {
+              message.error(`删除失败: ${result.message || '未知错误'}`);
+            }
+          } catch (error) {
+            console.error('删除分组时出错:', error);
+            message.error('删除失败，请重试');
+          }
+        }
+      });
+      break;
+  }
+};
+
+// 处理SmartGroupTabs的新增分组操作
+const handleAddAction = async (key: string, data?: { name: string; description: string }) => {
+  switch (key) {
+    case 'add-group':
+      if (data?.name) {
+        try {
+          // 调用现有的addGroup API方法
+          const result = await groupStore.addGroup(data.name);
+
+          if (result.success) {
+            message.success(`创建新分组: ${data.name}${data.description ? ` (${data.description})` : ''}`);
+
+            // 切换到新创建的分组
+            // 由于addGroup方法已经调用了fetchGroups()，我们只需要等待一会儿然后查找新分组
+            setTimeout(() => {
+              const newGroup = groupStore.groups.find(g => g.name === data.name);
+              if (newGroup) {
+                activeGroupId.value = newGroup.id;
+                paginationState.value.page = 1;
+              }
+            }, 300);
+          } else {
+            message.error(`创建分组失败: ${result.message || '未知错误'}`);
+          }
+        } catch (error) {
+          console.error('创建分组时出错:', error);
+          message.error('创建分组时发生错误');
+        }
+      } else {
+        message.warning('请输入分组名称');
       }
       break;
+    default:
+      message.warning(`未知操作: ${key}`);
+  }
+};
+
+// 处理分组重命名 - 使用模态框
+const handleRenameGroup = async (group: any) => {
+  try {
+    // 使用nodeManagement的openModal方法打开重命名模态框
+    await nodeManagement.openModal('renameGroup', group);
+  } catch (error) {
+    console.error('打开重命名模态框时出错:', error);
+    message.error('打开重命名模态框失败');
+  }
+};
+
+// ���理保存分组 - 连接模态框系统和实际API
+const handleSaveGroup = async () => {
+  try {
+    if (nodeManagement.editingGroup.value && nodeManagement.editingGroupName.value) {
+      const group = nodeManagement.editingGroup.value;
+      const newName = nodeManagement.editingGroupName.value.trim();
+
+      if (!newName) {
+        message.warning('请输入分组名称');
+        return;
+      }
+
+      if (newName === group.name) {
+        message.info('分组名称未改变');
+        nodeManagement.closeModal('renameGroup');
+        return;
+      }
+
+      const result = await groupStore.updateGroup(group.id, newName);
+      if (result.success) {
+        message.success(`将分组 "${group.name}" 重命名为 "${newName}"`);
+        nodeManagement.closeModal('renameGroup');
+      } else {
+        message.error(`重命名失败: ${result.message || '未知错误'}`);
+      }
+    } else {
+      // 新增分组逻辑
+      const groupName = nodeManagement.newGroupName.value.trim();
+      if (!groupName) {
+        message.warning('请输入分组名称');
+        return;
+      }
+
+      const result = await groupStore.addGroup(groupName);
+      if (result.success) {
+        message.success(`创建新分组: ${groupName}`);
+        nodeManagement.closeModal('addGroup');
+
+        // 切换到新创建的分组
+        setTimeout(() => {
+          const newGroup = groupStore.groups.find(g => g.name === groupName);
+          if (newGroup) {
+            activeGroupId.value = newGroup.id;
+            paginationState.value.page = 1;
+          }
+        }, 300);
+      } else {
+        message.error(`创建分组失败: ${result.message || '未知错误'}`);
+      }
+    }
+  } catch (error) {
+    console.error('保存分组时出错:', error);
+    message.error('保存分组失败，请重试');
+  }
+};
+
+// 处理保存移动到分组
+const handleSaveMoveToGroup = async () => {
+  try {
+    if (selectedNodes.value.length > 0 && nodeManagement.moveToGroupId.value !== undefined) {
+      await nodeManagement.batchUpdateGroup(selectedNodes.value, nodeManagement.moveToGroupId.value);
+      message.success('移动成功');
+      nodeManagement.closeModal('moveToGroup');
+      selectedNodes.value = [];
+    }
+  } catch (error) {
+    message.error('移动失败');
   }
 };
 

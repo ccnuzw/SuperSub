@@ -259,9 +259,8 @@ const formRules: FormRules = {
 
 // 计算属性
 const enabledGroups = computed(() => {
-  return props.groups.filter(group =>
-    !group.disabled && (group.is_enabled !== false)
-  );
+  // 显示所有分组，包括禁用的分组，但用不同的样式标识
+  return props.groups;
 });
 
 const addButtonOptions = computed((): ActionOption[] => {

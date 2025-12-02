@@ -279,7 +279,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { useMessage } from 'naive-ui';
 import type { FormRules } from 'naive-ui';
 import { NodeImportService } from '@/services/nodeImportService';
@@ -296,13 +296,16 @@ interface Props {
   importPreview: any[];
   importGroupId: string;
   editingGroup: any;
-  editingGroupName: string;
-  newGroupName: string;
+  editingGroupName?: string;
+  newGroupName?: string;
   moveToGroupId: string;
   groups: TabConfig[];
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  editingGroupName: '',
+  newGroupName: '',
+});
 
 // Emits
 const emit = defineEmits<{
@@ -466,18 +469,16 @@ const handleSaveGroup = async () => {
 };
 
 const handleRenameGroup = async () => {
-  if (!props.editingGroupName.trim()) {
+  if (!props.editingGroupName || !props.editingGroupName.trim()) {
     message.warning('请输入分组名称');
     return;
   }
 
   try {
     saveLoading.value = true;
-    // 这里需要调用重命名分组的API
-    message.success('分组重命名成功');
-    closeModal('renameGroup');
-  } catch (error: any) {
-    message.error(error.message || '重命名失败');
+    emit('saveGroup');
+  } catch (error) {
+    // 错误已在父组件处理
   } finally {
     saveLoading.value = false;
   }
