@@ -182,8 +182,8 @@ const isAdjusting = ref(false);
 // 处理菜单项
 const menuItems = computed(() => {
   return props.items.map(item => ({
-    ...item,
-    action: item.action || (() => handleSelect(item.key, item))
+    ...item
+    // 移除自动生成action的逻辑，让组件只通过emit事件工作
   }));
 });
 
@@ -277,12 +277,12 @@ const handleItemClick = (item: SmartActionItem, event: MouseEvent) => {
     }
   }
 
-  // 执行自定义操作
+  // 执行自定义操作（如果定义了的话）
   if (item.action) {
     item.action();
   }
 
-  // 发出选择事件
+  // 总是发出选择事件
   handleSelect(item.key, item, event);
 
   // 根据配置决定是否关闭

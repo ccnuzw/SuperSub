@@ -24,7 +24,7 @@
           <!-- 更多操作下拉菜单 -->
           <SmartHeaderActions
             :items="headerSmartActions"
-            @select="(event: any) => $emit('header-action', event.key, event.item, event.event)"
+            @select="(key: string, item: any, event: MouseEvent) => $emit('header-action', key, item, event)"
             placement="bottom-right"
             button-type="default"
             :ghost="false"
