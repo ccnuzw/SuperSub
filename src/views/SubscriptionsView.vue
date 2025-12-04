@@ -1,171 +1,110 @@
 <template>
-  <div>
-    <n-page-header>
-      <template #title>
-        订阅管理
-      </template>
-      <template #extra>
+  <div class="subscriptions-modern-layout">
+    <!-- 标题和操作按钮区域 -->
+    <div class="header-main">
+      <div class="header-left">
+        <div class="page-info">
+          <h1 class="page-title">订阅管理</h1>
+          <div class="page-breadcrumb">
+            <span class="breadcrumb-item">代理</span>
+            <span class="breadcrumb-separator">/</span>
+            <span class="breadcrumb-item active">订阅</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- 主要操作按钮 -->
         <n-space>
-          <n-button type="primary" @click="openModal()">
+          <n-button type="primary" size="medium" @click="openModal()">
             <template #icon>
               <n-icon :component="AddOutline" />
             </template>
             新增订阅
           </n-button>
-          <n-button @click="openAddGroupModal()">
+          <n-button type="primary" size="medium" @click="openAddGroupModal()">
             <template #icon>
               <n-icon :component="AddOutline" />
             </template>
             新增分组
           </n-button>
-          <n-dropdown
-            trigger="click"
-            :options="headerActions"
-            @select="handleHeaderAction"
-          >
-            <n-button>
-              <template #icon>
-                <n-icon :component="MoreIcon" />
-              </template>
-            </n-button>
-          </n-dropdown>
+
+          <!-- 更多操作下拉菜单 -->
+          <SmartHeaderActions
+            :items="headerSmartActions"
+            @select="(key: string, item: any, event: MouseEvent) => handleHeaderAction(key)"
+            placement="bottom-right"
+            button-type="default"
+            :ghost="false"
+            size="medium"
+          />
         </n-space>
-      </template>
-    </n-page-header>
+      </div>
+    </div>
 
     <!-- 统计卡片 -->
-    <div class="stats-cards mb-4" v-if="subscriptions.length > 0">
-      <n-grid :cols="4" :x-gap="12" :y-gap="12">
-        <n-gi>
-          <n-card size="small">
-            <n-statistic label="总订阅数" :value="stats.totalSubscriptions.value">
-              <template #suffix>
-                <n-icon :component="CreateOutline" />
-              </template>
-            </n-statistic>
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card size="small">
-            <n-statistic label="活跃订阅" :value="stats.activeSubscriptions.value">
-              <template #suffix>
-                <n-icon :component="CheckmarkCircleOutline" />
-              </template>
-            </n-statistic>
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card size="small">
-            <n-statistic label="失败订阅" :value="stats.failedSubscriptions.value">
-              <template #suffix>
-                <n-icon :component="WarningOutline" />
-              </template>
-            </n-statistic>
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card size="small">
-            <n-statistic
-              label="成功率"
-              :value="stats.successRate.value"
-              suffix="%"
-              :value-style="{
-                color: stats.successRate.value >= 90 ? '#18a058' : stats.successRate.value >= 70 ? '#f0a020' : '#d03050'
-              }"
-            >
-              <template #suffix>
-                <n-icon :component="StatsChartOutline" />
-              </template>
-            </n-statistic>
-          </n-card>
-        </n-gi>
-      </n-grid>
-    </div>
-    <div v-else class="stats-cards mb-4">
-      <n-grid :cols="4" :x-gap="12" :y-gap="12">
-        <n-gi>
-          <n-card size="small">
-            <n-skeleton height="60px" />
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card size="small">
-            <n-skeleton height="60px" />
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card size="small">
-            <n-skeleton height="60px" />
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card size="small">
-            <n-skeleton height="60px" />
-          </n-card>
-        </n-gi>
-      </n-grid>
+    <div class="stats-section">
+      <StatsCardGrid
+        :stats="subscriptionStatsCards"
+        :columns="4"
+        :animated="true"
+        :clickable="true"
+        size="medium"
+        @card-click="(stat: any, index?: number) => handleStatsCardClick(stat, index || 0)"
+      />
     </div>
 
-    <!-- 健康度指示器 -->
-    <n-card class="mb-4" size="small">
-      <n-space justify="space-between">
-        <n-text strong>整体健康度</n-text>
-        <n-space align="center">
-          <n-progress
-            type="line"
-            :percentage="stats.healthScore.value"
-            :status="stats.healthStatus.value.color as any"
-            :show-indicator="false"
-            style="width: 120px"
-          />
-          <n-tag :type="stats.healthStatus.value.color as any" round>
-            {{ stats.healthStatus.value.text }} ({{ stats.healthScore.value }}%)
-          </n-tag>
-        </n-space>
-      </n-space>
-    </n-card>
-
-    <!-- 分组标签 -->
-    <n-tabs type="card" class="mt-4" v-model:value="activeTab">
-      <n-tab-pane name="all" :tab="`全部 (${stats.totalSubscriptions.value})`" />
-      <n-tab-pane name="ungrouped" :tab="`未分组 (${stats.ungroupedCount.value})`" />
-      <n-tab-pane
-        v-for="group in subscriptionGroupStore.groups"
-        :key="group.id"
-        :name="group.id"
-      >
-        <template #tab>
-          <div class="group-tab-wrapper">
-            <span :style="{ color: group.is_enabled ? '' : '#999', marginRight: '8px' }">
-              {{ group.name }} ({{ getGroupCount(group.id) }})
-            </span>
-            <n-dropdown
-              trigger="click"
-              placement="bottom-start"
-              :options="getDropdownOptions(group)"
-              @select="(key) => handleGroupOperation(key, group)"
-            >
-              <n-button text class="group-actions-button">
-                <n-icon :component="MoreIcon" />
-              </n-button>
-            </n-dropdown>
+    <!-- 主要内容区域 -->
+    <div class="layout-content">
+      <div class="content-container">
+        <div class="content-main">
+          <!-- 分组标签 -->
+          <div class="group-tabs-section">
+            <n-tabs type="card" class="modern-tabs" v-model:value="activeTab">
+              <n-tab-pane name="all" :tab="`全部 (${stats.totalSubscriptions.value})`" />
+              <n-tab-pane name="ungrouped" :tab="`未分组 (${stats.ungroupedCount.value})`" />
+              <n-tab-pane
+                v-for="group in subscriptionGroupStore.groups"
+                :key="group.id"
+                :name="group.id"
+              >
+                <template #tab>
+                  <div class="group-tab-wrapper">
+                    <span :style="{ color: group.is_enabled ? '' : '#999', marginRight: '8px' }">
+                      {{ group.name }} ({{ getGroupCount(group.id) }})
+                    </span>
+                    <n-dropdown
+                      trigger="click"
+                      placement="bottom-start"
+                      :options="getDropdownOptions(group)"
+                      @select="(key) => handleGroupOperation(key, group)"
+                    >
+                      <n-button text class="group-actions-button">
+                        <n-icon :component="MoreIcon" />
+                      </n-button>
+                    </n-dropdown>
+                  </div>
+                </template>
+              </n-tab-pane>
+            </n-tabs>
           </div>
-        </template>
-      </n-tab-pane>
-    </n-tabs>
 
-    <!-- 数据表格 -->
-    <n-data-table
-      :columns="columns"
-      :data="filteredSubscriptions"
-      :loading="loading"
-      :pagination="{ pageSize: 10 }"
-      :bordered="false"
-      class="mt-4"
-      v-model:checked-row-keys="checkedRowKeys"
-      :row-key="(row) => row.id"
-      :scroll-x="1800"
-    />
+          <!-- 数据表格 -->
+          <div class="table-section">
+            <n-data-table
+              :columns="columns"
+              :data="filteredSubscriptions"
+              :loading="loading"
+              :pagination="{ pageSize: 10 }"
+              :bordered="false"
+              v-model:checked-row-keys="checkedRowKeys"
+              :row-key="(row) => row.id"
+              :scroll-x="1800"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- 添加/编辑订阅模态框 -->
     <n-modal
@@ -189,33 +128,7 @@
       </n-form>
     </n-modal>
 
-    <!-- 添加分组模态框 -->
-    <n-modal
-      v-model:show="showAddGroupModal"
-      :mask-closable="false"
-      preset="dialog"
-      title="新增分组"
-      :positive-button-props="{ loading: addGroupLoading }"
-      positive-text="保存"
-      negative-text="取消"
-      @positive-click="handleAddGroup"
-      @negative-click="showAddGroupModal = false"
-    >
-      <n-form>
-        <n-form-item label="分组名称" required>
-          <n-input v-model:value="newGroupName" placeholder="输入分组名称" />
-        </n-form-item>
-        <n-form-item label="分组描述">
-          <n-input
-            v-model:value="newGroupDescription"
-            type="textarea"
-            placeholder="输入分组描述（可选）"
-            :rows="3"
-          />
-        </n-form-item>
-      </n-form>
-    </n-modal>
-
+  
     <!-- 订阅预览模态框 -->
     <n-modal
       v-model:show="showPreviewModal"
@@ -367,66 +280,7 @@
       </template>
     </n-modal>
 
-    <!-- 调整顺序模态框 -->
-    <n-modal
-      v-model:show="showSortModal"
-      preset="card"
-      title="调整分组顺序"
-      style="width: 500px;"
-      :mask-closable="false"
-    >
-      <n-space vertical>
-        <n-text depth="3">拖动下方的分组名称来调整它们的显示顺序：</n-text>
-
-        <n-list bordered>
-          <draggable
-            v-model="sortableGroups"
-            item-key="id"
-            handle=".drag-handle"
-            ghost-class="ghost"
-            chosen-class="chosen"
-            drag-class="drag"
-          >
-            <template #item="{ element: group }">
-              <n-list-item>
-                <div class="flex items-center p-2">
-                  <n-icon
-                    class="drag-handle mr-3 cursor-move text-gray-400 hover:text-gray-600"
-                    :component="ReorderFourOutline"
-                    size="20"
-                  />
-                  <div class="flex-1">
-                    <n-text strong>{{ group.name }}</n-text>
-                    <div v-if="group.description" class="text-xs text-gray-500 mt-1">
-                      {{ group.description }}
-                    </div>
-                  </div>
-                  <n-tag
-                    :type="group.is_enabled ? 'success' : 'default'"
-                    size="small"
-                    round
-                  >
-                    {{ group.is_enabled ? '启用' : '禁用' }}
-                  </n-tag>
-                </div>
-              </n-list-item>
-            </template>
-          </draggable>
-        </n-list>
-
-        <n-text depth="3" type="info">
-          💡 提示：拖拽右侧的图标来调整分组顺序，点击保存后生效
-        </n-text>
-      </n-space>
-
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showSortModal = false">取消</n-button>
-          <n-button type="primary" @click="handleSortSave" :loading="sortLoading">保存顺序</n-button>
-        </n-space>
-      </template>
-    </n-modal>
-
+    
     <!-- 移动到分组模态框 -->
     <n-modal
       v-model:show="showMoveToGroupModal"
@@ -909,7 +763,12 @@ import {
   FilterOutline,
   SyncOutline,
   TrashOutline,
-  ReorderFourOutline
+  ReorderFourOutline,
+  Server as SubscriptionIcon,
+  DocumentText as DocumentIcon,
+  Settings as SettingsIcon,
+  Refresh as RefreshIcon,
+  Download as DownloadIcon
 } from '@vicons/ionicons5'
 import draggable from 'vuedraggable'
 
@@ -927,6 +786,10 @@ import type { ApiResponse } from '@/types/common'
 import { regenerateLink, type ParsedNode } from '@/utils/nodeParser'
 import { getNaiveTagColor } from '@/utils/colors'
 import GroupManagement from '@/components/subscription/GroupManagement.vue'
+
+// 导入现代化组件
+import SmartHeaderActions from '@/components/common/SmartHeaderActions.vue'
+import StatsCardGrid from '@/components/common/StatsCardGrid.vue'
 
 // 组合式的使用
 const {
@@ -948,6 +811,110 @@ const {
 } = useSubscriptionManagement()
 
 const stats = useSubscriptionStats(subscriptions as any)
+
+// 统计卡片数据
+const subscriptionStatsCards = computed(() => [
+  {
+    key: 'all',
+    label: '全部订阅',
+    value: stats.totalSubscriptions.value,
+    icon: SubscriptionIcon,
+    type: 'primary' as const,
+    tooltip: '点击查看全部订阅',
+    onClick: () => {}
+  },
+  {
+    key: 'active',
+    label: '活跃订阅',
+    value: stats.activeSubscriptions.value,
+    icon: CheckmarkCircleOutline,
+    type: 'success' as const,
+    tooltip: '点击查看活跃订阅',
+    onClick: () => {}
+  },
+  {
+    key: 'failed',
+    label: '失败订阅',
+    value: stats.failedSubscriptions.value,
+    icon: WarningOutline,
+    type: 'warning' as const,
+    tooltip: '点击查看失败订阅',
+    onClick: () => {}
+  },
+  {
+    key: 'success-rate',
+    label: '成功率',
+    value: stats.successRate.value,
+    icon: StatsChartOutline,
+    type: 'info' as const,
+    unit: '%',
+    precision: 1,
+    tooltip: `成功率为 ${stats.successRate.value}%`,
+    onClick: () => {}
+  }
+])
+
+// 头部操作按钮 - SmartHeaderActions格式
+const headerSmartActions = computed(() => [
+  {
+    key: 'update-all',
+    label: '更新全部',
+    description: '更新所有订阅',
+    icon: RefreshIcon,
+    type: 'success' as const
+  },
+  {
+    key: 'import',
+    label: '批量导入',
+    description: '从文件或链接批量导入订阅',
+    icon: DownloadIcon,
+    type: 'primary' as const
+  },
+  {
+    key: 'sort',
+    label: '调整顺序',
+    description: '调整订阅显示顺序',
+    icon: SettingsIcon,
+    type: 'default' as const
+  },
+  {
+    key: 'clear-failed',
+    label: '清除失败项',
+    description: '清除所有失败的订阅',
+    icon: TrashOutline,
+    type: 'warning' as const
+  },
+  {
+    type: 'divider' as const,
+    key: 'divider-1'
+  },
+  {
+    key: 'clear-all',
+    label: '一键清除',
+    description: '清除当前分组所有订阅',
+    icon: TrashOutline,
+    type: 'danger' as const
+  }
+])
+
+// 处理统计卡片点击
+const handleStatsCardClick = (stat: any, index: number) => {
+  // 根据卡片类型切换视图或执行操作
+  switch (stat.key) {
+    case 'all':
+      activeTab.value = 'all'
+      break
+    case 'active':
+      // 可以添加筛选逻辑
+      break
+    case 'failed':
+      // 可以添加筛选逻辑
+      break
+    case 'success-rate':
+      // 可以显示详细信息
+      break
+  }
+}
 
 const {
   showAddGroupModal,
@@ -1279,24 +1246,6 @@ const handleCopyNodeLink = (node: any) => {
 }
 
 // 头部操作按钮
-const headerActions = computed(() => [
-  { label: '更新全部', key: 'update-all' },
-  { label: '批量导入', key: 'import' },
-  { label: '调整顺序', key: 'sort' },
-  {
-    label: '移动到分组',
-    key: 'move-to-group',
-    disabled: checkedRowKeys.value.length === 0
-  },
-  {
-    label: '批量删除',
-    key: 'batch-delete',
-    disabled: checkedRowKeys.value.length === 0
-  },
-  { label: '清除失败项', key: 'clear-failed' },
-  { label: '一键清除', key: 'clear-all' },
-])
-
 const handleHeaderAction = async (key: string) => {
   console.log('Header action clicked:', key) // 添加调试信息
   console.log('Current showImportModal value before action:', showImportModal.value)
@@ -2022,7 +1971,7 @@ onMounted(async () => {
 
   // 调试：检查初始状态
   console.log('showImportModal initial value:', showImportModal.value)
-  console.log('headerActions:', headerActions)
+  console.log('headerSmartActions:', headerSmartActions)
 })
 
 // 监听导入模态框显示状态，重置表单
@@ -2044,6 +1993,192 @@ const handleFetchSubscriptions = async () => {
 </script>
 
 <style scoped>
+.subscriptions-modern-layout {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+}
+
+/* 头部主区域 */
+.header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.page-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.breadcrumb-separator {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.breadcrumb-item.active {
+  color: white;
+  font-weight: 500;
+}
+
+/* 统计卡片 */
+.stats-section {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 24px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  margin-bottom: 24px;
+}
+
+/* 主内容区域 */
+.layout-content {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  padding: 0;
+}
+
+.content-container {
+  width: 100%;
+  min-height: 600px;
+}
+
+.content-main {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+/* 分组标签 */
+.group-tabs-section {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 表格区域 */
+.table-section {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 顶部右侧按钮样式 */
+.header-right :deep(.n-button) {
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header-right :deep(.n-button--primary) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+  color: white;
+}
+
+.header-right :deep(.n-button--primary:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+}
+
+/* 更多操作按钮样式 */
+.header-more-btn {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid #e2e8f0;
+  color: #64748b;
+  border-radius: 12px;
+  width: 44px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.header-more-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  border-color: #cbd5e1;
+  color: #475569;
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+}
+
+/* 现代化标签页样式 */
+.modern-tabs :deep(.n-tabs-nav) {
+  background: transparent;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 0;
+  margin: 0;
+}
+
+.modern-tabs :deep(.n-tabs-tab) {
+  border: none;
+  border-radius: 8px 8px 0 0;
+  margin-right: 4px;
+  padding: 12px 20px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  background: transparent;
+  color: #64748b;
+}
+
+.modern-tabs :deep(.n-tabs-tab:hover) {
+  background: #f8fafc;
+  color: #475569;
+}
+
+.modern-tabs :deep(.n-tabs-tab--active) {
+  background: white;
+  color: #667eea;
+  border-bottom: 2px solid #667eea;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.modern-tabs :deep(.n-tabs-tab-wrapper) {
+  background: white;
+  border-radius: 8px;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+/* 原有的分组标签样式保持不变 */
 .group-tab-wrapper {
   display: flex;
   align-items: center;
@@ -2058,6 +2193,69 @@ const handleFetchSubscriptions = async () => {
   opacity: 0.8;
 }
 
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .content-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .subscriptions-modern-layout {
+    padding: 12px;
+  }
+
+  .header-main {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .content-main {
+    padding: 16px;
+  }
+
+  .group-tabs-section {
+    padding: 8px;
+  }
+
+  .stats-section {
+    padding: 16px;
+  }
+}
+
+/* 表格现代化样式 */
+.table-section :deep(.n-data-table) {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table-section :deep(.n-data-table-th) {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.table-section :deep(.n-data-table-td) {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.table-section :deep(.n-data-table-tr:hover .n-data-table-td) {
+  background: #f8fafc;
+}
+
+/* 统计卡片动画增强 */
+.stats-section :deep(.stat-card) {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stats-section :deep(.stat-card--clickable:hover) {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+}
+
+/* 删除原有的旧样式 */
 .stats-cards {
   background: #f8fafc;
   border-radius: 8px;
@@ -2065,28 +2263,7 @@ const handleFetchSubscriptions = async () => {
 }
 
 /* 拖拽排序样式 */
-.drag-handle {
-  cursor: move;
-  user-select: none;
-}
-
 .drag-handle:hover {
   color: #18a058 !important;
-}
-
-.ghost {
-  opacity: 0.5;
-  background: #f0f9ff;
-}
-
-.chosen {
-  background: #e6f7ff;
-  border: 1px solid #40a9ff;
-  border-radius: 6px;
-}
-
-.drag {
-  transform: rotate(5deg);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 </style>

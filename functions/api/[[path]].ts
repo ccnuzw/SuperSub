@@ -8,7 +8,6 @@ import { manualAuthMiddleware } from './middleware/auth';
 import authRoutes from './routes/auth';
 import nodeRoutes from './routes/nodes';
 import subscriptionRoutes from './routes/subscriptions';
-import subscriptionServiceRoutes from './routes/subscriptionsService'; // New service-based routes
 import profileRoutes from './routes/profiles';
 import adminRoutes from './routes/admin';
 import assetRoutes from './routes/assets';
@@ -35,7 +34,6 @@ api.route('/public', publicRoutes);
 // Authenticated API routes
 api.route('/nodes', nodeRoutes);
 api.route('/subscriptions', subscriptionRoutes);
-api.route('/subscriptions-service', subscriptionServiceRoutes); // New service-based routes
 api.route('/profiles', profileRoutes);
 api.route('/admin', adminRoutes);
 api.route('/assets', assetRoutes);

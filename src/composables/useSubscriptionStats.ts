@@ -111,44 +111,6 @@ export function useSubscriptionStats(subscriptions: Ref<Subscription[]> | Subscr
     }).length
   })
 
-  // 健康度评估
-  const healthScore = computed(() => {
-    let score = 100
-
-    // 成功率影响 (权重: 30%)
-    score -= (100 - successRate.value) * 0.3
-
-    // 过期订阅影响 (权重: 25%)
-    if (totalSubscriptions.value > 0) {
-      score -= (expiredSubscriptions.value.length / totalSubscriptions.value) * 100 * 0.25
-    }
-
-    // 失败订阅影响 (权重: 20%)
-    if (totalSubscriptions.value > 0) {
-      score -= (failedSubscriptions.value / totalSubscriptions.value) * 100 * 0.2
-    }
-
-    // 即将过期影响 (权重: 15%)
-    if (totalSubscriptions.value > 0) {
-      score -= (expiringSubscriptions.value.length / totalSubscriptions.value) * 50 * 0.15
-    }
-
-    // 更新状态影响 (权重: 10%)
-    if (totalSubscriptions.value > 0) {
-      score -= (notUpdatedRecently.value / totalSubscriptions.value) * 100 * 0.1
-    }
-
-    return Math.max(0, Math.round(score))
-  })
-
-  const healthStatus = computed(() => {
-    const score = healthScore.value
-    if (score >= 90) return { status: 'excellent', color: 'success', text: '优秀' }
-    if (score >= 75) return { status: 'good', color: 'info', text: '良好' }
-    if (score >= 60) return { status: 'warning', color: 'warning', text: '警告' }
-    return { status: 'poor', color: 'error', text: '较差' }
-  })
-
   // 格式化辅助函数
   const formatTraffic = (bytes: number): string => {
     if (!bytes || bytes <= 0) return 'N/A'
@@ -207,10 +169,6 @@ export function useSubscriptionStats(subscriptions: Ref<Subscription[]> | Subscr
     // 更新统计
     recentlyUpdated,
     notUpdatedRecently,
-
-    // 健康度
-    healthScore,
-    healthStatus,
 
     // 分组统计
     statsByGroup,

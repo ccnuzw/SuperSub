@@ -682,6 +682,28 @@ subscriptions.delete('/:id/rules/:ruleId', async (c) => {
     return c.json({ success: true });
 });
 
+// Catch-all POST route for /:id to debug the issue
+subscriptions.post('/:id', async (c) => {
+    const { id } = c.req.param();
+    const body = await c.req.text();
+    console.log(`DEBUG: Invalid POST request to /subscriptions/${id}`);
+    console.log(`Request body: ${body}`);
+    console.log(`Content-Type: ${c.req.header('content-type')}`);
+
+    return c.json({
+        success: false,
+        message: `Invalid route. To update subscription info, use PUT /subscriptions/${id}. To refresh subscription content, use POST /subscriptions/${id}/update.`,
+        error: {
+            route: `POST /subscriptions/${id}`,
+            availableRoutes: [
+                `PUT /subscriptions/${id} (update subscription info)`,
+                `POST /subscriptions/${id}/update (refresh subscription content)`,
+                `DELETE /subscriptions/${id} (delete subscription)`
+            ]
+        }
+    }, 404);
+});
+
 subscriptions.put('/:id', async (c) => {
     const user = c.get('jwtPayload');
     const { id } = c.req.param();

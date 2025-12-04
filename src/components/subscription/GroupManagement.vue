@@ -3,7 +3,7 @@
   <n-modal
     v-model:show="showSortModalModel"
     preset="card"
-    title="调整分组顺序"
+    title="调整分组顺序 (GroupManagement)"
     :style="{ width: isMobile ? '90vw' : '500px' }"
     :mask-closable="false"
   >
@@ -36,7 +36,7 @@
   <n-modal
     v-model:show="showAddGroupModalModel"
     preset="card"
-    title="新增分组"
+    title="新增分组 (GroupManagement)"
     style="width: 400px;"
     :mask-closable="false"
   >
