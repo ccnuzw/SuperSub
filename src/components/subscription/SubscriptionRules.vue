@@ -110,7 +110,7 @@
       </n-form-item>
 
       <n-form-item label="启用">
-        <n-switch v-model:value="ruleFormState.enabled" :checked-value="1" :unchecked-value="0" />
+        <n-switch v-model:value="ruleFormState.enabled" />
       </n-form-item>
     </n-form>
   </n-modal>
@@ -225,16 +225,18 @@ const ruleColumns = computed((): DataTableColumns<SubscriptionRule> => {
           onUpdateValue: async (value) => {
             if (!props.currentRuleContext) return
             const { type, entity } = props.currentRuleContext
-            const baseUrl = type === 'subscription' ? '/subscriptions' : '/subscription-groups'
+            if (type !== 'group') return
 
             row.enabled = value ? 1 : 0
             try {
-              // 这里应该调用API更新规则状态
-              // await api.put(`${baseUrl}/${entity.id}/rules/${row.id}`, { enabled: value })
+              const { useSubscriptionGroupStore } = await import('@/stores/subscriptionGroups')
+              const groupStore = useSubscriptionGroupStore()
+              await groupStore.updateGroupRule(entity.id, String(row.id), { enabled: value })
               // message.success('状态更新成功')
             } catch (e) {
-              // message.error('状态更新失败')
+              console.error('Failed to update rule status:', e)
               row.enabled = !value ? 1 : 0
+              // message.error('状态更新失败')
             }
           }
         })

@@ -25,7 +25,7 @@
         class="dropdown-panel"
         :class="[
           `placement-${placement}`,
-          { 'show': showDropdown }
+          { 'show': showDropdown, 'force-hidden': forceHidden }
         ]"
         :style="panelStyle"
       >
@@ -102,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick, readonly } from 'vue';
 import { EllipsisHorizontal as DefaultTriggerIcon } from '@vicons/ionicons5';
 import type { Component } from 'vue';
 
@@ -178,6 +178,8 @@ const emit = defineEmits<{
 // 响应式状态
 const showDropdown = ref(false);
 const isAdjusting = ref(false);
+const forceHidden = ref(false);
+const lastCloseTime = ref(0); // 添加最后关闭时间
 
 // 处理菜单项
 const menuItems = computed(() => {
@@ -248,6 +250,13 @@ const toggleDropdown = () => {
 const openDropdown = async () => {
   if (props.disabled || props.loading) return;
 
+  // 防抖：如果在关闭后200ms内不重新打开
+  const now = Date.now();
+  if (now - lastCloseTime.value < 200) {
+    return;
+  }
+
+  forceHidden.value = false; // 重置强制隐藏状态
   showDropdown.value = true;
   emit('open');
 
@@ -259,11 +268,28 @@ const openDropdown = async () => {
 // 关闭下拉菜单
 const closeDropdown = () => {
   showDropdown.value = false;
+  lastCloseTime.value = Date.now(); // 记录关闭时间
   emit('close');
 };
 
+// 暴露方法给父组件
+defineExpose({
+  closeDropdown,
+  forceClose: () => {
+    showDropdown.value = false;
+    forceHidden.value = true;
+    lastCloseTime.value = Date.now(); // 记录强制关闭时间
+    emit('close');
+  },
+  showDropdown: readonly(showDropdown)
+});
+
 // 处理菜单项点击
 const handleItemClick = (item: SmartActionItem, event: MouseEvent) => {
+  // 立即阻止事件冒泡，防止触发器按钮被点击
+  event.preventDefault();
+  event.stopPropagation();
+
   if (item.disabled || item.type === 'divider') {
     return;
   }
@@ -509,6 +535,12 @@ watch(showDropdown, (newValue) => {
   transform-origin: var(--transform-origin, top right);
   /* 尝试突破层叠上下文 */
   isolation: isolate;
+}
+
+.dropdown-panel.force-hidden {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
 }
 
 .placement-bottom-right {

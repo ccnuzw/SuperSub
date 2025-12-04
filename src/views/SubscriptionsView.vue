@@ -31,6 +31,7 @@
 
           <!-- 更多操作下拉菜单 -->
           <SmartHeaderActions
+            ref="headerActionsRef"
             :items="headerSmartActions"
             @select="(key: string, item: any, event: MouseEvent) => handleHeaderAction(key)"
             placement="bottom-right"
@@ -419,7 +420,15 @@
 
                   row.enabled = value ? 1 : 0
                   try {
-                    await api.put(`${baseUrl}/${entity.id}/rules/${row.id}`, { enabled: value })
+                    if (type === 'group') {
+                      // 使用 subscriptionGroups store 来处理分组规则
+                      const { useSubscriptionGroupStore } = await import('@/stores/subscriptionGroups')
+                      const groupStore = useSubscriptionGroupStore()
+                      await groupStore.updateGroupRule(entity.id, String(row.id), { enabled: value })
+                    } else {
+                      // 对于订阅规则，暂时保留原来的逻辑（但需要实现订阅规则的后端API）
+                      await api.put(`${baseUrl}/${entity.id}/rules/${row.id}`, { enabled: value })
+                    }
                     message.success('状态更新成功')
                   } catch (e) {
                     row.enabled = !value ? 1 : 0
@@ -540,7 +549,7 @@
         </n-form-item>
 
         <n-form-item label="启用">
-          <n-switch v-model:value="ruleFormState.enabled" :checked-value="1" :unchecked-value="0" />
+          <n-switch v-model:value="ruleFormState.enabled" />
         </n-form-item>
       </n-form>
     </n-modal>
@@ -946,6 +955,16 @@ const message = useMessage()
 const dialog = useDialog()
 const subscriptionService = new SubscriptionService()
 
+// SmartHeaderActions组件引用
+const headerActionsRef = ref<any>(null)
+
+// 关闭折叠菜单的函数
+const closeHeaderActionsDropdown = () => {
+  if (headerActionsRef.value && headerActionsRef.value.forceClose) {
+    headerActionsRef.value.forceClose()
+  }
+}
+
 // 生命周期
 const activeTab = ref('all')
 
@@ -1247,32 +1266,28 @@ const handleCopyNodeLink = (node: any) => {
 
 // 头部操作按钮
 const handleHeaderAction = async (key: string) => {
-  console.log('Header action clicked:', key) // 添加调试信息
-  console.log('Current showImportModal value before action:', showImportModal.value)
+  // 立即关闭折叠菜单，不等待模态窗口显示
+  closeHeaderActionsDropdown()
 
   switch (key) {
     case 'update-all':
       handleUpdateAll()
       break
     case 'import':
-      console.log('Opening import modal') // 添加调试信息
+      resetImportForm() // 重置表单
       showImportModal.value = true
-      console.log('Current showImportModal value after setting:', showImportModal.value)
       break
     case 'sort':
       openSortModal()
       break
     case 'move-to-group':
-      console.log('Move to group clicked, checked items:', checkedRowKeys.value.length) // 调试信息
       if (checkedRowKeys.value.length > 0) {
         showMoveToGroupModal.value = true
-        console.log('Opening move to group modal') // 调试信息
       } else {
         message.warning('请至少选择一个订阅')
       }
       break
     case 'batch-delete':
-      console.log('Batch delete clicked, checked items:', checkedRowKeys.value.length) // 调试信息
       handleBatchDelete()
       break
     case 'clear-failed':
@@ -1823,15 +1838,27 @@ const fetchRules = async () => {
   if (!currentRuleContext.value) return
   rulesLoading.value = true
   const { type, entity } = currentRuleContext.value
-  const baseUrl = type === 'subscription' ? '/subscriptions' : '/subscription-groups'
 
   try {
-    const response = await api.get<ApiResponse<SubscriptionRule[]>>(`${baseUrl}/${entity.id}/rules`)
-    if (response.data.success) {
-      rules.value = response.data.data || []
+    let rulesData = []
+    if (type === 'group') {
+      // 使用 subscriptionGroups store 来获取分组规则
+      const { useSubscriptionGroupStore } = await import('@/stores/subscriptionGroups')
+      const groupStore = useSubscriptionGroupStore()
+      rulesData = await groupStore.fetchGroupRules(entity.id)
     } else {
-      message.error(response.data.message || '获取规则列表失败')
+      // 对于订阅规则，暂时保留原来的逻辑（但需要实现订阅规则的后端API）
+      const baseUrl = type === 'subscription' ? '/subscriptions' : '/subscription-groups'
+      const response = await api.get<ApiResponse<SubscriptionRule[]>>(`${baseUrl}/${entity.id}/rules`)
+      if (response.data.success) {
+        rulesData = response.data.data || []
+      } else {
+        message.error(response.data.message || '获取规则列表失败')
+        rulesLoading.value = false
+        return
+      }
     }
+    rules.value = rulesData
   } catch (e) {
     message.error('请求规则列表失败')
   } finally {
@@ -1878,7 +1905,6 @@ const openRuleFormModal = (rule: SubscriptionRule | null) => {
 const handleSaveRule = async () => {
   if (!currentRuleContext.value) return
   const { type, entity } = currentRuleContext.value
-  const baseUrl = type === 'subscription' ? '/subscriptions' : '/subscription-groups'
 
   ruleSaveLoading.value = true
   try {
@@ -1908,18 +1934,32 @@ const handleSaveRule = async () => {
     }
 
     let response
-    if (editingRule.value) {
-      response = await api.put(`${baseUrl}/${entity.id}/rules/${editingRule.value.id}`, payload)
+    if (type === 'group') {
+      // 使用 subscriptionGroups store 来处理分组规则
+      const { useSubscriptionGroupStore } = await import('@/stores/subscriptionGroups')
+      const groupStore = useSubscriptionGroupStore()
+
+      if (editingRule.value) {
+        response = await groupStore.updateGroupRule(entity.id, String(editingRule.value.id), payload)
+      } else {
+        response = await groupStore.addGroupRule(entity.id, payload)
+      }
     } else {
-      response = await api.post(`${baseUrl}/${entity.id}/rules`, payload)
+      // 对于订阅规则，暂时保留原来的逻辑（但需要实现订阅规则的后端API）
+      const baseUrl = type === 'subscription' ? '/subscriptions' : '/subscription-groups'
+      if (editingRule.value) {
+        response = await api.put(`${baseUrl}/${entity.id}/rules/${editingRule.value.id}`, payload)
+      } else {
+        response = await api.post(`${baseUrl}/${entity.id}/rules`, payload)
+      }
     }
 
-    if (response.data.success) {
+    if ((response as any).data?.success || (response as any).success) {
       message.success(editingRule.value ? '规则更新成功' : '规则创建成功')
       showRuleFormModal.value = false
       fetchRules()
     } else {
-      message.error(response.data.message || '保存失败')
+      message.error((response as any).data?.message || (response as any).message || '保存失败')
     }
   } catch (e) {
     message.error('保存失败，请稍后重试')
@@ -1931,7 +1971,6 @@ const handleSaveRule = async () => {
 const handleDeleteRule = (rule: SubscriptionRule) => {
   if (!currentRuleContext.value) return
   const { type, entity } = currentRuleContext.value
-  const baseUrl = type === 'subscription' ? '/subscriptions' : '/subscription-groups'
 
   dialog.warning({
     title: '确认删除规则',
@@ -1940,12 +1979,23 @@ const handleDeleteRule = (rule: SubscriptionRule) => {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const response = await api.delete(`${baseUrl}/${entity.id}/rules/${rule.id}`)
-        if (response.data.success) {
+        let response
+        if (type === 'group') {
+          // 使用 subscriptionGroups store 来处理分组规则
+          const { useSubscriptionGroupStore } = await import('@/stores/subscriptionGroups')
+          const groupStore = useSubscriptionGroupStore()
+          response = await groupStore.deleteGroupRule(entity.id, String(rule.id))
+        } else {
+          // 对于订阅规则，暂时保留原来的逻辑（但需要实现订阅规则的后端API）
+          const baseUrl = type === 'subscription' ? '/subscriptions' : '/subscription-groups'
+          response = await api.delete(`${baseUrl}/${entity.id}/rules/${rule.id}`)
+        }
+
+        if ((response as any).data?.success || (response as any).success) {
           message.success('规则删除成功')
           fetchRules()
         } else {
-          message.error(response.data.message || '删除失败')
+          message.error((response as any).data?.message || (response as any).message || '删除失败')
         }
       } catch (err) {
         message.error('请求失败，请稍后重试')
@@ -1968,18 +2018,6 @@ onMounted(async () => {
   subscriptionGroupStore.fetchGroups()
   // 加载节点分组数据
   nodeGroupStore.fetchGroups()
-
-  // 调试：检查初始状态
-  console.log('showImportModal initial value:', showImportModal.value)
-  console.log('headerSmartActions:', headerSmartActions)
-})
-
-// 监听导入模态框显示状态，重置表单
-watch(showImportModal, (newShow) => {
-  console.log('showImportModal changed to:', newShow) // 添加调试信息
-  if (newShow) {
-    resetImportForm()
-  }
 })
 
 // 包装fetchSubscriptions方法，因为它是从composable返回的
