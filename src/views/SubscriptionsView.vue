@@ -422,7 +422,6 @@
                   try {
                     if (type === 'group') {
                       // 使用 subscriptionGroups store 来处理分组规则
-                      const { useSubscriptionGroupStore } = await import('@/stores/subscriptionGroups')
                       const groupStore = useSubscriptionGroupStore()
                       await groupStore.updateGroupRule(entity.id, String(row.id), { enabled: value })
                     } else {
@@ -1843,7 +1842,6 @@ const fetchRules = async () => {
     let rulesData = []
     if (type === 'group') {
       // 使用 subscriptionGroups store 来获取分组规则
-      const { useSubscriptionGroupStore } = await import('@/stores/subscriptionGroups')
       const groupStore = useSubscriptionGroupStore()
       rulesData = await groupStore.fetchGroupRules(entity.id)
     } else {
@@ -1936,7 +1934,6 @@ const handleSaveRule = async () => {
     let response
     if (type === 'group') {
       // 使用 subscriptionGroups store 来处理分组规则
-      const { useSubscriptionGroupStore } = await import('@/stores/subscriptionGroups')
       const groupStore = useSubscriptionGroupStore()
 
       if (editingRule.value) {
@@ -1982,7 +1979,6 @@ const handleDeleteRule = (rule: SubscriptionRule) => {
         let response
         if (type === 'group') {
           // 使用 subscriptionGroups store 来处理分组规则
-          const { useSubscriptionGroupStore } = await import('@/stores/subscriptionGroups')
           const groupStore = useSubscriptionGroupStore()
           response = await groupStore.deleteGroupRule(entity.id, String(rule.id))
         } else {
