@@ -81,25 +81,24 @@ const menuOptions = computed(() => {
     });
   }
 
-  return baseMenu;
-});
-
-const userDropdownOptions = computed(() => [
-  {
+  // 添加系统设置和退出登录到菜单中
+  baseMenu.push({
     label: () => h(RouterLink, { to: { name: 'settings' } }, { default: () => '系统设置' }),
     key: 'settings',
     icon: renderIcon(SettingsIcon)
-  },
-  {
-    type: 'divider'
-  },
-  {
-    label: '退出登录',
+  });
+
+  baseMenu.push({
+    label: () => h('span', {}, '退出登录'),
     key: 'logout',
-    icon: renderIcon(LogoutIcon),
-    onClick: handleLogout
-  }
-]);
+    icon: renderIcon(LogoutIcon)
+  });
+
+  return baseMenu;
+});
+
+// 用户下拉菜单选项 - 现在为空，因为已移入主菜单
+const userDropdownOptions = computed(() => []);
 
 const getLabelText = (option: any) => {
   const labelMap: Record<string, string> = {
@@ -109,7 +108,8 @@ const getLabelText = (option: any) => {
     nodes: '节点',
     profiles: '配置',
     'user-management': '用户',
-    settings: '设置'
+    settings: '设置',
+    logout: '退出'
   };
   return labelMap[option.key] || option.key;
 };
@@ -154,43 +154,7 @@ const getLabelText = (option: any) => {
         </n-space>
       </div>
 
-      <!-- 桌面端浮动操作按钮 -->
-      <div v-if="!isMobile" style="position: fixed; top: 24px; right: 24px; z-index: 100;">
-        <n-space>
-          <!-- Logo显示 -->
-          <div style="display: flex; align-items: center; font-size: 18px; font-weight: bold; color: var(--n-text-color); padding: 8px 16px; background: var(--n-button-color-2); border-radius: 8px;">
-            SuperSub
-          </div>
-          <!-- 布局切换 -->
-          <n-tooltip trigger="hover">
-            <template #trigger>
-              <div class="control-button" @click="layoutStore.toggleLayoutMode" style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; background: var(--n-button-color-2); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-                <n-icon :component="layoutStore.layoutMode === 'vertical' ? VerticalIcon : HorizontalIcon" size="20" />
-              </div>
-            </template>
-            切换为{{ layoutStore.layoutMode === 'vertical' ? '上下' : '左右' }}布局
-          </n-tooltip>
-          <!-- 主题切换 -->
-          <n-tooltip trigger="hover">
-            <template #trigger>
-              <div class="control-button" @click="themeStore.toggleTheme" style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; background: var(--n-button-color-2); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-                <n-icon :component="themeStore.theme === 'dark' ? LightIcon : DarkIcon" size="20" />
-              </div>
-            </template>
-            切换为{{ themeStore.theme === 'dark' ? '浅色' : '深色' }}主题
-          </n-tooltip>
-          <!-- 用户菜单 -->
-          <n-dropdown
-            :options="userDropdownOptions"
-            placement="bottom-end"
-            @select="(key) => key === 'logout' && handleLogout()"
-          >
-            <div class="control-button" style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; background: var(--n-button-color-2); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-              <n-icon :component="DropdownIcon" size="20" />
-            </div>
-          </n-dropdown>
-        </n-space>
-      </div>
+      <!-- 桌面端移除右上角浮动操作按钮 -->
 
       <!-- 页面内容 -->
       <div :style="isMobile ? 'padding: 12px; height: calc(100vh - 100px); overflow-y: auto;' : 'padding: 24px; height: 100vh; overflow-y: auto;'">
@@ -200,17 +164,51 @@ const getLabelText = (option: any) => {
       <!-- 底部导航栏 -->
       <div :style="isMobile
         ? 'position: fixed; bottom: 0; left: 0; right: 0; height: 50px; background: var(--n-color); border-top: 1px solid var(--n-border-color); z-index: 100;'
-        : 'position: fixed; bottom: 0; left: 0; right: 0; height: 60px; background: var(--n-color); border-top: 1px solid var(--n-border-color); z-index: 100;'
+        : 'position: fixed; bottom: 0; left: 0; right: 0; height: 60px; background: var(--n-color); border-top: 1px solid var(--n-border-color); z-index: 100; display: flex; align-items: center; padding: 0 20px;'
       ">
-        <!-- 桌面端水平菜单 -->
-        <n-menu
-          v-if="!isMobile"
-          mode="horizontal"
-          :options="menuOptions"
-          :collapsed="false"
-          style="height: 60px; line-height: 60px;"
-          responsive
-        />
+        <!-- 桌面端完整菜单 -->
+        <div v-if="!isMobile" style="display: flex; align-items: center; height: 100%; gap: 16px; width: 100%;">
+          <!-- 网站名称 -->
+          <div style="display: flex; align-items: center; font-size: 18px; font-weight: bold; color: var(--n-text-color); margin-right: 24px; white-space: nowrap;">
+            SuperSub
+          </div>
+
+          <!-- 主菜单项 -->
+          <div style="display: flex; align-items: center; gap: 8px; flex: 1; overflow-x: auto;">
+            <div
+              v-for="option in menuOptions"
+              :key="option.key"
+              @click="option.key === 'logout' ? handleLogout() : $router.push({ name: option.key })"
+              :style="'height: 40px; padding: 0 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; border-radius: 6px; transition: all 0.2s ease; white-space: nowrap; font-size: 14px;' + (option.key === 'logout' ? ' color: var(--n-error-color);' : '')"
+              class="bottom-menu-item"
+            >
+              <n-icon :component="option.icon" :size="18" />
+              <span>{{ option.key === 'logout' ? '退出登录' : (option.key === 'settings' ? '系统设置' : getLabelText(option)) }}</span>
+            </div>
+          </div>
+
+          <!-- 控制按钮组 -->
+          <div style="display: flex; align-items: center; gap: 8px; margin-left: 16px;">
+            <!-- 布局切换 -->
+            <n-tooltip trigger="hover" placement="top">
+              <template #trigger>
+                <div class="control-button" @click="layoutStore.toggleLayoutMode" style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; background: var(--n-button-color-2); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);">
+                  <n-icon :component="layoutStore.layoutMode === 'vertical' ? VerticalIcon : HorizontalIcon" size="18" />
+                </div>
+              </template>
+              切换为{{ layoutStore.layoutMode === 'vertical' ? '上下' : '左右' }}布局
+            </n-tooltip>
+            <!-- 主题切换 -->
+            <n-tooltip trigger="hover" placement="top">
+              <template #trigger>
+                <div class="control-button" @click="themeStore.toggleTheme" style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; background: var(--n-button-color-2); cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);">
+                  <n-icon :component="themeStore.theme === 'dark' ? LightIcon : DarkIcon" size="18" />
+                </div>
+              </template>
+              切换为{{ themeStore.theme === 'dark' ? '浅色' : '深色' }}主题
+            </n-tooltip>
+          </div>
+        </div>
 
         <!-- 移动端底部菜单 -->
         <div v-else style="height: 50px; display: flex; align-items: center; justify-content: space-around; padding: 0 8px;">
@@ -219,7 +217,7 @@ const getLabelText = (option: any) => {
             :key="option.key"
             text
             size="small"
-            @click="$router.push({ name: option.key })"
+            @click="option.key === 'logout' ? handleLogout() : $router.push({ name: option.key })"
             style="flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px;"
           >
             <template #icon>
@@ -254,5 +252,14 @@ const getLabelText = (option: any) => {
 .control-button-mobile:active {
   transform: translateY(0px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 底部菜单项样式 */
+.bottom-menu-item:hover {
+  background-color: var(--n-item-color-hover);
+}
+
+.bottom-menu-item:active {
+  background-color: var(--n-item-color-pressed);
 }
 </style>
