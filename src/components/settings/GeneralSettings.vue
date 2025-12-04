@@ -1,6 +1,31 @@
 <template>
   <div class="p-4">
     <n-form ref="formRef" :model="formState" label-placement="top">
+      <!-- 布局设置 -->
+      <n-divider title-placement="left">界面布局设置</n-divider>
+      <n-form-item label="布局模式">
+        <n-radio-group v-model:value="layoutMode" @update:value="handleLayoutChange">
+          <n-space>
+            <n-radio-button value="vertical">
+              <template #icon>
+                <n-icon :component="MenuOutline" />
+              </template>
+              左右布局
+            </n-radio-button>
+            <n-radio-button value="horizontal">
+              <template #icon>
+                <n-icon :component="AppsOutline" />
+              </template>
+              上下布局
+            </n-radio-button>
+          </n-space>
+        </n-radio-group>
+      </n-form-item>
+      <n-text depth="3" style="font-size: 12px;">
+        左右布局：侧边栏导航，适合桌面使用<br>
+        上下布局：顶部导航，适合内容展示
+      </n-text>
+
       <n-divider title-placement="left">Telegram 通知设置</n-divider>
       <n-grid cols="1" md:cols="2" :x-gap="24">
         <n-form-item-gi label="Bot Token" path="telegram_bot_token">
@@ -72,14 +97,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import {
-  NForm, NFormItem, NInput, NButton, useMessage, NDivider, NSpace, NGrid, NFormItemGi, NCard, NInputGroup, NText, type FormInst, type FormRules
+  NForm, NFormItem, NInput, NButton, useMessage, NDivider, NSpace, NGrid, NFormItemGi, NCard, NInputGroup, NText, type FormInst, type FormRules, NRadioGroup, NRadioButton, NIcon
 } from 'naive-ui';
+import { MenuOutline, AppsOutline } from '@vicons/ionicons5';
 import { api } from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
+import { useLayoutStore } from '@/stores/layout';
 import { LogoutInProgressError } from '@/utils/errors';
 
 const message = useMessage();
 const authStore = useAuthStore();
+const layoutStore = useLayoutStore();
 const formRef = ref<any>(null);
 const saveLoading = ref(false);
 const testLoading = ref(false);
@@ -88,6 +116,7 @@ const saveTokenLoading = ref(false);
 const passwordChangeLoading = ref(false);
 const subToken = ref('');
 const passwordFormRef = ref<FormInst | null>(null);
+const layoutMode = ref(layoutStore.layoutMode);
 
 const formState = ref({
   telegram_bot_token: '',
@@ -237,6 +266,11 @@ const handlePasswordChange = async () => {
       }
     }
   });
+};
+
+const handleLayoutChange = (value: 'vertical' | 'horizontal') => {
+  layoutStore.setLayoutMode(value);
+  message.success(`已切换为${value === 'vertical' ? '左右' : '上下'}布局`);
 };
 
 onMounted(() => {

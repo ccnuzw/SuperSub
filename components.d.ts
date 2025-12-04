@@ -10,6 +10,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     ActionButtonGroup: typeof import('./src/components/common/ActionButtonGroup.vue')['default']
     ActionTrigger: typeof import('./src/components/common/ActionTrigger.vue')['default']
+    AdaptiveLayout: typeof import('./src/components/AdaptiveLayout.vue')['default']
     AssetManager: typeof import('./src/components/AssetManager.vue')['default']
     BatchActions: typeof import('./src/components/subscription/BatchActions.vue')['default']
     BulkActionsBar: typeof import('./src/components/common/BulkActionsBar.vue')['default']
@@ -22,8 +23,8 @@ declare module 'vue' {
     ErrorBoundary: typeof import('./src/components/common/ErrorBoundary.vue')['default']
     GeneralSettings: typeof import('./src/components/settings/GeneralSettings.vue')['default']
     GroupManagement: typeof import('./src/components/subscription/GroupManagement.vue')['default']
+    HorizontalLayout: typeof import('./src/components/HorizontalLayout.vue')['default']
     LatencyIndicator: typeof import('./src/components/common/LatencyIndicator.vue')['default']
-    Layout: typeof import('./src/components/Layout.vue')['default']
     LoadingSpinner: typeof import('./src/components/common/LoadingSpinner.vue')['default']
     MobileNodeFAB: typeof import('./src/components/mobile/MobileNodeFAB.vue')['default']
     MobileSearchFilter: typeof import('./src/components/mobile/MobileSearchFilter.vue')['default']
@@ -68,6 +69,7 @@ declare module 'vue' {
     NP: typeof import('naive-ui')['NP']
     NPagination: typeof import('naive-ui')['NPagination']
     NRadio: typeof import('naive-ui')['NRadio']
+    NRadioButton: typeof import('naive-ui')['NRadioButton']
     NRadioGroup: typeof import('naive-ui')['NRadioGroup']
     NScrollbar: typeof import('naive-ui')['NScrollbar']
     NSelect: typeof import('naive-ui')['NSelect']
@@ -107,5 +109,6 @@ declare module 'vue' {
     SubscriptionNodesPreview: typeof import('./src/components/SubscriptionNodesPreview.vue')['default']
     SubscriptionRules: typeof import('./src/components/subscription/SubscriptionRules.vue')['default']
     UpdateLogModal: typeof import('./src/components/subscription/UpdateLogModal.vue')['default']
+    VerticalLayout: typeof import('./src/components/VerticalLayout.vue')['default']
   }
 }
