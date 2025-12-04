@@ -14,6 +14,21 @@
       </div>
 
       <div class="header-right">
+        <!-- 内联统计徽章 -->
+        <div class="inline-stats-inline">
+          <div
+            v-for="stat in subscriptionStatsCards"
+            :key="stat.key"
+            class="stat-badge-inline"
+            :class="`stat-badge--${stat.type}`"
+            @click="() => stat.onClick && stat.onClick(stat, 0)"
+          >
+            <n-icon :component="stat.icon" :size="14" />
+            <span class="stat-badge-value">{{ stat.value }}{{ stat.unit || '' }}</span>
+            <span class="stat-badge-label">{{ stat.label }}</span>
+          </div>
+        </div>
+
         <!-- 主要操作按钮 -->
         <n-space>
           <n-button type="primary" size="medium" @click="openModal()">
@@ -21,12 +36,6 @@
               <n-icon :component="AddOutline" />
             </template>
             新增订阅
-          </n-button>
-          <n-button type="primary" size="medium" @click="openAddGroupModal()">
-            <template #icon>
-              <n-icon :component="AddOutline" />
-            </template>
-            新增分组
           </n-button>
 
           <!-- 更多操作下拉菜单 -->
@@ -43,25 +52,14 @@
       </div>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="stats-section">
-      <StatsCardGrid
-        :stats="subscriptionStatsCards"
-        :columns="4"
-        :animated="true"
-        :clickable="true"
-        size="medium"
-        @card-click="(stat: any, index?: number) => handleStatsCardClick(stat, index || 0)"
-      />
-    </div>
-
+  
     <!-- 主要内容区域 -->
     <div class="layout-content">
       <div class="content-container">
         <div class="content-main">
-          <!-- 分组标签 -->
+          <!-- 分组标签 - 紧凑型支持滚动 -->
           <div class="group-tabs-section">
-            <n-tabs type="card" class="modern-tabs" v-model:value="activeTab">
+            <n-tabs type="segment" class="compact-tabs" v-model:value="activeTab">
               <n-tab-pane name="all" :tab="`全部 (${stats.totalSubscriptions.value})`" />
               <n-tab-pane name="ungrouped" :tab="`未分组 (${stats.ungroupedCount.value})`" />
               <n-tab-pane
@@ -70,18 +68,19 @@
                 :name="group.id"
               >
                 <template #tab>
-                  <div class="group-tab-wrapper">
-                    <span :style="{ color: group.is_enabled ? '' : '#999', marginRight: '8px' }">
-                      {{ group.name }} ({{ getGroupCount(group.id) }})
+                  <div class="group-tab-wrapper-compact">
+                    <span class="group-name-text" :style="{ color: group.is_enabled ? '' : '#999' }">
+                      {{ group.name }}
                     </span>
+                    <span class="group-count-text">({{ getGroupCount(group.id) }})</span>
                     <n-dropdown
                       trigger="click"
                       placement="bottom-start"
                       :options="getDropdownOptions(group)"
                       @select="(key) => handleGroupOperation(key, group)"
                     >
-                      <n-button text class="group-actions-button">
-                        <n-icon :component="MoreIcon" />
+                      <n-button text class="group-actions-button-compact">
+                        <n-icon :component="MoreIcon" :size="12" />
                       </n-button>
                     </n-dropdown>
                   </div>
@@ -797,7 +796,6 @@ import GroupManagement from '@/components/subscription/GroupManagement.vue'
 
 // 导入现代化组件
 import SmartHeaderActions from '@/components/common/SmartHeaderActions.vue'
-import StatsCardGrid from '@/components/common/StatsCardGrid.vue'
 
 // 组合式的使用
 const {
@@ -865,6 +863,13 @@ const subscriptionStatsCards = computed(() => [
 // 头部操作按钮 - SmartHeaderActions格式
 const headerSmartActions = computed(() => [
   {
+    key: 'add-group',
+    label: '新增分组',
+    description: '创建新的订阅分组',
+    icon: AddOutline,
+    type: 'primary' as const
+  },
+  {
     key: 'update-all',
     label: '更新全部',
     description: '更新所有订阅',
@@ -876,7 +881,7 @@ const headerSmartActions = computed(() => [
     label: '批量导入',
     description: '从文件或链接批量导入订阅',
     icon: DownloadIcon,
-    type: 'primary' as const
+    type: 'default' as const
   },
   {
     key: 'sort',
@@ -1269,6 +1274,9 @@ const handleHeaderAction = async (key: string) => {
   closeHeaderActionsDropdown()
 
   switch (key) {
+    case 'add-group':
+      openAddGroupModal()
+      break
     case 'update-all':
       handleUpdateAll()
       break
@@ -2037,10 +2045,26 @@ const handleFetchSubscriptions = async () => {
 .header-main {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 24px;
+  gap: 24px;
 }
 
+/* 头部左侧 */
+.header-left {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 头部右侧 */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+}
+
+/* 页面信息容器 */
 .page-info {
   display: flex;
   flex-direction: column;
@@ -2072,15 +2096,93 @@ const handleFetchSubscriptions = async () => {
   font-weight: 500;
 }
 
-/* 统计卡片 */
-.stats-section {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  padding: 24px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  margin-bottom: 24px;
+/* 内联统计徽章样式 */
+.inline-stats-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
+
+.stat-badge-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  white-space: nowrap;
+}
+
+.stat-badge-inline:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stat-badge-value {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.stat-badge-label {
+  opacity: 0.8;
+  font-size: 10px;
+}
+
+.stat-badge--primary {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.25);
+}
+
+.stat-badge--success {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.stat-badge--warning {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.stat-badge--info {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.page-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.breadcrumb-separator {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.breadcrumb-item.active {
+  color: white;
+  font-weight: 500;
+}
+
+/* 统计卡片样式已移至内联徽章 */
 
 /* 主内容区域 */
 .layout-content {
@@ -2098,31 +2200,218 @@ const handleFetchSubscriptions = async () => {
 }
 
 .content-main {
-  padding: 24px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
   min-width: 0;
   overflow-x: hidden;
 }
 
-/* 分组标签 */
+/* 分组标签 - 紧凑型样式 */
 .group-tabs-section {
   background: white;
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 8px;
+  padding: 4px 12px;
   border: 1px solid #e2e8f0;
-  margin-bottom: 16px;
+  margin: 0;
   width: 100%;
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* 紧凑型segmented标签样式 */
+.compact-tabs :deep(.n-tabs-nav) {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.compact-tabs :deep(.n-tabs-nav::-webkit-scrollbar) {
+  height: 3px;
+}
+
+.compact-tabs :deep(.n-tabs-nav::-webkit-scrollbar-track) {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.compact-tabs :deep(.n-tabs-nav::-webkit-scrollbar-thumb) {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.compact-tabs :deep(.n-tabs-nav::-webkit-scrollbar-thumb:hover) {
+  background: #94a3b8;
+}
+
+.compact-tabs :deep(.n-tabs-tab) {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  margin: 0;
+  padding: 8px 14px;
+  font-weight: 500;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  background: white;
+  color: #64748b;
+  min-height: 36px;
+  line-height: 1;
+  min-width: fit-content;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.compact-tabs :deep(.n-tabs-tab:hover) {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  color: #1e293b;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.compact-tabs :deep(.n-tabs-tab:hover) .group-name-text {
+  color: #1e293b;
+}
+
+.compact-tabs :deep(.n-tabs-tab:hover) .group-count-text {
+  color: #475569;
+}
+
+.compact-tabs :deep(.n-tabs-tab:hover) .group-actions-button-compact {
+  color: #1e293b;
+  opacity: 1;
+}
+
+/* 激活标签悬停时保持不变 */
+.compact-tabs :deep(.n-tabs-tab--active):hover {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white !important;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(118, 75, 162, 0.4);
+  transform: translateY(-2px);
+}
+
+.compact-tabs :deep(.n-tabs-tab--active):hover .group-name-text {
+  color: white;
+}
+
+.compact-tabs :deep(.n-tabs-tab--active):hover .group-count-text {
+  color: white;
+}
+
+.compact-tabs :deep(.n-tabs-tab--active):hover .group-actions-button-compact {
+  color: white;
+}
+
+.compact-tabs :deep(.n-tabs-tab--active) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white !important;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(118, 75, 162, 0.4);
+  transform: translateY(-2px);
+  font-weight: 600;
+  position: relative;
+}
+
+.compact-tabs :deep(.n-tabs-tab--active)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.compact-tabs :deep(.n-tabs-tab--active) .group-name-text {
+  color: white;
+}
+
+.compact-tabs :deep(.n-tabs-tab--active) .group-count-text {
+  color: white;
+  font-weight: 500;
+}
+
+.compact-tabs :deep(.n-tabs-tab--active) .group-actions-button-compact {
+  color: white;
+}
+
+.compact-tabs :deep(.n-tabs-tab--active) .group-actions-button-compact:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.group-actions-button-compact:hover {
+  background: rgba(30, 41, 59, 0.1);
+  border-radius: 3px;
+}
+
+/* 悬停状态下的按钮背景优化 */
+.compact-tabs :deep(.n-tabs-tab:hover) .group-actions-button-compact:hover {
+  background: rgba(30, 41, 59, 0.15);
+}
+
+/* 确保默认标签（全部、未分组）的激活状态文字也是白色 */
+.compact-tabs :deep(.n-tabs-tab--active) span {
+  color: white !important;
+}
+
+.compact-tabs :deep(.n-tabs-tab-wrapper) {
+  background: transparent;
+  border-radius: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: fit-content;
+}
+
+.compact-tabs :deep(.n-tabs-nav-scroll-wrapper) {
+  padding: 0;
+}
+
+.compact-tabs :deep(.n-tabs-nav--) {
+  gap: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.compact-tabs {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.compact-tabs :deep(.n-tabs-nav-scroll-wrapper) {
+  display: flex;
+  align-items: center;
+}
+
+.compact-tabs :deep(.n-tabs-nav-scroll-content) {
+  display: flex;
+  align-items: center;
 }
 
 /* 表格区域 */
 .table-section {
   background: white;
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 8px;
+  padding: 12px;
   border: 1px solid #e2e8f0;
   width: 100%;
   box-sizing: border-box;
@@ -2173,23 +2462,25 @@ const handleFetchSubscriptions = async () => {
   background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
 }
 
-/* 现代化标签页样式 */
+/* 现代化标签页样式 - 紧凑型 */
 .modern-tabs :deep(.n-tabs-nav) {
   background: transparent;
-  border-bottom: 2px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
   padding: 0;
   margin: 0;
 }
 
 .modern-tabs :deep(.n-tabs-tab) {
   border: none;
-  border-radius: 8px 8px 0 0;
-  margin-right: 4px;
-  padding: 12px 20px;
+  border-radius: 4px 4px 0 0;
+  margin-right: 2px;
+  padding: 6px 12px;
   font-weight: 500;
-  transition: all 0.3s ease;
+  font-size: 13px;
+  transition: all 0.2s ease;
   background: transparent;
   color: #64748b;
+  min-height: 32px;
 }
 
 .modern-tabs :deep(.n-tabs-tab:hover) {
@@ -2201,36 +2492,96 @@ const handleFetchSubscriptions = async () => {
   background: white;
   color: #667eea;
   border-bottom: 2px solid #667eea;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .modern-tabs :deep(.n-tabs-tab-wrapper) {
-  background: white;
-  border-radius: 8px;
+  background: transparent;
+  border-radius: 4px;
   margin: 0;
-  padding: 4px;
-  border: 1px solid #e2e8f0;
+  padding: 2px;
+  border: none;
 }
 
-/* 原有的分组标签样式保持不变 */
-.group-tab-wrapper {
+.modern-tabs :deep(.n-tabs-nav-scroll-wrapper) {
+  padding: 0;
+}
+
+.modern-tabs :deep(.n-tabs-nav--) {
+  gap: 0;
+}
+
+/* 紧凑型分组标签样式 */
+.group-tab-wrapper-compact {
   display: flex;
   align-items: center;
-  padding: 0 4px;
+  padding: 0;
+  gap: 6px;
+  font-size: 13px;
+  min-width: fit-content;
+  height: 100%;
+  line-height: 1;
 }
 
-.group-actions-button {
+.group-name-text {
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.group-count-text {
+  font-weight: 400;
+  color: #94a3b8;
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.group-actions-button-compact {
   transition: opacity 0.2s;
+  padding: 2px;
+  min-width: 18px;
+  height: 18px;
+  font-size: 11px;
+  opacity: 0;
+  margin-left: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.group-actions-button:hover {
-  opacity: 0.8;
+.compact-tabs :deep(.n-tabs-tab:hover) .group-actions-button-compact,
+.compact-tabs :deep(.n-tabs-tab--active) .group-actions-button-compact {
+  opacity: 1;
+}
+
+.group-actions-button-compact:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
 }
 
 /* 响应式设计 */
 @media (max-width: 1024px) {
-  .content-container {
-    grid-template-columns: 1fr;
+  .header-main {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .header-right {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .inline-stats-inline {
+    justify-content: center;
   }
 }
 
@@ -2240,21 +2591,70 @@ const handleFetchSubscriptions = async () => {
   }
 
   .header-main {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
+    margin-bottom: 16px;
   }
 
   .content-main {
-    padding: 16px;
+    padding: 12px;
   }
 
   .group-tabs-section {
+    padding: 6px 8px;
+    margin-bottom: 8px;
+  }
+
+  .table-section {
     padding: 8px;
   }
 
-  .stats-section {
-    padding: 16px;
+  .modern-tabs :deep(.n-tabs-tab) {
+    padding: 4px 8px;
+    font-size: 12px;
+    min-height: 28px;
+  }
+
+  .compact-tabs :deep(.n-tabs-tab) {
+    padding: 6px 12px;
+    font-size: 12px;
+    min-height: 32px;
+  }
+
+  .group-tab-wrapper-compact {
+    font-size: 12px;
+    gap: 4px;
+  }
+
+  .group-name-text {
+    font-size: 12px;
+  }
+
+  .group-count-text {
+    font-size: 10px;
+  }
+
+  .group-tabs-section {
+    padding: 3px 8px;
+  }
+
+  .inline-stats-inline {
+    gap: 6px;
+  }
+
+  .stat-badge-inline {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .stat-badge-value {
+    font-size: 11px;
+  }
+
+  .stat-badge-label {
+    font-size: 9px;
+  }
+
+  .header-right {
+    gap: 12px;
   }
 }
 
@@ -2279,22 +2679,7 @@ const handleFetchSubscriptions = async () => {
   background: #f8fafc;
 }
 
-/* 统计卡片动画增强 */
-.stats-section :deep(.stat-card) {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.stats-section :deep(.stat-card--clickable:hover) {
-  transform: translateY(-8px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
-}
-
-/* 删除原有的旧样式 */
-.stats-cards {
-  background: #f8fafc;
-  border-radius: 8px;
-  padding: 16px;
-}
+/* 删除旧的统计卡片样式 */
 
 /* 拖拽排序样式 */
 .drag-handle:hover {
