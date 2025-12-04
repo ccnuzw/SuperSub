@@ -21,7 +21,7 @@
             :key="stat.key"
             class="stat-badge-inline"
             :class="`stat-badge--${stat.type}`"
-            @click="() => stat.onClick && stat.onClick(stat, 0)"
+            @click="() => stat.onClick && stat.onClick()"
           >
             <n-icon :component="stat.icon" :size="14" />
             <span class="stat-badge-value">{{ stat.value }}{{ stat.unit || '' }}</span>
@@ -2038,7 +2038,9 @@ const handleFetchSubscriptions = async () => {
 .subscriptions-modern-layout {
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 头部主区域 */
@@ -2046,8 +2048,10 @@ const handleFetchSubscriptions = async () => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   gap: 24px;
+  padding: 16px 20px 0 20px;
+  flex-shrink: 0;
 }
 
 /* 头部左侧 */
@@ -2187,33 +2191,41 @@ const handleFetchSubscriptions = async () => {
 /* 主内容区域 */
 .layout-content {
   background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
+  border-radius: 0;
   backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
   overflow: hidden;
   padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin: 0 20px 20px 20px;
 }
 
 .content-container {
   width: 100%;
-  min-height: 600px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .content-main {
-  padding: 16px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   width: 100%;
   min-width: 0;
   overflow-x: hidden;
+  flex: 1;
 }
 
 /* 分组标签 - 紧凑型样式 */
 .group-tabs-section {
   background: white;
   border-radius: 8px;
-  padding: 4px 12px;
+  padding: 8px 16px;
   border: 1px solid #e2e8f0;
   margin: 0;
   width: 100%;
@@ -2411,10 +2423,21 @@ const handleFetchSubscriptions = async () => {
 .table-section {
   background: white;
   border-radius: 8px;
-  padding: 12px;
+  padding: 16px;
   border: 1px solid #e2e8f0;
   width: 100%;
   box-sizing: border-box;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 表格现代化样式 */
+.table-section :deep(.n-data-table) {
+  border-radius: 8px;
+  overflow: hidden;
+  flex: 1;
 }
 
 /* 顶部右侧按钮样式 */
@@ -2571,7 +2594,8 @@ const handleFetchSubscriptions = async () => {
   .header-main {
     flex-direction: column;
     align-items: stretch;
-    gap: 16px;
+    gap: 12px;
+    padding: 12px 16px 0 16px;
   }
 
   .header-right {
@@ -2586,15 +2610,25 @@ const handleFetchSubscriptions = async () => {
 }
 
 @media (max-width: 768px) {
-  .subscriptions-modern-layout {
-    padding: 12px;
+  .header-main {
+    padding: 12px 12px 0 12px;
+    margin-bottom: 12px;
   }
 
-  .header-main {
-    margin-bottom: 16px;
+  .layout-content {
+    margin: 0 12px 12px 12px;
   }
 
   .content-main {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .group-tabs-section {
+    padding: 6px 12px;
+  }
+
+  .table-section {
     padding: 12px;
   }
 

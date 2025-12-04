@@ -245,7 +245,7 @@ const menuOptions = computed(() => {
         </div>
 
         <!-- 页面内容 -->
-        <div :style="isMobile ? 'padding: 12px; height: calc(100vh - 50px); overflow-y: auto;' : 'padding: 24px; height: 100vh; overflow-y: auto;'">
+        <div :style="isMobile ? 'padding: 0; height: calc(100vh - 50px); overflow-y: auto;' : 'padding: 0; height: 100vh; overflow-y: auto;'">
           <RouterView />
         </div>
       </n-layout-content>

@@ -157,7 +157,7 @@ const getLabelText = (option: any) => {
       <!-- 桌面端移除右上角浮动操作按钮 -->
 
       <!-- 页面内容 -->
-      <div :style="isMobile ? 'padding: 12px; height: calc(100vh - 100px); overflow-y: auto;' : 'padding: 24px; height: 100vh; overflow-y: auto;'">
+      <div :style="isMobile ? 'padding: 0; height: calc(100vh - 100px); overflow-y: auto;' : 'padding: 0; height: calc(100vh - 60px); overflow-y: auto;'">
         <RouterView />
       </div>
 
