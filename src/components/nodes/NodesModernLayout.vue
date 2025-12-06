@@ -4,7 +4,7 @@
     <NodesHeader
       :node-stats="nodeStats"
       :header-smart-actions="headerSmartActions"
-      @add-node="() => handleAddNode({} as any)"
+      @add-node="handleAddNodeClick"
       @header-action="handleHeaderMoreAction"
       @stats-click="(stat: any, index?: number) => handleStatsCardClick(stat, index || 0)"
     />
@@ -1194,6 +1194,10 @@ const handleNodeAction = (key: string, node: Node) => {
       deleteNode(node);
       break;
   }
+};
+
+const handleAddNodeClick = () => {
+  showAddModal.value = true;
 };
 
 const handleAddNode = async (nodeData: any) => {

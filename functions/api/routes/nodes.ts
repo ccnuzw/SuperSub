@@ -58,11 +58,30 @@ nodes.post('/', manualAuthMiddleware, async (c) => {
     const body = await c.req.json<any>();
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    await c.env.DB.prepare(
-        `INSERT INTO nodes (id, user_id, name, link, protocol, protocol_params, server, port, type, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(id, user.id, body.name, body.link, body.protocol, JSON.stringify(body.protocol_params), body.protocol_params?.add || '', Number(body.protocol_params?.port || 0), body.protocol, now, now).run();
-    return c.json({ success: true, data: { id } }, 201);
+
+    try {
+        await c.env.DB.prepare(
+            `INSERT INTO nodes (id, user_id, name, link, protocol, protocol_params, server, port, type, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(
+            id,
+            user.id,
+            body.name,
+            body.link,
+            body.protocol,
+            JSON.stringify(body.protocol_params || {}),
+            body.protocol_params?.server || '',
+            Number(body.protocol_params?.port || 0),
+            body.protocol,
+            now,
+            now
+        ).run();
+
+        return c.json({ success: true, data: { id } }, 201);
+    } catch (error: any) {
+        console.error('Failed to create node:', error);
+        return c.json({ success: false, message: `Database error: ${error.message}` }, 500);
+    }
 });
 
 nodes.post('/batch-import', manualAuthMiddleware, async (c) => {

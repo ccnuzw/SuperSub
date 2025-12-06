@@ -573,13 +573,51 @@ profiles.post('/', async (c) => {
         }
 
         await c.env.DB.batch(statements);
-        
+
         return c.json({ success: true, data: { id: profileId } }, 201);
 
     } catch (e: any) {
         console.error('Failed to create profile with rules:', e.message);
         return c.json({ success: false, message: 'Failed to create profile.', error: e.message }, 500);
     }
+});
+
+// Handle PUT requests sent as POST with X-HTTP-Method-Override header
+profiles.post('/:id', async (c) => {
+    const methodOverride = c.req.header('X-HTTP-Method-Override');
+    if (methodOverride && methodOverride.toUpperCase() === 'PUT') {
+        // Recreate the PUT handler logic here since we can't call it directly
+        const user = c.get('jwtPayload');
+        const { id } = c.req.param();
+        const body = await c.req.json<any>();
+        const now = new Date().toISOString();
+
+        if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
+            return c.json({ success: false, message: 'Profile name is required.' }, 400);
+        }
+
+        const name = body.name.trim();
+        const alias = body.alias || null;
+        const content = JSON.parse(body.content || '{}');
+
+        const contentPayload = {
+            subscription_ids: content.subscription_ids,
+            node_ids: content.node_ids,
+            node_prefix_settings: content.node_prefix_settings,
+            airport_subscription_options: content.airport_subscription_options,
+            subconverter_backend_id: content.subconverter_backend_id,
+            subconverter_config_id: content.subconverter_config_id,
+            generation_mode: content.generation_mode || 'local',
+        };
+
+        await c.env.DB.prepare(
+            `UPDATE profiles SET name = ?, alias = ?, content = ?, updated_at = ?
+             WHERE id = ? AND user_id = ?`
+        ).bind(name, alias, JSON.stringify(contentPayload), now, id, user.id).run();
+
+        return c.json({ success: true });
+    }
+    return c.json({ success: false, message: 'Method not allowed' }, 405);
 });
 
 profiles.get('/:id', async (c) => {
@@ -626,7 +664,7 @@ profiles.put('/:id', async (c) => {
         `UPDATE profiles SET name = ?, alias = ?, content = ?, updated_at = ?
          WHERE id = ? AND user_id = ?`
     ).bind(name, alias, JSON.stringify(contentPayload), now, id, user.id).run();
-    
+
     return c.json({ success: true });
 });
 

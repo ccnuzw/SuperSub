@@ -2,9 +2,9 @@
 import { ref, onMounted, computed, h } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
-import { useMessage, useDialog, NButton, NSpace, NDataTable, NPageHeader, NModal, NSpin, NIcon, NTag, NStatistic, NCard, NGrid, NGi, NScrollbar, NLog, NSteps, NStep, NCode, NList, NListItem, NThing, NDropdown } from 'naive-ui';
+import { useMessage, useDialog, NButton, NSpace, NDataTable, NSpin, NIcon, NTag, NStatistic, NGrid, NGi, NScrollbar, NLog, NSteps, NStep, NCode, NList, NListItem, NThing, NDropdown, NEmpty } from 'naive-ui';
 import type { DataTableColumns, DropdownOption } from 'naive-ui';
-import { Pencil as EditIcon, TrashBinOutline as DeleteIcon, CopyOutline as CopyIcon, EyeOutline as PreviewIcon, DocumentTextOutline as LogIcon, EllipsisVertical as MoreIcon } from '@vicons/ionicons5';
+import { Pencil as EditIcon, TrashBinOutline as DeleteIcon, CopyOutline as CopyIcon, EyeOutline as PreviewIcon, DocumentTextOutline as LogIcon, ListOutline as ListIcon, EllipsisVertical as MoreIcon, Add as PlusIcon } from '@vicons/ionicons5';
 import { useIsMobile } from '@/composables/useMediaQuery';
 import { api } from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
@@ -13,6 +13,8 @@ import type { ApiResponse, Profile, Subscription, Node, LogEntry, LogLevel } fro
 import { regenerateLink, type ParsedNode } from '@/utils/nodeParser';
 import { getNaiveTagColor } from '@/utils/colors';
 import SubscriptionLogModal from '@/components/SubscriptionLogModal.vue';
+import ModernPageLayout from '@/components/layout/ModernPageLayout.vue';
+import ModernContentCard from '@/components/layout/ModernContentCard.vue';
 
 const router = useRouter();
 const message = useMessage();
@@ -74,8 +76,8 @@ const previewNodeColumns: DataTableColumns<Partial<Node>> = [
         return h(NTag, {
             size: 'small',
             round: true,
-            color: getNaiveTagColor(protocol, 'protocol')
-        }, { default: () => protocol.toUpperCase() });
+            color: getNaiveTagColor(protocol.toString(), 'protocol') || { color: '#7f8c8d', textColor: '#ffffff', borderColor: 'transparent' }
+        }, { default: () => protocol.toString().toUpperCase() });
     }
   },
   { title: '服务器', key: 'server', width: 200, ellipsis: { tooltip: true } },
@@ -236,116 +238,691 @@ const columns = createColumns({
   onDelete: handleDelete
 });
 
+// 头部操作按钮
+const headerActions = computed(() => [
+  {
+    key: 'new-profile',
+    label: '新增配置',
+    icon: 'Plus',
+    type: 'primary' as const,
+    onClick: () => router.push({ name: 'new-profile' })
+  }
+]);
+
+// 移动端下拉菜单选项
+const mobileDropdownOptions = [
+  { label: '复制链接', key: 'copy', icon: () => h(NIcon, null, { default: () => h(CopyIcon) }) },
+  { label: '预览', key: 'preview', icon: () => h(NIcon, null, { default: () => h(PreviewIcon) }) },
+  { label: '日志', key: 'logs', icon: () => h(NIcon, null, { default: () => h(LogIcon) }) },
+  { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(EditIcon) }) },
+  { label: '删除', key: 'delete', icon: () => h(NIcon, null, { default: () => h(DeleteIcon) }), type: 'error' as const }
+];
+
+// 处理移动端操作
+const handleMobileAction = (key: string, profile: Profile) => {
+  switch (key) {
+    case 'copy':
+      handleCopyLink(profile);
+      break;
+    case 'preview':
+      onPreview(profile);
+      break;
+    case 'logs':
+      onLogs(profile);
+      break;
+    case 'edit':
+      router.push({ name: 'edit-profile', params: { id: profile.id } });
+      break;
+    case 'delete':
+      handleDelete(profile);
+      break;
+  }
+};
+
 onMounted(() => {
   fetchProfiles();
 });
 
 </script>
 
+<style scoped>
+/* ===== 配置管理页面全屏宽度优化 ===== */
+
+/* 全屏宽度覆盖 */
+:deep(.modern-page-content) {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding: var(--spacing-lg) !important;
+}
+
+:deep(.modern-page-main) {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* ModernContentCard 全屏宽度 */
+:deep(.modern-content-card) {
+  max-width: none;
+  width: 100%;
+}
+
+/* ===== 配置管理页面专用样式 ===== */
+
+/* 数据表格样式 */
+.modern-data-table {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+:deep(.modern-data-table .n-data-table) {
+  border: none;
+}
+
+:deep(.modern-data-table .n-data-table-th) {
+  background: var(--bg-secondary);
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--border-primary);
+}
+
+:deep(.modern-data-table .n-data-table-td) {
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+:deep(.modern-data-table .n-data-table-tr:hover .n-data-table-td) {
+  background: rgba(102, 126, 234, 0.05);
+}
+
+/* 移动端列表样式 */
+.modern-mobile-list {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  background: var(--bg-primary);
+}
+
+.modern-list-item {
+  border-bottom: 1px solid var(--border-secondary);
+  transition: all var(--transition-normal) var(--ease-out-cubic);
+  padding: var(--spacing-lg);
+}
+
+.modern-list-item:hover {
+  background: rgba(102, 126, 234, 0.02);
+}
+
+.modern-list-item:last-child {
+  border-bottom: none;
+}
+
+.modern-thing {
+  width: 100%;
+}
+
+:deep(.modern-thing .n-thing-title) {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1.125rem;
+}
+
+:deep(.modern-thing .n-thing-description) {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-top: var(--spacing-xs);
+}
+
+.mobile-action-button {
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast) var(--ease-out-cubic);
+}
+
+.mobile-action-button:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* 模态框样式 */
+.modern-modal {
+  border-radius: var(--radius-xl);
+}
+
+:deep(.modern-modal .n-card) {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-xl);
+}
+
+:deep(.modern-modal .n-card-header) {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-secondary);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+
+/* 预览内容样式 */
+.preview-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+/* 紧凑型统计信息 */
+.compact-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) 0;
+  flex-wrap: wrap;
+}
+
+.compact-stats .stat-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+.compact-stats .stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary-600);
+  margin: 0;
+}
+
+.compact-stats .stat-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin: 0;
+}
+
+.stat-separator {
+  color: var(--border-primary);
+  font-weight: 300;
+  font-size: 1.2rem;
+  margin: 0 var(--spacing-xs);
+}
+
+.inline-tags {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.inline-tag {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.more-tag {
+  background: var(--bg-secondary) !important;
+  color: var(--text-tertiary) !important;
+  border: 1px solid var(--border-primary);
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .compact-stats {
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) 0;
+  }
+
+  .compact-stats .stat-value {
+    font-size: 1.125rem;
+  }
+
+  .compact-stats .stat-label {
+    font-size: 0.8125rem;
+  }
+
+  .stat-separator {
+    font-size: 1rem;
+    margin: 0 var(--spacing-xs);
+  }
+
+  .inline-tag {
+    font-size: 0.7rem;
+    padding: 1px 6px;
+  }
+
+  .inline-tags {
+    gap: 2px;
+  }
+}
+
+/* 日志步骤样式 */
+.log-steps {
+  padding: var(--spacing-md);
+}
+
+.log-step {
+  margin-bottom: var(--spacing-lg);
+}
+
+:deep(.log-step .n-step) {
+  padding: var(--spacing-md);
+}
+
+:deep(.log-step .n-step-content__title) {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.log-time {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-top: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+}
+
+.log-data {
+  margin-top: var(--spacing-md);
+}
+
+:deep(.log-data .n-code) {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+}
+
+/* 空状态样式 */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-3xl);
+  text-align: center;
+}
+
+:deep(.empty-state .n-empty) {
+  color: var(--text-secondary);
+}
+
+:deep(.empty-state .n-empty-description) {
+  font-size: 1rem;
+  margin-top: var(--spacing-md);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .modern-list-item {
+    padding: var(--spacing-md);
+  }
+
+  :deep(.modern-thing .n-thing-title) {
+    font-size: 1rem;
+  }
+
+  .stat-item {
+    padding: var(--spacing-md);
+  }
+
+  .stat-item.stat-primary {
+    padding: var(--spacing-lg);
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  .stat-item.stat-primary .stat-value {
+    font-size: 1.75rem;
+  }
+
+  .stat-label {
+    font-size: 0.8125rem;
+  }
+
+  .log-step {
+    margin-bottom: var(--spacing-md);
+  }
+
+  .stat-tags {
+    max-height: 60px;
+  }
+}
+
+@media (max-width: 480px) {
+  .modern-list-item {
+    padding: var(--spacing-sm);
+  }
+
+  .stat-item {
+    padding: var(--spacing-sm);
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+  }
+}
+
+/* 深色主题 */
+.dark .modern-mobile-list {
+  background: var(--bg-primary);
+  border-color: var(--border-primary);
+}
+
+.dark .modern-list-item {
+  border-color: var(--border-secondary);
+}
+
+.dark .modern-list-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dark .stat-item {
+  background: rgba(24, 24, 28, 0.6);
+  border-color: var(--border-primary);
+}
+
+.dark .stat-item:hover {
+  background: rgba(24, 24, 28, 0.8);
+}
+
+.dark .mobile-action-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* 加载状态 */
+:deep(.n-spin) {
+  color: var(--primary-500);
+}
+
+:deep(.n-spin-description) {
+  color: var(--text-secondary);
+}
+
+/* 标签样式增强 */
+:deep(.n-tag) {
+  border-radius: var(--radius-full);
+  font-weight: 500;
+  transition: all var(--transition-fast) var(--ease-out-cubic);
+}
+
+:deep(.n-tag:hover) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 按钮样式统一 */
+:deep(.n-button) {
+  transition: all var(--transition-normal) var(--ease-out-cubic);
+}
+
+:deep(.n-button:hover) {
+  transform: translateY(-1px);
+}
+
+:deep(.n-button--primary-type) {
+  background: var(--gradient-primary);
+  border: none;
+}
+
+:deep(.n-button--primary-type:hover) {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+:deep(.n-button--error-type) {
+  background: var(--gradient-error);
+  border: none;
+}
+
+:deep(.n-button--error-type:hover) {
+  box-shadow: 0 4px 12px rgba(255, 77, 79, 0.3);
+}
+</style>
+
 <template>
-  <div>
-    <n-page-header>
-      <template #title>配置管理</template>
-      <template #extra>
-        <n-space>
-          <n-button type="primary" @click="() => router.push({ name: 'new-profile' })">新增配置</n-button>
-        </n-space>
-      </template>
-    </n-page-header>
+  <ModernPageLayout
+    title="配置管理"
+    subtitle="管理和监控您的代理配置文件"
+    :breadcrumb="[
+      { label: 'SuperSub', href: '#' },
+      { label: '配置管理', active: true }
+    ]"
+    :actions="headerActions"
+    max-width="100%"
+    padding="0"
+  >
+    <!-- 主内容区域 -->
+    <ModernContentCard
+      title="配置文件列表"
+      subtitle="管理所有代理配置文件和订阅链接"
+      variant="elevated"
+      padding="lg"
+      :show-top-line="true"
+    >
+      <!-- 桌面端数据表格 -->
+      <n-data-table
+        v-if="!isMobile"
+        :columns="columns"
+        :data="profiles"
+        :loading="loading"
+        :pagination="{ pageSize: 10 }"
+        :bordered="false"
+        class="modern-data-table"
+      />
 
-    <n-data-table v-if="!isMobile" :columns="columns" :data="profiles" :loading="loading" :pagination="{ pageSize: 10 }" :bordered="false" class="mt-4" />
-
-    <n-list v-else bordered class="mt-4">
-      <n-list-item v-for="profile in profiles" :key="profile.id">
-        <n-thing :title="profile.name" />
-        <template #suffix>
-          <n-dropdown
-            trigger="click"
-            :options="[
-              { label: '复制链接', key: 'copy' },
-              { label: '预览', key: 'preview' },
-              { label: '日志', key: 'logs' },
-              { label: '编辑', key: 'edit' },
-              { label: '删除', key: 'delete' },
-            ]"
-            @select="key => {
-              if (key === 'copy') handleCopyLink(profile);
-              if (key === 'preview') onPreview(profile);
-              if (key === 'logs') onLogs(profile);
-              if (key === 'edit') router.push({ name: 'edit-profile', params: { id: profile.id } });
-              if (key === 'delete') handleDelete(profile);
-            }"
+      <!-- 移动端列表 -->
+      <n-list v-else bordered class="modern-mobile-list">
+        <n-list-item
+          v-for="profile in profiles"
+          :key="profile.id"
+          class="modern-list-item"
+        >
+          <n-thing
+            :title="profile.name"
+            :description="profile.alias ? `别名: ${profile.alias}` : '未设置链接别名'"
+            class="modern-thing"
           >
-            <n-button text>
-              <n-icon :component="MoreIcon" size="24" />
-            </n-button>
-          </n-dropdown>
-        </template>
-      </n-list-item>
-    </n-list>
+            <template #footer>
+              <n-space size="small">
+                <n-tag
+                  v-if="profile.alias"
+                  type="info"
+                  size="small"
+                  round
+                >
+                  有订阅链接
+                </n-tag>
+                <n-tag
+                  v-else
+                  type="warning"
+                  size="small"
+                  round
+                >
+                  无订阅链接
+                </n-tag>
+              </n-space>
+            </template>
+          </n-thing>
 
-    <!-- Nodes Preview Modal -->
-    <n-modal v-model:show="showNodesPreviewModal" preset="card" :title="`节点预览 - ${currentProfileForPreview?.name}`" :style="{ width: isMobile ? '95vw' : '1200px' }" :mask-closable="true" :trap-focus="false">
+          <template #suffix>
+            <n-dropdown
+              trigger="click"
+              :options="mobileDropdownOptions"
+              @select="(key) => handleMobileAction(key, profile)"
+            >
+              <n-button text class="mobile-action-button">
+                <n-icon :component="MoreIcon" size="20" />
+              </n-button>
+            </n-dropdown>
+          </template>
+        </n-list-item>
+      </n-list>
+    </ModernContentCard>
+
+    <!-- 节点预览模态框 -->
+    <n-modal
+      v-model:show="showNodesPreviewModal"
+      preset="card"
+      :title="`节点预览 - ${currentProfileForPreview?.name}`"
+      :style="{ width: isMobile ? '95vw' : '1200px' }"
+      :mask-closable="true"
+      :trap-focus="false"
+      class="modern-modal"
+    >
       <n-spin :show="loadingNodesPreview">
-        <div v-if="nodesPreviewData">
-          <n-grid :cols="1">
-            <n-gi>
-              <n-card title="订阅分析" :bordered="false">
-                <template #header-extra>
-                  <n-button v-if="nodesPreviewData.logs && nodesPreviewData.logs.length > 0" text @click="showLogsModal = true">
-                    <template #icon>
-                      <n-icon><log-icon /></n-icon>
-                    </template>
-                    查看日志
-                  </n-button>
-                </template>
-                <n-grid :cols="3" :x-gap="12">
-                  <n-gi><n-statistic label="节点总数" :value="nodesPreviewData.analysis.total" /></n-gi>
-                  <n-gi>
-                    <n-statistic label="协议分布">
-                      <n-space>
-                      <n-tag v-for="(count, protocol) in nodesPreviewData.analysis.protocols" :key="protocol" :color="getNaiveTagColor(protocol, 'protocol')" round>{{ protocol.toUpperCase() }}: {{ count }}</n-tag>
-                      </n-space>
-                    </n-statistic>
-                  </n-gi>
-                  <n-gi>
-                    <n-statistic label="地区分布">
-                      <n-space :size="'small'" style="flex-wrap: wrap;">
-                        <n-tag v-for="(count, region) in nodesPreviewData.analysis.regions" :key="region" :color="getNaiveTagColor(region, 'region')" round>{{ region }}: {{ count }}</n-tag>
-                      </n-space>
-                    </n-statistic>
-                  </n-gi>
-                </n-grid>
-              </n-card>
-              <n-data-table :columns="previewNodeColumns" :data="nodes" :pagination="{ pageSize: 10 }" :max-height="400" class="mt-4" />
-            </n-gi>
-          </n-grid>
+        <div v-if="nodesPreviewData" class="preview-content">
+          <!-- 订阅分析统计 -->
+          <ModernContentCard
+            title="订阅分析"
+            subtitle="节点分布和统计信息"
+            variant="outlined"
+            padding="lg"
+            class="mb-6"
+            :header-actions="[
+              {
+                key: 'god-view',
+                icon: LogIcon,
+                type: 'primary',
+                onClick: () => {
+                  currentProfileForLogs = currentProfileForPreview;
+                  showSubLogsModal = true;
+                }
+              },
+              {
+                key: 'process-logs',
+                icon: ListIcon,
+                type: 'info',
+                onClick: () => showLogsModal = true,
+                label: nodesPreviewData?.logs && nodesPreviewData.logs.length > 0
+                  ? `处理日志 (${nodesPreviewData.logs.length})`
+                  : '处理日志'
+              }
+            ]"
+          >
+
+          <!-- 紧凑型统计信息 -->
+          <div class="compact-stats">
+            <div class="stat-item">
+              <span class="stat-value">{{ nodesPreviewData.analysis.total }}</span>
+              <span class="stat-label">节点</span>
+            </div>
+            <div class="stat-separator">|</div>
+            <div class="stat-item">
+              <span class="stat-label">协议:</span>
+              <div class="inline-tags">
+                <span
+                  v-for="(count, protocol) in nodesPreviewData.analysis.protocols"
+                  :key="protocol || 'unknown'"
+                  class="inline-tag"
+                  :style="{ backgroundColor: (getNaiveTagColor(protocol, 'protocol')?.color || '#7f8c8d') + '20', color: getNaiveTagColor(protocol, 'protocol')?.color || '#7f8c8d' }"
+                >
+                  {{ (protocol || 'Unknown').toUpperCase() }} {{ count }}
+                </span>
+              </div>
+            </div>
+            <div class="stat-separator">|</div>
+            <div class="stat-item">
+              <span class="stat-label">地区:</span>
+              <div class="inline-tags">
+                <span
+                  v-for="([regionName, count], index) in Object.entries(nodesPreviewData.analysis.regions).slice(0, 5)"
+                  :key="regionName || 'unknown'"
+                  class="inline-tag"
+                  :style="{ backgroundColor: (getNaiveTagColor(regionName, 'region')?.color || '#7f8c8d') + '20', color: getNaiveTagColor(regionName, 'region')?.color || '#7f8c8d' }"
+                >
+                  {{ (regionName || 'Unknown') }} {{ count }}
+                </span>
+                <span
+                  v-if="Object.keys(nodesPreviewData.analysis.regions).length > 5"
+                  class="inline-tag more-tag"
+                >
+                  +{{ Object.keys(nodesPreviewData.analysis.regions).length - 5 }}
+                </span>
+              </div>
+            </div>
+          </div>
+          </ModernContentCard>
+
+          <!-- 节点数据表格 -->
+          <ModernContentCard
+            title="节点列表"
+            subtitle="详细的节点信息"
+            variant="elevated"
+            padding="lg"
+          >
+            <n-data-table
+              :columns="previewNodeColumns"
+              :data="nodes"
+              :pagination="{ pageSize: 10 }"
+              :max-height="400"
+              class="modern-data-table"
+            />
+          </ModernContentCard>
         </div>
-        <div v-else-if="!loadingNodesPreview" style="text-align: center; padding: 20px;">没有获取到节点数据。</div>
+        <div v-else-if="!loadingNodesPreview" class="empty-state">
+          <n-empty description="没有获取到节点数据" />
+        </div>
       </n-spin>
     </n-modal>
 
-    <!-- Logs Modal -->
-    <n-modal v-model:show="showLogsModal" preset="card" title="上帝视角日志" :style="{ width: isMobile ? '95vw' : '900px', maxHeight: '80vh' }" :mask-closable="true" :trap-focus="false">
+    <!-- 日志模态框 -->
+    <n-modal
+      v-model:show="showLogsModal"
+      preset="card"
+      title="处理日志"
+      :style="{ width: isMobile ? '95vw' : '900px', maxHeight: '80vh' }"
+      :mask-closable="true"
+      :trap-focus="false"
+      class="modern-modal"
+    >
       <n-scrollbar style="max-height: 70vh; padding-right: 16px;">
-        <n-steps vertical>
-          <template v-for="log in nodesPreviewData?.logs" :key="log.timestamp">
-            <n-step :title="log.message" :status="getStepStatus(log.level)">
-              <p style="font-size: 12px; color: #999; margin-top: 4px; margin-bottom: 8px;">{{ new Date(log.timestamp).toLocaleString() }}</p>
-              <div v-if="log.data">
-                <n-card size="small" :bordered="true">
-                  <n-code :code="JSON.stringify(log.data, null, 2)" language="json" word-wrap />
-                </n-card>
-              </div>
-            </n-step>
-          </template>
-        </n-steps>
+        <!-- 调试信息 -->
+        <div style="padding: var(--spacing-md); background: var(--bg-secondary); border-radius: var(--radius-md); margin-bottom: var(--spacing-md); font-size: 0.875rem;">
+          <div><strong>调试信息:</strong></div>
+          <div>nodesPreviewData 存在: {{ !!nodesPreviewData }}</div>
+          <div>logs 存在: {{ !!(nodesPreviewData?.logs) }}</div>
+          <div>logs 长度: {{ nodesPreviewData?.logs?.length || 0 }}</div>
+          <div v-if="nodesPreviewData?.logs && nodesPreviewData.logs.length > 0">
+            <div>第一条日志: {{ JSON.stringify(nodesPreviewData.logs[0]) }}</div>
+          </div>
+        </div>
+
+        <template v-if="nodesPreviewData?.logs && nodesPreviewData.logs.length > 0">
+          <n-steps vertical class="log-steps">
+            <template v-for="log in nodesPreviewData.logs" :key="log.timestamp">
+              <n-step
+                :title="log.message"
+                :status="getStepStatus(log.level)"
+                class="log-step"
+              >
+                <p class="log-time">{{ new Date(log.timestamp).toLocaleString() }}</p>
+                <div v-if="log.data" class="log-data">
+                  <n-card size="small" :bordered="true">
+                    <n-code
+                      :code="JSON.stringify(log.data, null, 2)"
+                      language="json"
+                      word-wrap
+                    />
+                  </n-card>
+                </div>
+              </n-step>
+            </template>
+          </n-steps>
+        </template>
+        <div v-else class="empty-state">
+          <n-empty description="暂无处理日志" />
+        </div>
       </n-scrollbar>
     </n-modal>
-    <subscription-log-modal
+
+    <!-- 订阅日志模态框 -->
+    <SubscriptionLogModal
       v-model:show="showSubLogsModal"
       :profile-id="currentProfileForLogs?.id || null"
       :profile-name="currentProfileForLogs?.name || null"
     />
-  </div>
+  </ModernPageLayout>
 </template>

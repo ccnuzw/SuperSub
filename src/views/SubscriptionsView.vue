@@ -1,6 +1,6 @@
 <template>
-  <div class="subscriptions-modern-layout">
-    <!-- 标题和操作按钮区域 -->
+  <div class="modern-page">
+    <!-- 现有内容保持不变 -->
     <div class="header-main">
       <div class="header-left">
         <div class="page-info">
@@ -2035,23 +2035,26 @@ const handleFetchSubscriptions = async () => {
 </script>
 
 <style scoped>
-.subscriptions-modern-layout {
+.modern-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 0;
-  display: flex;
-  flex-direction: column;
+  background: var(--gradient-primary);
+  padding: var(--spacing-lg);
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* 头部主区域 */
+/* 头部主区域 - 增加横向空间 */
 .header-main {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
-  gap: 24px;
-  padding: 16px 20px 0 20px;
+  margin-bottom: var(--spacing-lg);
+  gap: var(--spacing-xl);
+  padding: var(--spacing-lg) var(--spacing-xl) 0 var(--spacing-xl);
   flex-shrink: 0;
+  max-width: none;
+  width: 100%;
 }
 
 /* 头部左侧 */
@@ -2188,7 +2191,7 @@ const handleFetchSubscriptions = async () => {
 
 /* 统计卡片样式已移至内联徽章 */
 
-/* 主内容区域 */
+/* 主内容区域 - 增加操作空间 */
 .layout-content {
   background: rgba(255, 255, 255, 0.95);
   border-radius: 0;
@@ -2199,7 +2202,9 @@ const handleFetchSubscriptions = async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  margin: 0 20px 20px 20px;
+  margin: 0 var(--spacing-lg) var(--spacing-lg) var(--spacing-lg);
+  width: calc(100% - 2 * var(--spacing-lg));
+  max-width: none;
 }
 
 .content-container {

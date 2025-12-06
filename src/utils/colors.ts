@@ -50,6 +50,9 @@ export const getColorFromString = (str: string): string => {
  * @returns A hex color code.
  */
 export const getTagColor = (key: string, type: 'protocol' | 'region' | string = 'protocol'): string => {
+    if (!key) {
+        return '#7f8c8d'; // Default color for empty/undefined strings
+    }
     const lowerKey = key.toLowerCase();
     if (type === 'protocol' && protocolColorMap[lowerKey]) {
         return protocolColorMap[lowerKey];

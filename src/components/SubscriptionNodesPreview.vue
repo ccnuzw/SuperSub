@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, h, watch, computed } from 'vue';
-import { useMessage, NDataTable, NSpin, NTag, NEmpty, NButton, NSpace, NSwitch, NTooltip, NSelect, NCard, NCode } from 'naive-ui';
+import { useMessage, NDataTable, NSpin, NTag, NEmpty, NButton, NSpace, NSwitch, NTooltip, NSelect, NCard, NCode, NIcon } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import { Node, ApiResponse } from '@/types';
 import { useGroupStore as useNodeGroupStore } from '@/stores/groups';
 import { regenerateLink, type ParsedNode } from '@/utils/nodeParser';
 import { api } from '@/utils/api';
 import { getNaiveTagColor } from '@/utils/colors';
+import { DocumentText as LogIcon } from '@vicons/ionicons5';
+import SubscriptionLogModal from '@/components/SubscriptionLogModal.vue';
 
 const props = defineProps({
   subscriptionId: {
@@ -18,6 +20,10 @@ const props = defineProps({
     required: true,
   },
   profileId: {
+    type: String,
+    default: null,
+  },
+  profileName: {
     type: String,
     default: null,
   },
@@ -35,6 +41,9 @@ const importLoading = ref(false);
 const applyRules = ref(true);
 const selectedGroupId = ref<string | undefined>(undefined);
 const error = ref<string | null>(null);
+
+// 日志功能相关变量
+const showLogsModal = ref(false);
 
 const nodes = computed(() => {
   if (previewData.value?.mode === 'local') {
@@ -64,25 +73,41 @@ const columns: DataTableColumns<Partial<Node>> = [
     {
         title: '操作',
         key: 'actions',
-        width: 100,
+        width: 150,
         align: 'center',
         fixed: 'right',
         render(row) {
-            return h(NButton, {
-                size: 'tiny',
-                ghost: true,
-                type: 'primary',
-                onClick: () => {
-                  const link = regenerateLink(row as ParsedNode);
-                  if (link) {
-                      navigator.clipboard.writeText(link);
-                       message.success('已复制完整链接');
-                   } else {
-                       navigator.clipboard.writeText(row.raw || '');
-                       message.success('已复制原始链接 (回退)');
-                   }
-                }
-            }, { default: () => '复制链接' });
+            return h(NSpace, { size: 'small' }, {
+                default: () => [
+                    h(NButton, {
+                        size: 'tiny',
+                        ghost: true,
+                        type: 'primary',
+                        onClick: () => {
+                          const link = regenerateLink(row as ParsedNode);
+                          if (link) {
+                              navigator.clipboard.writeText(link);
+                               message.success('已复制完整链接');
+                           } else {
+                               navigator.clipboard.writeText(row.raw || '');
+                               message.success('已复制原始链接 (回退)');
+                           }
+                        }
+                    }, { default: () => '复制链接' }),
+                    // 只有配置文件预览时才显示日志按钮
+                    props.profileId ? h(NButton, {
+                        size: 'tiny',
+                        ghost: true,
+                        type: 'info',
+                        onClick: handleLogs
+                    }, {
+                        default: () => [
+                            h(NIcon, { size: 14 }, { default: () => h(LogIcon) }),
+                            h('span', { style: 'margin-left: 4px;' }, '日志')
+                        ]
+                    }) : null
+                ].filter(Boolean)
+            });
         }
     }
 ];
@@ -151,6 +176,15 @@ const handleImport = async () => {
         message.error('导入请求失败');
     } finally {
         importLoading.value = false;
+    }
+};
+
+// 处理日志功能
+const handleLogs = () => {
+    if (props.profileId) {
+        showLogsModal.value = true;
+    } else {
+        message.warning('只有配置文件可以查看日志');
     }
 };
 
@@ -230,12 +264,19 @@ onMounted(() => {
             :pagination="{ pageSize: 10 }"
             :bordered="false"
             :max-height="400"
-            :scroll-x="660"
+            :scroll-x="800"
           />
           <n-empty v-if="nodes.length === 0" description="订阅为空或无有效节点" class="py-8" />
         </div>
       </div>
       <n-empty v-if="!loading && !error && !previewData" description="点击预览按钮获取节点信息" class="py-8" />
     </n-spin>
+
+    <!-- 订阅日志模态框 -->
+    <SubscriptionLogModal
+      v-model:show="showLogsModal"
+      :profile-id="profileId"
+      :profile-name="profileName"
+    />
   </div>
 </template>

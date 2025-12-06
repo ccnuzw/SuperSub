@@ -14,6 +14,20 @@
       </div>
 
       <div class="header-right">
+        <!-- 迷你统计标签 -->
+        <div class="mini-stats-tags">
+          <div
+            v-for="stat in nodeStatsCards"
+            :key="stat.key"
+            class="mini-stat-tag"
+            :class="`mini-stat-tag--${stat.type}`"
+            @click="() => $emit('stats-click', stat)"
+          >
+            <n-icon :component="stat.icon" :size="12" />
+            <span class="mini-stat-text">{{ stat.value }} {{ stat.label }}</span>
+          </div>
+        </div>
+
         <!-- 主要操作按钮 -->
         <n-space>
           <n-button type="primary" size="medium" @click="$emit('add-node')">
@@ -33,18 +47,6 @@
         </n-space>
       </div>
     </div>
-
-    <!-- 统计卡片 -->
-    <div class="stats-section">
-      <StatsCardGrid
-        :stats="nodeStatsCards"
-        :columns="4"
-        :animated="true"
-        :clickable="true"
-        size="medium"
-        @card-click="(stat: any, index?: number) => $emit('stats-click', stat, index)"
-      />
-    </div>
   </div>
 </template>
 
@@ -58,7 +60,6 @@ import {
   Warning as WarningIcon,
 } from '@vicons/ionicons5';
 import SmartHeaderActions from '../../common/SmartHeaderActions.vue';
-import StatsCardGrid from '../../common/StatsCardGrid.vue';
 
 interface Props {
   nodeStats: {
@@ -128,7 +129,7 @@ const nodeStatsCards = computed(() => [
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 0;
 }
 
 .page-info {
@@ -142,7 +143,7 @@ const nodeStatsCards = computed(() => [
   font-size: 28px;
   font-weight: 700;
   color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  text-shadow: none;
 }
 
 .page-breadcrumb {
@@ -162,13 +163,69 @@ const nodeStatsCards = computed(() => [
   font-weight: 500;
 }
 
-/* 统计卡片 */
-.stats-section {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  padding: 24px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+/* 头部右侧区域 */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* 迷你统计标签 */
+.mini-stats-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 8px;
+}
+
+.mini-stat-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.mini-stat-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.mini-stat-text {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* 不同类型的迷你统计标签 */
+.mini-stat-tag--primary {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  border-color: rgba(102, 126, 234, 0.2);
+}
+
+.mini-stat-tag--success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.mini-stat-tag--warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.mini-stat-tag--error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.2);
 }
 
 /* 顶部右侧按钮样式 */
@@ -223,8 +280,41 @@ const nodeStatsCards = computed(() => [
     align-items: stretch;
   }
 
-  .stats-section {
-    padding: 16px;
+  .header-right {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .mini-stats-tags {
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-right: 0;
+    gap: 6px;
+  }
+
+  .mini-stat-tag {
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+
+  .mini-stat-text {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mini-stats-tags {
+    gap: 4px;
+  }
+
+  .mini-stat-tag {
+    padding: 2px 5px;
+    font-size: 9px;
+  }
+
+  .mini-stat-text {
+    font-size: 9px;
   }
 }
 </style>
