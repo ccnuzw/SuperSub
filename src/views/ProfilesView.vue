@@ -794,7 +794,7 @@ onMounted(() => {
               {
                 key: 'process-logs',
                 icon: ListIcon,
-                type: 'info',
+                type: 'default',
                 onClick: () => showLogsModal = true,
                 label: nodesPreviewData?.logs && nodesPreviewData.logs.length > 0
                   ? `处理日志 (${nodesPreviewData.logs.length})`
