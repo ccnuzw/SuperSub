@@ -7,6 +7,7 @@
       :size="size"
       @tab-click="handleTabClick"
       class="group-tabs"
+      style="--n-tabs-padding: 4px 0; --n-tab-gap: 2px; --n-tab-padding: 4px 8px;"
     >
       <!-- 全部标签 -->
       <n-tab-pane name="all" :tab="`全部 (${groupCounts.all || 0})`" />
@@ -524,10 +525,12 @@ const closeContextMenu = () => {
 .smart-group-tabs {
   width: 100%;
   background: white;
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: 6px;
+  padding: 4px 12px !important;
   border: 1px solid #e2e8f0;
   box-sizing: border-box;
+  min-height: 40px !important;
+  height: auto !important;
 }
 
 .group-tabs {
@@ -543,31 +546,34 @@ const closeContextMenu = () => {
   display: flex;
   flex-wrap: wrap;
   width: 100%;
-  gap: 4px;
+  gap: 2px;
   align-items: center;
+  min-height: 32px;
 }
 
 .group-tabs :deep(.n-tabs-tab-wrapper) {
   display: flex;
   flex-wrap: wrap;
   width: 100%;
-  gap: 4px;
+  gap: 2px;
   flex: 1;
   min-width: 0;
 }
 
 .group-tabs :deep(.n-tabs-tab) {
   flex: 0 1 auto;
-  min-width: 120px;
-  max-width: 200px;
-  padding: 8px 12px;
+  min-width: 100px;
+  max-width: 180px;
+  padding: 4px 8px;
   font-weight: 500;
+  font-size: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   cursor: pointer;
   transition: all 0.2s ease;
+  min-height: 28px;
 }
 
 .group-tabs :deep(.n-tabs-tab:hover) {

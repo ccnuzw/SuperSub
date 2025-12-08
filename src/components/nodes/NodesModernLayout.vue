@@ -46,7 +46,7 @@
               :group-counts="smartGroupCounts"
               v-model:active-tab="activeGroupId"
               tab-type="segment"
-              size="medium"
+              size="small"
               :show-add-button="true"
               :enable-context-menu="true"
               :enable-inline-actions="true"
@@ -1623,7 +1623,7 @@ watch(
   padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
   min-width: 0; /* 确保可以收缩 */
   overflow-x: hidden; /* 防止内容溢出 */
@@ -1633,9 +1633,9 @@ watch(
 .group-tabs-section {
   background: white;
   border-radius: 8px;
-  padding: 16px;
+  padding: 8px 12px;
   border: 1px solid #e2e8f0;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -1674,7 +1674,7 @@ watch(
   }
 
   .group-tabs-section {
-    padding: 8px;
+    padding: 4px 8px;
   }
 }
 </style>

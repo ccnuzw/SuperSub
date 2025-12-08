@@ -82,8 +82,8 @@
     </div>
 
     <!-- 分组标签页 -->
-    <div class="groups-tabs" v-if="groups && groups.length > 0">
-      <n-tabs v-model:value="activeGroupId" type="line" @update:value="handleGroupChange">
+    <div class="groups-tabs compact-tabs" v-if="groups && groups.length > 0">
+      <n-tabs v-model:value="activeGroupId" type="line" size="small" @update:value="handleGroupChange">
         <n-tab-pane name="all" :tab="`全部 (${groupCounts.all || 0})`" />
         <n-tab-pane name="ungrouped" :tab="`未分组 (${groupCounts.ungrouped || 0})`" />
         <n-tab-pane
@@ -816,12 +816,52 @@ onMounted(async () => {
   width: 140px;
 }
 
-.groups-tabs {
-  background: white;
-  border-radius: 12px;
-  padding: 0 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+/* 紧凑的标签页样式 */
+.compact-tabs {
+  background: white !important;
+  border-radius: 8px !important;
+  padding: 0 16px !important;
+  margin-bottom: 16px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+}
+
+.compact-tabs .n-tabs {
+  padding: 4px 0 !important;
+}
+
+.compact-tabs .n-tabs-nav {
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 32px !important;
+}
+
+.compact-tabs .n-tabs-nav__suffix,
+.compact-tabs .n-tabs-nav__prefix {
+  padding: 0 !important;
+}
+
+.compact-tabs .n-tabs-tab {
+  padding: 4px 12px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  min-height: 28px !important;
+  line-height: 20px !important;
+}
+
+.compact-tabs .n-tabs-tab-wrapper {
+  padding: 0 1px !important;
+}
+
+.compact-tabs .n-tabs-tab--active {
+  font-weight: 600 !important;
+}
+
+.compact-tabs .n-tabs-bar {
+  height: 2px !important;
+}
+
+.compact-tabs .n-tabs-pane {
+  padding: 0 !important;
 }
 
 .selection-bar {
@@ -959,6 +999,18 @@ onMounted(async () => {
 
   .filter-section {
     flex-wrap: wrap;
+  }
+
+  .compact-tabs {
+    padding: 0 12px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .compact-tabs .n-tabs-tab {
+    padding: 3px 10px !important;
+    font-size: 12px !important;
+    min-height: 24px !important;
+    line-height: 18px !important;
   }
 
   .selection-bar {
