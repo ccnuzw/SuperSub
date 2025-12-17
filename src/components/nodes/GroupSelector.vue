@@ -157,7 +157,7 @@ const showCreateGroupDialog = () => {
 
 <style scoped>
 .group-selector {
-  @apply bg-white rounded-lg shadow-sm p-4;
+  @apply w-full;
 }
 
 .label-text {
@@ -165,19 +165,66 @@ const showCreateGroupDialog = () => {
 }
 
 .group-stats {
-  @apply mt-3 pt-3 border-t border-gray-100;
+  @apply mt-4 pt-4 border-t border-gray-100;
 }
 
-/* 深色模式 */
-.dark .group-selector {
-  @apply bg-gray-800;
+/* 选择器样式优化 */
+:deep(.n-select) {
+  transition: all 0.2s ease;
 }
 
+:deep(.n-select:hover) {
+  transform: translateY(-1px);
+}
+
+/* 按钮动画 */
+:deep(.n-button) {
+  transition: all 0.2s ease;
+}
+
+:deep(.n-button:hover) {
+  transform: scale(1.1);
+}
+
+/* 响应式设计 */
+@media (max-width: 640px) {
+  .group-selector :deep(.n-space) {
+    @apply flex-col items-start gap-2;
+  }
+
+  .label-text {
+    @apply text-xs;
+  }
+
+  :deep(.n-select) {
+    @apply w-full;
+    min-width: auto !important;
+  }
+
+  .group-stats {
+    @apply mt-3 pt-3;
+  }
+
+  .group-stats :deep(.n-space) {
+    @apply flex-wrap gap-1;
+  }
+}
+
+/* 深色模式适配 */
 .dark .label-text {
   @apply text-gray-300;
 }
 
 .dark .group-stats {
   @apply border-gray-700;
+}
+
+/* 标签动画 */
+:deep(.n-tag) {
+  transition: all 0.2s ease;
+}
+
+:deep(.n-tag:hover) {
+  transform: translateY(-1px);
 }
 </style>

@@ -111,40 +111,28 @@ const progressColor = computed(() => {
 
 <style scoped>
 .subscription-stats {
-  @apply bg-white rounded-lg shadow-sm p-6;
+  @apply p-6;
 }
 
+/* 健康率进度条 */
 .health-progress {
-  @apply mt-4 pt-4 border-t border-gray-200;
+  @apply mt-6 pt-6 border-t border-gray-100;
 }
 
 .progress-label {
-  @apply flex justify-between items-center mb-2 text-sm text-gray-600;
+  @apply flex justify-between items-center mb-3;
+}
+
+.progress-label span:first-child {
+  @apply text-sm font-medium text-gray-600;
 }
 
 .health-percentage {
-  @apply font-medium text-gray-900;
-}
-
-/* 深色模式 */
-.dark .subscription-stats {
-  @apply bg-gray-800;
-}
-
-.dark .health-progress {
-  @apply border-gray-700;
-}
-
-.dark .progress-label {
-  @apply text-gray-400;
-}
-
-.dark .health-percentage {
-  @apply text-gray-100;
+  @apply text-sm font-bold text-gray-900;
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .subscription-stats {
     @apply p-4;
   }
@@ -154,8 +142,51 @@ const progressColor = computed(() => {
     gap: 1rem !important;
   }
 
-  :deep(.n-statistic) {
-    text-align: center;
+  .health-progress {
+    @apply mt-4 pt-4;
   }
+
+  .progress-label {
+    @apply mb-2;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  :deep(.n-grid) {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+@media (min-width: 1025px) {
+  :deep(.n-grid) {
+    grid-template-columns: repeat(5, 1fr) !important;
+  }
+}
+
+/* 深色模式适配 */
+.dark .health-progress {
+  @apply border-gray-700;
+}
+
+.dark .progress-label span:first-child {
+  @apply text-gray-400;
+}
+
+.dark .health-percentage {
+  @apply text-gray-100;
+}
+
+/* 统计项动画 */
+:deep(.n-statistic) {
+  transition: all 0.3s ease;
+}
+
+:deep(.n-statistic:hover) {
+  transform: translateY(-2px);
+}
+
+/* 进度条优化 */
+:deep(.n-progress-graph-line-fill) {
+  transition: width 0.6s ease;
 }
 </style>

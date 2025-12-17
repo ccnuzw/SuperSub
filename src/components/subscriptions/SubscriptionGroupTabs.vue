@@ -100,23 +100,86 @@ defineEmits<{
 
 <style scoped>
 .subscription-group-tabs {
-  @apply bg-white rounded-lg shadow-sm;
+  @apply w-full;
 }
 
 .group-tab {
-  @apply cursor-pointer px-2 py-1 rounded hover:bg-gray-50 transition-colors;
+  @apply cursor-pointer px-3 py-2 rounded-lg transition-all duration-200;
 }
 
 .group-tab:hover {
-  @apply bg-gray-100;
+  @apply bg-gray-50;
 }
 
-/* 深色模式 */
-.dark .subscription-group-tabs {
-  @apply bg-gray-800;
+/* 标签页样式优化 */
+:deep(.n-tabs) {
+  @apply w-full;
 }
 
-.dark .group-tab:hover {
+:deep(.n-tabs .n-tabs-nav) {
+  @apply px-2 py-1;
+}
+
+:deep(.n-tabs .n-tabs-tab) {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  min-height: 40px;
+}
+
+:deep(.n-tabs .n-tabs-tab:hover) {
+  @apply bg-gray-50;
+}
+
+:deep(.n-tabs .n-tabs-tab--active) {
+  @apply bg-primary-50 text-primary-600;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+}
+
+:deep(.n-tabs .n-tabs-bar) {
+  @apply rounded-full;
+}
+
+/* 后缀按钮样式 */
+:deep(.n-tabs-suffix) {
+  @apply ml-4;
+}
+
+/* 响应式设计 */
+@media (max-width: 640px) {
+  :deep(.n-tabs .n-tabs-tab) {
+    @apply px-3 py-1.5 text-sm;
+    min-height: 36px;
+  }
+
+  :deep(.n-tabs .n-tabs-nav) {
+    @apply px-1 py-0.5;
+  }
+
+  .group-tab {
+    @apply px-2 py-1;
+  }
+}
+
+/* 滚动优化 */
+:deep(.n-tabs .n-tabs-nav-scroll-wrapper) {
+  @apply scroll-smooth;
+}
+
+/* 深色模式适配 */
+.dark .group-tab:hover,
+.dark :deep(.n-tabs .n-tabs-tab:hover) {
   @apply bg-gray-700;
+}
+
+.dark :deep(.n-tabs .n-tabs-tab--active) {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%);
+}
+
+/* 标签计数动画 */
+:deep(.n-tag) {
+  transition: all 0.2s ease;
+}
+
+:deep(.n-tabs-tab:hover .n-tag) {
+  transform: scale(1.05);
 }
 </style>

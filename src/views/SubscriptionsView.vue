@@ -4,85 +4,101 @@
  */
 
 <template>
-  <div class="subscriptions-view">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <n-page-header
-        title="订阅管理"
-        subtitle="管理和配置代理订阅源"
-        @back="$router.back()"
-      >
-        <template #extra>
-          <n-space>
-            <n-button
-              type="primary"
-              @click="showAddModal = true"
-              :loading="loading"
-            >
-              <template #icon>
-                <n-icon><AddOutline /></n-icon>
-              </template>
-              添加订阅
-            </n-button>
-
-            <n-dropdown
-              :options="headerActions"
-              placement="bottom-end"
-              @select="handleHeaderAction"
-            >
-              <n-button circle>
+  <div class="page-container">
+    <!-- 粘性头部 -->
+    <div class="sticky-header">
+      <div class="content-wrapper">
+        <n-page-header
+          title="订阅管理"
+          subtitle="管理和配置代理订阅源"
+          @back="$router.back()"
+        >
+          <template #extra>
+            <n-space size="medium">
+              <n-button
+                type="primary"
+                size="medium"
+                @click="showAddModal = true"
+                :loading="loading"
+                class="action-button"
+              >
                 <template #icon>
-                  <n-icon><EllipsisVerticalOutline /></n-icon>
+                  <n-icon><AddOutline /></n-icon>
                 </template>
+                添加订阅
               </n-button>
-            </n-dropdown>
-          </n-space>
-        </template>
-      </n-page-header>
+
+              <n-dropdown
+                :options="headerActions"
+                placement="bottom-end"
+                @select="handleHeaderAction"
+              >
+                <n-button circle size="medium" class="action-button">
+                  <template #icon>
+                    <n-icon><EllipsisVerticalOutline /></n-icon>
+                  </template>
+                </n-button>
+              </n-dropdown>
+            </n-space>
+          </template>
+        </n-page-header>
+      </div>
     </div>
 
-    <!-- 主要内容 -->
-    <div class="page-content">
-      <!-- 分组标签 -->
-      <SubscriptionGroupTabs
-        v-model:active-tab="activeTab"
-        :groups="groups"
-        :loading="groupLoading"
-        :total-count="subscriptions.length"
-        @group-click="handleGroupClick"
-        @group-context-menu="handleGroupContextMenu"
-        @add-group="handleCreateGroup"
-      />
+    <!-- 主要内容区域 -->
+    <div class="content-wrapper">
+      <div class="content-grid">
+        <!-- 顶部区域：统计信息 -->
+        <div class="top-section">
+          <SubscriptionStats
+            :total="subscriptions.length"
+            :healthy="healthyCount"
+            :updating="updatingCount"
+            :failed="failedCount"
+            :selected="selectedCount"
+          />
+        </div>
 
-      <!-- 统计信息 -->
-      <SubscriptionStats
-        :total="subscriptions.length"
-        :healthy="healthyCount"
-        :updating="updatingCount"
-        :failed="failedCount"
-        :selected="selectedCount"
-      />
+        <!-- 中间区域：分组标签 -->
+        <div class="middle-section">
+          <div class="section-card">
+            <SubscriptionGroupTabs
+              v-model:active-tab="activeTab"
+              :groups="groups"
+              :loading="groupLoading"
+              :total-count="subscriptions.length"
+              @group-click="handleGroupClick"
+              @group-context-menu="handleGroupContextMenu"
+              @add-group="handleCreateGroup"
+            />
+          </div>
+        </div>
 
-      <!-- 订阅表格 -->
-      <SubscriptionTable
-        :subscriptions="filteredSubscriptions"
-        :selected-keys="selectedKeys"
-        :updating-ids="updatingIds"
-        :loading="loading"
-        :pagination="pagination"
-        @update:selected-keys="selectedKeys = $event"
-        @retry-failed="handleRetryFailed"
-        @clear-failed="handleClearFailed"
-        @update-all="handleUpdateAll"
-        @batch-delete="handleBatchDelete"
-        @batch-update="handleBatchUpdate"
-        @bulk-import="showImportModal = true"
-        @edit="handleEditSubscription"
-        @delete="handleDeleteSubscription"
-        @update="handleUpdateSubscription"
-        @preview="handlePreviewSubscription"
-        @copy-url="handleCopySubscriptionUrl"
-      />
+        <!-- 底部区域：订阅表格 -->
+        <div class="bottom-section">
+          <div class="section-card table-card">
+            <SubscriptionTable
+              :subscriptions="filteredSubscriptions"
+              :selected-keys="selectedKeys"
+              :updating-ids="updatingIds"
+              :loading="loading"
+              :pagination="pagination"
+              @update:selected-keys="selectedKeys = $event"
+              @retry-failed="handleRetryFailed"
+              @clear-failed="handleClearFailed"
+              @update-all="handleUpdateAll"
+              @batch-delete="handleBatchDelete"
+              @batch-update="handleBatchUpdate"
+              @bulk-import="showImportModal = true"
+              @edit="handleEditSubscription"
+              @delete="handleDeleteSubscription"
+              @update="handleUpdateSubscription"
+              @preview="handlePreviewSubscription"
+              @copy-url="handleCopySubscriptionUrl"
+            />
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 添加/编辑订阅模态框 -->
@@ -446,35 +462,116 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.subscriptions-view {
-  @apply min-h-screen bg-gray-50;
+/* 页面容器 */
+.page-container {
+  @apply min-h-screen;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
-.page-header {
-  @apply bg-white border-b border-gray-200 px-6 py-4;
+/* 内容包装器 */
+.content-wrapper {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
 }
 
-.page-content {
-  @apply p-6 space-y-6;
+/* 粘性头部 */
+.sticky-header {
+  @apply sticky top-0 z-40;
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid rgba(229, 231, 235, 0.3);
+}
+
+/* 内容网格布局 */
+.content-grid {
+  @apply space-y-6 py-6;
+}
+
+/* 区域划分 */
+.top-section {
+  @apply transition-all duration-300;
+}
+
+.middle-section {
+  @apply transition-all duration-300;
+}
+
+.bottom-section {
+  @apply transition-all duration-300;
+}
+
+/* 统一卡片样式 */
+.section-card {
+  @apply bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20;
+  @apply transition-all duration-300 hover:shadow-xl;
+  padding: 1.5rem;
+}
+
+.table-card {
+  @apply p-0 overflow-hidden;
+}
+
+.table-card :deep(.n-data-table) {
+  border-radius: 0.75rem;
+}
+
+.table-card :deep(.n-data-table .n-data-table-base-table) {
+  border-radius: 0.75rem;
+}
+
+/* 按钮样式优化 */
+.action-button {
+  @apply transition-all duration-200 hover:scale-105;
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
-  .page-header {
-    @apply px-4 py-3;
+@media (max-width: 640px) {
+  .content-wrapper {
+    @apply px-4;
   }
 
-  .page-content {
-    @apply p-4 space-y-4;
+  .content-grid {
+    @apply space-y-4 py-4;
+  }
+
+  .section-card {
+    padding: 1rem;
   }
 }
 
-/* 深色模式 */
-.dark .subscriptions-view {
-  @apply bg-gray-900;
+@media (min-width: 641px) and (max-width: 1024px) {
+  .content-grid {
+    @apply space-y-5;
+  }
 }
 
-.dark .page-header {
-  @apply bg-gray-800 border-gray-700;
+/* 深色模式适配 */
+.dark .page-container {
+  background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+}
+
+.dark .sticky-header {
+  background: rgba(31, 41, 55, 0.8);
+  border-bottom-color: rgba(75, 85, 99, 0.3);
+}
+
+.dark .section-card {
+  @apply bg-gray-800/80 border-gray-700/20;
+  background: rgba(31, 41, 55, 0.8);
+}
+
+/* 加载动画 */
+.page-container {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

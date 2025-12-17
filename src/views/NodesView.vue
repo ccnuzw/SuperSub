@@ -4,74 +4,86 @@
  */
 
 <template>
-  <div class="nodes-view">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <n-page-header
-        title="节点管理"
-        subtitle="管理和配置代理节点"
-        @back="$router.back()"
-      >
-        <template #extra>
-          <n-space>
-            <n-button
-              type="primary"
-              @click="showAddModal = true"
-              :loading="loading"
-            >
-              <template #icon>
-                <n-icon><AddOutline /></n-icon>
-              </template>
-              添加节点
-            </n-button>
-
-            <n-dropdown
-              :options="headerActions"
-              placement="bottom-end"
-              @select="handleHeaderAction"
-            >
-              <n-button circle>
+  <div class="page-container">
+    <!-- 粘性头部 -->
+    <div class="sticky-header">
+      <div class="content-wrapper">
+        <n-page-header
+          title="节点管理"
+          subtitle="管理和配置代理节点"
+          @back="$router.back()"
+        >
+          <template #extra>
+            <n-space size="medium">
+              <n-button
+                type="primary"
+                size="medium"
+                @click="showAddModal = true"
+                :loading="loading"
+                class="action-button"
+              >
                 <template #icon>
-                  <n-icon><EllipsisVerticalOutline /></n-icon>
+                  <n-icon><AddOutline /></n-icon>
                 </template>
+                添加节点
               </n-button>
-            </n-dropdown>
-          </n-space>
-        </template>
-      </n-page-header>
+
+              <n-dropdown
+                :options="headerActions"
+                placement="bottom-end"
+                @select="handleHeaderAction"
+              >
+                <n-button circle size="medium" class="action-button">
+                  <template #icon>
+                    <n-icon><EllipsisVerticalOutline /></n-icon>
+                  </template>
+                </n-button>
+              </n-dropdown>
+            </n-space>
+          </template>
+        </n-page-header>
+      </div>
     </div>
 
-    <!-- 主要内容 -->
-    <div class="page-content">
-      <!-- 分组选择器 -->
-      <div class="group-selector-wrapper">
-        <GroupSelector
-          v-model:selected-group-id="selectedGroupId"
-          :groups="groupOptions"
-          :loading="groupStore.loading"
-          @create-group="handleCreateGroup"
-        />
-      </div>
+    <!-- 主要内容区域 -->
+    <div class="content-wrapper">
+      <div class="content-grid">
+        <!-- 顶部区域：分组选择器 -->
+        <div class="top-section">
+          <div class="section-card">
+            <GroupSelector
+              v-model:selected-group-id="selectedGroupId"
+              :groups="groupOptions"
+              :loading="groupStore.loading"
+              @create-group="handleCreateGroup"
+            />
+          </div>
+        </div>
 
-      <!-- 节点表格 -->
-      <NodeTable
-        :nodes="filteredNodes"
-        :loading="loading"
-        :selected-keys="selectedKeys"
-        :testing-ids="testingIds"
-        :pagination="pagination"
-        @update:selected-keys="handleSelectedKeysChange"
-        @batch-delete="handleBatchDelete"
-        @batch-action="handleBatchActionWrapper"
-        @batch-import="showImportModal = true"
-        @test-selected="handleTestSelected"
-        @test-all="handleTestAll"
-        @test-node="handleTestNode"
-        @edit="handleEditNode"
-        @delete="handleDeleteNode"
-        @copy="handleCopyNode"
-        @move-to-group="handleMoveNodesToGroupWrapper"
-      />
+        <!-- 底部区域：节点表格 -->
+        <div class="bottom-section">
+          <div class="section-card table-card">
+            <NodeTable
+              :nodes="filteredNodes"
+              :loading="loading"
+              :selected-keys="selectedKeys"
+              :testing-ids="testingIds"
+              :pagination="pagination"
+              @update:selected-keys="handleSelectedKeysChange"
+              @batch-delete="handleBatchDelete"
+              @batch-action="handleBatchActionWrapper"
+              @batch-import="showImportModal = true"
+              @test-selected="handleTestSelected"
+              @test-all="handleTestAll"
+              @test-node="handleTestNode"
+              @edit="handleEditNode"
+              @delete="handleDeleteNode"
+              @copy="handleCopyNode"
+              @move-to-group="handleMoveNodesToGroupWrapper"
+            />
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 添加/编辑节点模态框 -->
@@ -383,39 +395,112 @@ const handleSelectedKeysChange = (keys: string[]) => {
 </script>
 
 <style scoped>
-.nodes-view {
-  @apply min-h-screen bg-gray-50;
+/* 页面容器 */
+.page-container {
+  @apply min-h-screen;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
-.page-header {
-  @apply bg-white border-b border-gray-200 px-6 py-4;
+/* 内容包装器 */
+.content-wrapper {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
 }
 
-.page-content {
-  @apply p-6;
+/* 粘性头部 */
+.sticky-header {
+  @apply sticky top-0 z-40;
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid rgba(229, 231, 235, 0.3);
 }
 
-.group-selector-wrapper {
-  @apply mb-4;
+/* 内容网格布局 */
+.content-grid {
+  @apply space-y-6 py-6;
+}
+
+/* 区域划分 */
+.top-section {
+  @apply transition-all duration-300;
+}
+
+.bottom-section {
+  @apply transition-all duration-300;
+}
+
+/* 统一卡片样式 */
+.section-card {
+  @apply bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20;
+  @apply transition-all duration-300 hover:shadow-xl;
+  padding: 1.5rem;
+}
+
+.table-card {
+  @apply p-0 overflow-hidden;
+}
+
+.table-card :deep(.n-data-table) {
+  border-radius: 0.75rem;
+}
+
+.table-card :deep(.n-data-table .n-data-table-base-table) {
+  border-radius: 0.75rem;
+}
+
+/* 按钮样式优化 */
+.action-button {
+  @apply transition-all duration-200 hover:scale-105;
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
-  .page-header {
-    @apply px-4 py-3;
+@media (max-width: 640px) {
+  .content-wrapper {
+    @apply px-4;
   }
 
-  .page-content {
-    @apply p-4;
+  .content-grid {
+    @apply space-y-4 py-4;
+  }
+
+  .section-card {
+    padding: 1rem;
   }
 }
 
-/* 深色模式 */
-.dark .nodes-view {
-  @apply bg-gray-900;
+@media (min-width: 641px) and (max-width: 1024px) {
+  .content-grid {
+    @apply space-y-5;
+  }
 }
 
-.dark .page-header {
-  @apply bg-gray-800 border-gray-700;
+/* 深色模式适配 */
+.dark .page-container {
+  background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+}
+
+.dark .sticky-header {
+  background: rgba(31, 41, 55, 0.8);
+  border-bottom-color: rgba(75, 85, 99, 0.3);
+}
+
+.dark .section-card {
+  @apply bg-gray-800/80 border-gray-700/20;
+  background: rgba(31, 41, 55, 0.8);
+}
+
+/* 加载动画 */
+.page-container {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
