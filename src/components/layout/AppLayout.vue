@@ -10,7 +10,9 @@
       :title="headerTitle"
       :description="headerDescription"
       :show-search="showSearch"
+      :sidebar-collapsed="sidebarCollapsed"
       @menu-toggle="handleMobileMenuToggle"
+      @sidebar-toggle="handleSidebarToggle"
       @search="handleGlobalSearch"
     />
 
@@ -24,7 +26,7 @@
           'app-layout__sidebar--mobile-open': mobileSidebarOpen
         }"
       >
-        <Sidebar />
+        <Sidebar :collapsed="sidebarCollapsed" />
       </aside>
 
       <!-- 移动端遮罩 -->
@@ -163,6 +165,15 @@ const closeMobileSidebar = () => {
   mobileSidebarOpen.value = false;
 };
 
+const handleSidebarToggle = () => {
+  const newCollapsed = !props.sidebarCollapsed;
+  emit('update:sidebarCollapsed', newCollapsed);
+  emit('sidebar-toggle', newCollapsed);
+
+  // 保存折叠状态到本地存储
+  localStorage.setItem('sidebar-collapsed', JSON.stringify(newCollapsed));
+};
+
 const handleGlobalSearch = (query: string) => {
   if (query.trim()) {
     globalSearchQuery.value = query;
@@ -215,11 +226,26 @@ watch(isMobile, (mobile) => {
 onMounted(() => {
   window.addEventListener('resize', handleResize);
   window.addEventListener('keydown', handleKeydown);
+
+  // 从本地存储恢复折叠状态
+  const savedCollapsed = localStorage.getItem('sidebar-collapsed');
+  if (savedCollapsed) {
+    try {
+      const collapsed = JSON.parse(savedCollapsed);
+      emit('update:sidebarCollapsed', collapsed);
+    } catch (error) {
+      console.error('Failed to parse sidebar collapsed state:', error);
+    }
+  }
+
+  // 监听侧边栏的全局切换事件
+  window.addEventListener('sidebar-toggle', handleSidebarToggle);
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   window.removeEventListener('keydown', handleKeydown);
+  window.removeEventListener('sidebar-toggle', handleSidebarToggle);
 });
 
 // 暴露方法给父组件

@@ -380,7 +380,7 @@ const formatTime = (timestamp: string | null) => {
 }
 
 const handleRefresh = () => {
-  refreshNodes(true) // 强制刷新，忽略缓存
+  refreshNodes() // 直接刷新，不需要强制参数
 }
 
 const handleExport = () => {

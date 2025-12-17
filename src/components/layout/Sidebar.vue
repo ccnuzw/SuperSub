@@ -4,7 +4,7 @@
  */
 
 <template>
-  <div class="sidebar">
+  <div class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
     <!-- Logo区域 -->
     <div class="sidebar__logo">
       <div class="logo">
@@ -18,6 +18,17 @@
       </div>
     </div>
 
+    <!-- 折叠按钮 -->
+    <div class="sidebar__toggle">
+      <button
+        class="toggle-btn"
+        @click="handleToggle"
+        :title="collapsed ? '展开侧边栏' : '折叠侧边栏'"
+      >
+        <component :is="collapsed ? MenuExpandIcon : MenuCollapseIcon" />
+      </button>
+    </div>
+
     <!-- 导航菜单 -->
     <nav class="sidebar__nav">
       <div class="nav-section">
@@ -29,11 +40,12 @@
             :to="item.to"
             class="nav-item"
             :class="{ 'nav-item--active': isActiveRoute(item.to) }"
+            :title="collapsed ? item.label : undefined"
           >
             <component :is="item.icon" class="nav-item__icon" />
             <span class="nav-item__text">{{ item.label }}</span>
             <SsBadge
-              v-if="item.badge"
+              v-if="item.badge && !collapsed"
               :variant="item.badge.variant"
               size="sm"
               class="nav-item__badge"
@@ -54,6 +66,7 @@
             :to="item.to"
             class="nav-item"
             :class="{ 'nav-item--active': isActiveRoute(item.to) }"
+            :title="collapsed ? item.label : undefined"
           >
             <component :is="item.icon" class="nav-item__icon" />
             <span class="nav-item__text">{{ item.label }}</span>
@@ -71,6 +84,7 @@
             :to="item.to"
             class="nav-item"
             :class="{ 'nav-item--active': isActiveRoute(item.to) }"
+            :title="collapsed ? item.label : undefined"
           >
             <component :is="item.icon" class="nav-item__icon" />
             <span class="nav-item__text">{{ item.label }}</span>
@@ -80,6 +94,7 @@
           <button
             class="nav-item nav-item--logout"
             @click="handleLogout"
+            title="登出"
           >
             <LogoutIcon class="nav-item__icon" />
             <span class="nav-item__text">登出</span>
@@ -118,6 +133,8 @@ import {
   PeopleOutline as PeopleIcon,
   SettingsOutline as SettingsIcon,
   LogOutOutline as LogoutIcon,
+  ChevronForwardOutline as MenuExpandIcon,
+  ChevronBackOutline as MenuCollapseIcon,
 } from '@vicons/ionicons5';
 
 interface IMenuItem {
@@ -130,6 +147,14 @@ interface IMenuItem {
     variant: 'primary' | 'secondary' | 'success' | 'warning' | 'error';
   };
 }
+
+interface Props {
+  collapsed?: boolean;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  collapsed: false
+});
 
 const router = useRouter();
 const route = useRoute();
@@ -208,33 +233,81 @@ const handleLogout = async () => {
     console.error('Logout failed:', error);
   }
 };
+
+const handleToggle = () => {
+  // 通过父组件处理折叠切换
+  // 这里我们使用全局事件或者通过 Layout 组件来处理
+  // 暂时使用自定义事件
+  const event = new CustomEvent('sidebar-toggle');
+  window.dispatchEvent(event);
+};
 </script>
 
 <style scoped>
 .sidebar {
-  @apply flex flex-col h-full bg-white border-r border-gray-200;
+  @apply flex flex-col h-full bg-white border-r border-gray-200 transition-all duration-300 ease-in-out;
   width: 280px;
-  transition: width 0.3s ease;
+}
+
+.sidebar--collapsed {
+  width: 64px;
 }
 
 .sidebar__logo {
-  @apply p-6 border-b border-gray-200;
+  @apply p-6 border-b border-gray-200 transition-all duration-300 ease-in-out;
+}
+
+.sidebar--collapsed .sidebar__logo {
+  @apply p-4;
 }
 
 .logo {
   @apply flex items-center space-x-3;
 }
 
+.sidebar--collapsed .logo {
+  @apply justify-center;
+}
+
 .logo__icon {
-  @apply w-8 h-8;
+  @apply w-8 h-8 flex-shrink-0;
 }
 
 .logo__text {
-  @apply text-xl font-bold text-gray-900;
+  @apply text-xl font-bold text-gray-900 transition-opacity duration-300;
+}
+
+.sidebar--collapsed .logo__text {
+  @apply opacity-0 sr-only;
+}
+
+/* 折叠按钮 */
+.sidebar__toggle {
+  @apply px-4 py-2 border-b border-gray-100;
+}
+
+.sidebar--collapsed .sidebar__toggle {
+  @apply px-2;
+}
+
+.toggle-btn {
+  @apply w-full flex items-center justify-center p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200;
+}
+
+.sidebar--collapsed .toggle-btn {
+  @apply w-auto mx-auto;
+}
+
+.toggle-btn svg {
+  @apply w-5 h-5;
 }
 
 .sidebar__nav {
-  @apply flex-1 overflow-y-auto p-4 space-y-6;
+  @apply flex-1 overflow-y-auto p-4 space-y-6 transition-all duration-300;
+}
+
+.sidebar--collapsed .sidebar__nav {
+  @apply p-2;
 }
 
 .nav-section {
@@ -242,7 +315,11 @@ const handleLogout = async () => {
 }
 
 .nav-section__title {
-  @apply px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider;
+  @apply px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider transition-opacity duration-300;
+}
+
+.sidebar--collapsed .nav-section__title {
+  @apply opacity-0 sr-only;
 }
 
 .nav-items {
@@ -251,6 +328,10 @@ const handleLogout = async () => {
 
 .nav-item {
   @apply flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors duration-200 relative;
+}
+
+.sidebar--collapsed .nav-item {
+  @apply justify-center px-2;
 }
 
 .nav-item--active {
@@ -266,19 +347,31 @@ const handleLogout = async () => {
 }
 
 .nav-item__text {
-  @apply flex-1 font-medium;
+  @apply flex-1 font-medium transition-opacity duration-300;
+}
+
+.sidebar--collapsed .nav-item__text {
+  @apply opacity-0 sr-only;
 }
 
 .nav-item__badge {
-  @apply ml-auto;
+  @apply ml-auto transition-opacity duration-300;
 }
 
 .sidebar__user {
-  @apply p-4 border-t border-gray-200;
+  @apply p-4 border-t border-gray-200 transition-all duration-300;
+}
+
+.sidebar--collapsed .sidebar__user {
+  @apply p-2;
 }
 
 .user-card {
   @apply flex items-center space-x-3;
+}
+
+.sidebar--collapsed .user-card {
+  @apply justify-center;
 }
 
 .user-avatar {
@@ -289,8 +382,16 @@ const handleLogout = async () => {
   @apply w-10 h-10 bg-primary-500 text-white rounded-full flex items-center justify-center font-semibold;
 }
 
+.sidebar--collapsed .avatar-placeholder {
+  @apply w-8 h-8;
+}
+
 .user-info {
-  @apply flex-1 min-w-0;
+  @apply flex-1 min-w-0 transition-opacity duration-300;
+}
+
+.sidebar--collapsed .user-info {
+  @apply opacity-0 sr-only;
 }
 
 .user-name {
@@ -299,31 +400,6 @@ const handleLogout = async () => {
 
 .user-role {
   @apply text-sm text-gray-500;
-}
-
-/* 折叠状态样式 */
-.sidebar--collapsed {
-  width: 64px;
-}
-
-.sidebar--collapsed .logo__text,
-.sidebar--collapsed .nav-item__text,
-.sidebar--collapsed .nav-section__title,
-.sidebar--collapsed .user-info,
-.sidebar--collapsed .nav-item__badge {
-  @apply sr-only;
-}
-
-.sidebar--collapsed .sidebar__logo {
-  @apply p-4;
-}
-
-.sidebar--collapsed .nav-item {
-  @apply justify-center;
-}
-
-.sidebar--collapsed .user-card {
-  @apply justify-center;
 }
 
 /* 响应式设计 */
@@ -374,5 +450,62 @@ const handleLogout = async () => {
 
 .sidebar__nav::-webkit-scrollbar-thumb:hover {
   @apply bg-gray-400;
+}
+
+/* 折叠状态下的提示框 */
+.nav-item {
+  position: relative;
+}
+
+.sidebar--collapsed .nav-item:hover::after {
+  content: attr(title);
+  @apply absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded whitespace-nowrap z-50;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+/* 深色模式支持 */
+.dark .sidebar {
+  @apply bg-gray-800 border-gray-700;
+}
+
+.dark .sidebar__logo,
+.dark .sidebar__toggle,
+.dark .sidebar__user {
+  @apply border-gray-700;
+}
+
+.dark .nav-section__title {
+  @apply text-gray-400;
+}
+
+.dark .nav-item {
+  @apply text-gray-300 hover:bg-gray-700;
+}
+
+.dark .nav-item--active {
+  @apply bg-primary-900 text-primary-300 hover:bg-primary-900;
+}
+
+.dark .toggle-btn {
+  @apply text-gray-400 hover:bg-gray-700 hover:text-gray-200;
+}
+
+.dark .user-name {
+  @apply text-gray-100;
+}
+
+.dark .user-role {
+  @apply text-gray-400;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 </style>

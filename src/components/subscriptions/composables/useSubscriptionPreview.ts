@@ -78,29 +78,6 @@ export function useSubscriptionPreview() {
   const nodes = ref<IPreviewNode[]>([])
   const error = ref<string | null>(null)
 
-  // 简单缓存机制
-  const cache = new Map<string, { data: IPreviewNode[]; timestamp: number }>()
-  const CACHE_TTL = 5 * 60 * 1000 // 5分钟缓存
-  const MAX_CACHE_SIZE = 20 // 最大缓存数量
-
-  // 清理过期缓存
-  const cleanCache = () => {
-    const now = Date.now()
-    for (const [key, value] of cache.entries()) {
-      if (now - value.timestamp > CACHE_TTL) {
-        cache.delete(key)
-      }
-    }
-
-    // 如果缓存仍然过大，删除最旧的条目
-    if (cache.size > MAX_CACHE_SIZE) {
-      const entries = Array.from(cache.entries())
-      entries.sort((a, b) => a[1].timestamp - b[1].timestamp)
-      const toDelete = entries.slice(0, entries.length - MAX_CACHE_SIZE)
-      toDelete.forEach(([key]) => cache.delete(key))
-    }
-  }
-
   // 过滤器状态
   const filters = ref({
     enabled: true,
@@ -185,18 +162,6 @@ export function useSubscriptionPreview() {
       return
     }
 
-    // 先清理过期缓存
-    cleanCache()
-
-    // 检查缓存
-    const cacheKey = `subscription_${subscriptionId}_${user.id}`
-    const cached = cache.get(cacheKey)
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      nodes.value = [...cached.data]
-      message.info('使用缓存的节点数据')
-      return
-    }
-
     loading.value = true
     clearError()
 
@@ -238,12 +203,6 @@ export function useSubscriptionPreview() {
 
         // 先设置数据
         nodes.value = [...processedNodes];
-
-        // 缓存数据
-        cache.set(cacheKey, {
-          data: [...processedNodes],
-          timestamp: Date.now()
-        })
 
         // 等待下一个tick确保响应式更新完成
         await nextTick()
@@ -306,13 +265,7 @@ export function useSubscriptionPreview() {
   }
 
   // 刷新节点数据
-  const refreshNodes = (forceRefresh = false) => {
-    if (forceRefresh && subscription.value?.id) {
-      // 强制刷新时清除缓存
-      const cacheKey = `subscription_${subscription.value.id}_${user.id}`
-      cache.delete(cacheKey)
-    }
-
+  const refreshNodes = () => {
     if (subscription.value?.id) {
       fetchSubscriptionNodes(subscription.value.id)
     }

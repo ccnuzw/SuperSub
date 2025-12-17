@@ -6,8 +6,20 @@
 <template>
   <header class="app-header">
     <div class="app-header__content">
-      <!-- 左侧：移动端菜单按钮和页面标题 -->
+      <!-- 左侧：桌面端折叠按钮、移动端菜单按钮和页面标题 -->
       <div class="app-header__left">
+        <!-- 桌面端侧边栏折叠按钮 -->
+        <SsButton
+          v-if="!isMobile && showSidebar"
+          variant="ghost"
+          size="md"
+          @click="handleSidebarToggle"
+          class="sidebar-toggle-button"
+          :title="sidebarCollapsed ? '展开侧边栏' : '折叠侧边栏'"
+        >
+          <component :is="sidebarCollapsed ? MenuExpandIcon : MenuCollapseIcon" class="w-5 h-5" />
+        </SsButton>
+
         <SsButton
           v-if="isMobile"
           variant="ghost"
@@ -120,6 +132,8 @@ import { useThemeStore } from '@/stores/theme';
 import { useIsMobile } from '@/composables/useMediaQuery';
 import {
   MenuOutline as MenuIcon,
+  ChevronForwardOutline as MenuExpandIcon,
+  ChevronBackOutline as MenuCollapseIcon,
   SunnyOutline as SunIcon,
   MoonOutline as MoonIcon,
 } from '@vicons/ionicons5';
@@ -128,14 +142,19 @@ interface IProps {
   title?: string;
   description?: string;
   showSearch?: boolean;
+  showSidebar?: boolean;
+  sidebarCollapsed?: boolean;
 }
 
 const props = withDefaults(defineProps<IProps>(), {
-  showSearch: true
+  showSearch: true,
+  showSidebar: true,
+  sidebarCollapsed: false
 });
 
 const emit = defineEmits<{
   menuToggle: [];
+  sidebarToggle: [];
   search: [query: string];
 }>();
 
@@ -247,6 +266,10 @@ const userMenuOptions = computed(() => [
 // 方法
 const handleMenuToggle = () => {
   emit('menuToggle');
+};
+
+const handleSidebarToggle = () => {
+  emit('sidebarToggle');
 };
 
 const handleSearch = (value: string) => {
