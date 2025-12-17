@@ -1,23 +1,12 @@
 /**
  * 重构后的应用主布局组件
- * 使用新的设计系统和基础组件
+ * 真正的左右布局：左侧栏从上到下，右侧区域包含顶部搜索和功能页面
  */
 
 <template>
   <div class="app-layout" :class="{ 'app-layout--mobile': isMobile }">
-    <!-- 应用头部 -->
-    <AppHeader
-      :title="headerTitle"
-      :description="headerDescription"
-      :show-search="showSearch"
-      :sidebar-collapsed="sidebarCollapsed"
-      @menu-toggle="handleMobileMenuToggle"
-      @sidebar-toggle="handleSidebarToggle"
-      @search="handleGlobalSearch"
-    />
-
-    <div class="app-layout__body">
-      <!-- 侧边栏 -->
+    <div class="app-layout__container">
+      <!-- 左侧栏 -->
       <aside
         v-if="showSidebar"
         class="app-layout__sidebar"
@@ -26,7 +15,7 @@
           'app-layout__sidebar--mobile-open': mobileSidebarOpen
         }"
       >
-        <Sidebar :collapsed="sidebarCollapsed" />
+        <Sidebar :collapsed="sidebarCollapsed" @toggle="handleSidebarToggle" />
       </aside>
 
       <!-- 移动端遮罩 -->
@@ -36,7 +25,7 @@
         @click="closeMobileSidebar"
       />
 
-      <!-- 主内容区域 -->
+      <!-- 右侧内容区域 -->
       <main
         class="app-layout__main"
         :class="{
@@ -44,6 +33,15 @@
           'app-layout__main--sidebar-collapsed': sidebarCollapsed
         }"
       >
+        <!-- 内容区域顶部：包含全局搜索和页面信息 -->
+        <ContentHeader
+          :title="title"
+          :description="description"
+          :show-search="showSearch"
+          @search="handleGlobalSearch"
+        />
+
+        <!-- 页面内容 -->
         <div class="app-layout__content">
           <RouterView v-slot="{ Component, route }">
             <Transition name="page" mode="out-in">
@@ -52,6 +50,15 @@
           </RouterView>
         </div>
       </main>
+    </div>
+
+    <!-- 移动端菜单按钮 -->
+    <div
+      v-if="isMobile && showSidebar"
+      class="mobile-menu-button"
+      @click="handleMobileMenuToggle"
+    >
+      <MenuIcon class="w-6 h-6" />
     </div>
 
     <!-- 全局搜索结果弹窗 -->
@@ -74,13 +81,14 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { NModal } from 'naive-ui';
-import { AppHeader, Sidebar } from './index';
+import { Sidebar, ContentHeader } from './index';
 import { useAuthStore } from '@/stores/auth';
 import { useThemeStore } from '@/stores/theme';
 import { useIsMobile } from '@/composables/useMediaQuery';
 import { LAYOUT_CONSTANTS } from './index';
 import GlobalSearchResults from '@/components/common/GlobalSearchResults.vue';
 import type { IStandardProps } from '@/utils/componentApiStandards';
+import { MenuOutline as MenuIcon } from '@vicons/ionicons5';
 
 interface Props extends IStandardProps {
   // 是否显示侧边栏
@@ -117,37 +125,8 @@ const mobileSidebarOpen = ref(false);
 const globalSearchQuery = ref('');
 const showGlobalSearch = ref(false);
 
-// 计算属性
-const headerTitle = computed(() => {
-  if (props.title) return props.title;
-
-  // 根据路由自动生成页面标题
-  const titleMap: Record<string, string> = {
-    home: '仪表板',
-    subscriptions: '订阅管理',
-    nodes: '节点管理',
-    profiles: '配置文件',
-    'user-management': '用户管理',
-    settings: '系统设置'
-  };
-
-  return titleMap[route.name as string] || 'SuperSub';
-});
-
-const headerDescription = computed(() => {
-  if (props.description) return props.description;
-
-  const descriptionMap: Record<string, string> = {
-    home: '查看系统概览和快速操作',
-    subscriptions: '管理和监控订阅源',
-    nodes: '管理代理节点和连接状态',
-    profiles: '创建和管理配置文件',
-    'user-management': '管理用户账户和权限',
-    settings: '配置系统参数和个人偏好'
-  };
-
-  return descriptionMap[route.name as string];
-});
+// 计算属性 - 简化因为ContentHeader会处理标题逻辑
+// 不再需要headerTitle和headerDescription计算属性
 
 // 监听窗口大小变化，处理移动端侧边栏
 const handleResize = () => {
@@ -237,15 +216,11 @@ onMounted(() => {
       console.error('Failed to parse sidebar collapsed state:', error);
     }
   }
-
-  // 监听侧边栏的全局切换事件
-  window.addEventListener('sidebar-toggle', handleSidebarToggle);
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   window.removeEventListener('keydown', handleKeydown);
-  window.removeEventListener('sidebar-toggle', handleSidebarToggle);
 });
 
 // 暴露方法给父组件
@@ -274,61 +249,63 @@ defineExpose({
 
 <style scoped>
 .app-layout {
-  @apply h-screen flex flex-col bg-gray-50;
+  @apply h-screen bg-gray-50 relative;
 }
 
 .app-layout--mobile {
   @apply overflow-hidden;
 }
 
-.app-layout__body {
-  @apply flex flex-1 relative overflow-hidden;
+.app-layout__container {
+  @apply h-full flex relative;
 }
 
 /* 侧边栏样式 */
 .app-layout__sidebar {
-  @apply fixed left-0 top-16 z-40 h-[calc(100vh-64px)] transition-transform duration-300 ease-in-out lg:relative lg:top-0 lg:z-0;
+  @apply h-full bg-white border-r border-gray-200 transition-all duration-300 ease-in-out z-30;
   width: 280px;
+  flex-shrink: 0;
 }
 
 .app-layout__sidebar--collapsed {
-  @apply w-16;
+  width: 64px;
+}
+
+/* 移动端侧边栏 */
+.app-layout__sidebar:not(.app-layout__sidebar--mobile-open) {
+  @apply fixed left-0 top-0 transform -translate-x-full lg:translate-x-0 lg:relative;
 }
 
 .app-layout__sidebar--mobile-open {
   @apply translate-x-0;
 }
 
-/* 移动端侧边栏默认隐藏 */
-.app-layout__sidebar:not(.app-layout__sidebar--mobile-open) {
-  @apply -translate-x-full lg:translate-x-0;
-}
-
 /* 遮罩层 */
 .app-layout__overlay {
-  @apply fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden;
+  @apply fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden;
 }
 
 /* 主内容区域 */
 .app-layout__main {
-  @apply flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out;
-  margin-left: 0;
+  @apply flex-1 flex flex-col min-h-0 relative;
 }
 
 .app-layout__main--full {
-  @apply ml-0;
+  @apply w-full;
 }
 
 .app-layout__main--sidebar-collapsed {
-  @apply lg:ml-16;
+  @apply lg:ml-0; /* 不再需要margin，因为是flex布局 */
 }
 
-.app-layout__main:not(.app-layout__main--full):not(.app-layout__main--sidebar-collapsed) {
-  @apply lg:ml-72;
-}
-
+/* 内容区域 */
 .app-layout__content {
-  @apply flex-1 overflow-y-auto p-4 lg:p-6;
+  @apply flex-1 overflow-y-auto p-4 lg:p-6 bg-gray-50;
+}
+
+/* 移动端菜单按钮 */
+.mobile-menu-button {
+  @apply fixed top-4 left-4 z-40 p-2 bg-white rounded-lg shadow-lg border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all duration-200 lg:hidden;
 }
 
 /* 页面切换动画 */
@@ -352,6 +329,10 @@ defineExpose({
   .app-layout__content {
     @apply p-3;
   }
+
+  .mobile-menu-button {
+    @apply top-3 left-3;
+  }
 }
 
 /* 深色模式支持 */
@@ -363,6 +344,14 @@ defineExpose({
   @apply bg-gray-800 border-gray-700;
 }
 
+.dark .app-layout__content {
+  @apply bg-gray-900;
+}
+
+.dark .mobile-menu-button {
+  @apply bg-gray-800 border-gray-600 text-gray-400 hover:text-gray-200 hover:bg-gray-700;
+}
+
 .dark .app-layout__overlay {
   @apply bg-black bg-opacity-70;
 }
@@ -370,7 +359,6 @@ defineExpose({
 /* 减少动画效果（尊重用户偏好） */
 @media (prefers-reduced-motion: reduce) {
   .app-layout__sidebar,
-  .app-layout__main,
   .page-enter-active,
   .page-leave-active {
     transition: none;
@@ -391,12 +379,17 @@ defineExpose({
 /* 打印样式 */
 @media print {
   .app-layout__sidebar,
-  .app-layout__overlay {
+  .app-layout__overlay,
+  .mobile-menu-button {
     display: none;
   }
 
   .app-layout__main {
-    @apply ml-0;
+    @apply w-full;
+  }
+
+  .app-layout__content {
+    @apply p-0;
   }
 }
 </style>

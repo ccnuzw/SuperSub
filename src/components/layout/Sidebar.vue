@@ -156,6 +156,10 @@ const props = withDefaults(defineProps<Props>(), {
   collapsed: false
 });
 
+const emit = defineEmits<{
+  toggle: [];
+}>();
+
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
@@ -235,11 +239,7 @@ const handleLogout = async () => {
 };
 
 const handleToggle = () => {
-  // 通过父组件处理折叠切换
-  // 这里我们使用全局事件或者通过 Layout 组件来处理
-  // 暂时使用自定义事件
-  const event = new CustomEvent('sidebar-toggle');
-  window.dispatchEvent(event);
+  emit('toggle');
 };
 </script>
 
