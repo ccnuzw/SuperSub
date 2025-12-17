@@ -1,0 +1,197 @@
+{
+  "root": true,
+  "env": {
+    "browser": true,
+    "es2022": true,
+    "node": true,
+    "vue/setup-compiler-macros": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "@vue/eslint-config-typescript",
+    "@vue/eslint-config-prettier",
+    "plugin:vue/vue3-recommended",
+    "plugin:@typescript-eslint/recommended",
+    "prettier"
+  ],
+  "parser": "vue-eslint-parser",
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module",
+    "parser": "@typescript-eslint/parser",
+    "extraFileExtensions": [".vue"]
+  },
+  "plugins": [
+    "vue",
+    "@typescript-eslint",
+    "prettier"
+  ],
+  "rules": {
+    // TypeScript 规则
+    "@typescript-eslint/no-unused-vars": ["error", {
+      "argsIgnorePattern": "^_",
+      "varsIgnorePattern": "^_"
+    }],
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/no-non-null-assertion": "warn",
+    "@typescript-eslint/prefer-optional-chain": "error",
+    "@typescript-eslint/prefer-nullish-coalescing": "error",
+    "@typescript-eslint/no-inferrable-types": "error",
+    "@typescript-eslint/consistent-type-definitions": ["error", "interface"],
+    "@typescript-eslint/type-annotation-spacing": ["error", {
+      "before": false,
+      "after": true,
+      "overrides": {
+        "arrow": { "before": true, "after": true }
+      }
+    }],
+
+    // Vue 3 规则
+    "vue/multi-word-component-names": "off",
+    "vue/no-multiple-template-root": "off",
+    "vue/component-tags-order": ["error", {
+      "order": ["script", "template", "style"]
+    }],
+    "vue/component-name-in-template-casing": ["error", "PascalCase"],
+    "vue/custom-event-name-casing": ["error", "camelCase"],
+    "vue/define-macros-order": ["error", {
+      "order": ["defineProps", "defineEmits"]
+    }],
+    "vue/no-unused-vars": "error",
+    "vue/no-unused-components": "error",
+    "vue/prefer-separate-static-class": "error",
+    "vue/prefer-true-attribute-shorthand": "error",
+    "vue/no-empty-pattern": "error",
+    "vue/no-loss-of-precision": "error",
+    "vue/no-reserved-component-names": ["error", {
+      "disallowVueBuiltins": true,
+      "disallowVue3Builtins": true
+    }],
+
+    // JavaScript 规则
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "no-debugger": "error",
+    "no-unused-vars": "off", // 由 TypeScript 规则处理
+    "prefer-const": "error",
+    "no-var": "error",
+    "object-shorthand": "error",
+    "prefer-template": "error",
+    "prefer-arrow-callback": "error",
+    "prefer-destructuring": ["error", {
+      "object": true,
+      "array": false
+    }],
+    "no-duplicate-imports": "error",
+    "no-useless-rename": "error",
+
+    // 代码风格规则
+    "prettier/prettier": "error",
+    "quotes": ["error", "single", {
+      "avoidEscape": true,
+      "allowTemplateLiterals": true
+    }],
+    "semi": ["error", "never"],
+    "comma-dangle": ["error", "never"],
+    "eqeqeq": ["error", "always"],
+    "curly": ["error", "all"],
+    "brace-style": ["error", "1tbs"],
+    "indent": "off", // 由 Prettier 处理
+    "max-len": ["warn", {
+      "code": 100,
+      "ignoreUrls": true,
+      "ignoreStrings": true,
+      "ignoreTemplateLiterals": true,
+      "ignoreComments": true
+    }],
+
+    // 函数相关规则
+    "func-style": ["error", "expression"],
+    "arrow-parens": ["error", "as-needed"],
+    "arrow-spacing": "error",
+    "no-confusing-arrow": "error",
+    "no-implied-eval": "error",
+    "no-new-func": "error",
+
+    // 数组和对象规则
+    "array-callback-return": "error",
+    "array-bracket-spacing": ["error", "never"],
+    "object-curly-spacing": ["error", "always"],
+    "object-curly-newline": ["error", {
+      "ObjectExpression": { "multiline": true, "consistent": true },
+      "ObjectPattern": { "multiline": true, "consistent": true },
+      "ImportDeclaration": { "multiline": true, "consistent": true },
+      "ExportDeclaration": { "multiline": true, "consistent": true }
+    }],
+
+    // TypeScript 特定规则（Vue 组合式 API）
+    "vue/no-setup-props-destructure": "warn",
+    "vue/valid-define-props": "error",
+    "vue/valid-define-emits": "error",
+    "vue/require-explicit-emits": "error",
+
+    // 类型检查
+    "valid-typeof": "error",
+    "no-undef": "off", // 由 TypeScript 处理
+
+    // 导入规则
+    "order-of-imports": ["error", {
+      "groups": [
+        "builtin",
+        "external",
+        "internal",
+        "parent",
+        "sibling",
+        "index",
+        "object",
+        "type"
+      ]
+    }]
+  },
+
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx"],
+      "rules": {
+        "@typescript-eslint/explicit-function-return-type": ["warn", {
+          "allowExpressions": true,
+          "allowTypedFunctionExpressions": true
+        }],
+        "@typescript-eslint/explicit-module-boundary-types": "warn"
+      }
+    },
+    {
+      "files": ["*.vue"],
+      "rules": {
+        "@typescript-eslint/explicit-function-return-type": "off",
+        "@typescript-eslint/explicit-module-boundary-types": "off"
+      }
+    },
+    {
+      "files": ["vite.config.ts", "vitest.config.ts", "**/*.config.ts"],
+      "rules": {
+        "import/no-extraneous-dependencies": "off"
+      }
+    },
+    {
+      "files": ["tests/**/*", "**/*.spec.ts", "**/*.test.ts"],
+      "env": {
+        "vitest/globals": true
+      },
+      "extends": ["plugin:vitest/recommended"],
+      "plugins": ["vitest"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "off",
+        "no-console": "off",
+        "vitest/expect-expect": "error",
+        "vitest/no-disabled-tests": "warn",
+        "vitest/no-focused-tests": "error"
+      }
+    }
+  ],
+  "globals": {
+    "defineProps": "readonly",
+    "defineEmits": "readonly",
+    "defineExpose": "readonly",
+    "withDefaults": "readonly"
+  }
+}

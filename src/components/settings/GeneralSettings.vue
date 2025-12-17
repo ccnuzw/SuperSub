@@ -1,246 +1,145 @@
 <template>
   <div class="p-4">
-    <n-form ref="formRef" :model="formState" label-placement="top">
-      <n-divider title-placement="left">Telegram 通知设置</n-divider>
-      <n-grid cols="1" md:cols="2" :x-gap="24">
-        <n-form-item-gi label="Bot Token" path="telegram_bot_token">
-          <n-input
-            v-model:value="formState.telegram_bot_token"
-            placeholder="输入您的 Telegram Bot Token"
-          />
-        </n-form-item-gi>
-        <n-form-item-gi label="Chat ID" path="telegram_chat_id">
-          <n-input
-            v-model:value="formState.telegram_chat_id"
-            placeholder="输入接收通知的频道或用户 Chat ID"
-          />
-        </n-form-item-gi>
-      </n-grid>
-      
-      <n-form-item>
-        <n-space>
-          <n-button type="primary" @click="handleSave" :loading="saveLoading">
-            保存设置
-          </n-button>
-          <n-button @click="handleTestTelegram" :loading="testLoading">
-            发送测试通知
+    <!-- 加载状态显示 -->
+    <n-spin v-if="isLoading" :show="true">
+      <template #description>
+        正在加载设置...
+      </template>
+    </n-spin>
+
+    <!-- 设置表单 -->
+    <div v-else>
+      <n-form ref="formRef" :model="formState" label-placement="top">
+        <n-divider title-placement="left">Telegram 通知设置</n-divider>
+        <n-grid cols="1" md:cols="2" :x-gap="24">
+          <n-form-item-gi label="Bot Token" path="telegram_bot_token">
+            <n-input
+              v-model:value="formState.telegram_bot_token"
+              placeholder="输入您的 Telegram Bot Token"
+              :disabled="saveLoading"
+            />
+          </n-form-item-gi>
+          <n-form-item-gi label="Chat ID" path="telegram_chat_id">
+            <n-input
+              v-model:value="formState.telegram_chat_id"
+              placeholder="输入接收通知的频道或用户 Chat ID"
+              :disabled="saveLoading"
+            />
+          </n-form-item-gi>
+        </n-grid>
+
+        <n-form-item>
+          <n-space>
+            <n-button type="primary" @click="handleSave" :loading="saveLoading" :disabled="!hasSettings && !formState.telegram_bot_token && !formState.telegram_chat_id">
+              保存设置
+            </n-button>
+            <n-button @click="handleTestTelegram" :loading="testLoading" :disabled="!formState.telegram_bot_token || !formState.telegram_chat_id">
+              发送测试通知
+            </n-button>
+          </n-space>
+        </n-form-item>
+      </n-form>
+
+      <n-divider title-placement="left">订阅令牌设置</n-divider>
+      <n-card>
+        <n-space vertical>
+          <n-text>您的私人订阅令牌，用于构建订阅链接。</n-text>
+          <div class="flex flex-wrap items-center gap-2">
+            <n-input
+              class="flex-grow"
+              v-model:value="subToken"
+              placeholder="正在加载..."
+              :disabled="saveTokenLoading || resetLoading"
+            />
+            <n-button @click="copyToken" type="primary" ghost :disabled="!subToken">
+              复制
+            </n-button>
+            <n-button @click="saveToken" type="primary" :loading="saveTokenLoading" :disabled="!subToken">
+              保存
+            </n-button>
+          </div>
+          <n-button @click="resetToken" type="error" ghost :loading="resetLoading" class="mt-2">
+            重置令牌
           </n-button>
         </n-space>
-      </n-form-item>
-    </n-form>
+      </n-card>
 
-    <n-divider title-placement="left">订阅令牌设置</n-divider>
-    <n-card>
-      <n-space vertical>
-        <n-text>您的私人订阅令牌，用于构建订阅链接。</n-text>
-        <div class="flex flex-wrap items-center gap-2">
-          <n-input class="flex-grow" v-model:value="subToken" placeholder="正在加载..." />
-          <n-button @click="copyToken" type="primary" ghost>
-            复制
+      <n-divider title-placement="left">修改密码</n-divider>
+      <n-form ref="passwordFormRef" :model="passwordFormState" :rules="passwordRules" label-placement="top">
+        <n-grid cols="1" md:cols="2" :x-gap="24">
+          <n-form-item-gi label="新密码" path="password">
+            <n-input
+              v-model:value="passwordFormState.password"
+              type="password"
+              placeholder="输入新密码"
+              show-password-on="click"
+              :disabled="passwordChangeLoading"
+            />
+          </n-form-item-gi>
+        </n-grid>
+        <n-form-item>
+          <n-button type="primary" @click="handlePasswordChange" :loading="passwordChangeLoading" :disabled="!passwordFormState.password">
+            修改密码
           </n-button>
-          <n-button @click="saveToken" type="primary" :loading="saveTokenLoading">
-            保存
-          </n-button>
-        </div>
-        <n-button @click="resetToken" type="error" ghost :loading="resetLoading" class="mt-2">
-          重置令牌
-        </n-button>
-      </n-space>
-    </n-card>
+        </n-form-item>
+      </n-form>
+    </div>
   </div>
-
-  <n-divider title-placement="left">修改密码</n-divider>
-  <n-form ref="passwordFormRef" :model="passwordFormState" :rules="passwordRules" label-placement="top">
-    <n-grid cols="1" md:cols="2" :x-gap="24">
-      <n-form-item-gi label="新密码" path="password">
-        <n-input
-          v-model:value="passwordFormState.password"
-          type="password"
-          placeholder="输入新密码"
-          show-password-on="click"
-        />
-      </n-form-item-gi>
-    </n-grid>
-    <n-form-item>
-      <n-button type="primary" @click="handlePasswordChange" :loading="passwordChangeLoading">
-        修改密码
-      </n-button>
-    </n-form-item>
-  </n-form>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { onMounted, onActivated } from 'vue';
 import {
-  NForm, NFormItem, NInput, NButton, useMessage, NDivider, NSpace, NGrid, NFormItemGi, NCard, NInputGroup, NText, type FormInst, type FormRules
+  NForm, NFormItem, NInput, NButton, useMessage, NDivider, NSpace, NGrid,
+  NFormItemGi, NCard, NText, type FormInst, NSpin
 } from 'naive-ui';
-import { api } from '@/utils/api';
-import { useAuthStore } from '@/stores/auth';
-import { LogoutInProgressError } from '@/utils/errors';
+import { useSettings } from '@/composables/useSettings';
 
-const message = useMessage();
-const authStore = useAuthStore();
-const formRef = ref<any>(null);
-const saveLoading = ref(false);
-const testLoading = ref(false);
-const resetLoading = ref(false);
-const saveTokenLoading = ref(false);
-const passwordChangeLoading = ref(false);
-const subToken = ref('');
-const passwordFormRef = ref<FormInst | null>(null);
+// 使用设置组合式函数
+const {
+  saveLoading,
+  testLoading,
+  resetLoading,
+  saveTokenLoading,
+  passwordChangeLoading,
+  subToken,
+  formRef,
+  passwordFormRef,
+  formState,
+  passwordFormState,
+  passwordRules,
+  handleSave,
+  handleTestTelegram,
+  copyToken,
+  resetToken,
+  saveToken,
+  handlePasswordChange,
+  initializeSettings,
+  isLoading,
+  hasSettings,
+} = useSettings();
 
-const formState = ref({
-  telegram_bot_token: '',
-  telegram_chat_id: '',
-});
-
-const passwordFormState = ref({
-  password: '',
-});
-
-const passwordRules: FormRules = {
-  password: [
-    { required: true, message: '请输入新密码', trigger: 'blur' },
-  ]
-};
-
-const fetchSubToken = async () => {
-  if (!authStore.isAuthenticated) {
-    return;
-  }
-  try {
-    const response = await api.get('/user/sub-token');
-    if (response.data.success) {
-      subToken.value = response.data.data.token;
-    }
-  } catch (error) {
-    if (error instanceof LogoutInProgressError) {
-      console.log('Logout in progress, skipping sub token fetch.');
-      return;
-    }
-    message.error('获取订阅令牌失败');
-  }
-};
-
-const copyToken = () => {
-  if (subToken.value) {
-    navigator.clipboard.writeText(subToken.value);
-    message.success('已复制到剪贴板');
-  }
-};
-
-const resetToken = async () => {
-  resetLoading.value = true;
-  try {
-    const response = await api.post('/user/sub-token/reset');
-    if (response.data.success) {
-      subToken.value = response.data.data.token;
-      authStore.updateTokenAndUser(response.data.data);
-      message.success('订阅令牌已重置');
-    }
-  } catch (error) {
-    message.error('重置订阅令牌失败');
-  } finally {
-    resetLoading.value = false;
-  }
-};
-
-const saveToken = async () => {
-  saveTokenLoading.value = true;
-  try {
-    const response = await api.put('/user/sub-token', { token: subToken.value });
-    if (response.data.success) {
-      authStore.updateTokenAndUser(response.data.data);
-      message.success('订阅令牌已保存');
-    }
-  } catch (error: any) {
-    message.error(error.response?.data?.message || '保存订阅令牌失败');
-  } finally {
-    saveTokenLoading.value = false;
-  }
-};
-
-const fetchSettings = async () => {
-  if (!authStore.isAuthenticated) {
-    return;
-  }
-  try {
-    const userSettingsResponse = await api.get('/settings');
-    if (userSettingsResponse.data.success && Array.isArray(userSettingsResponse.data.data)) {
-      const settings = userSettingsResponse.data.data.reduce((acc: Record<string, any>, setting: { key: string, value: any }) => {
-        acc[setting.key] = setting.value;
-        return acc;
-      }, {});
-      formState.value.telegram_bot_token = settings.telegram_bot_token || '';
-      formState.value.telegram_chat_id = settings.telegram_chat_id || '';
-    }
-  } catch (error) {
-    console.warn('Could not fetch settings.', error);
-    message.error('加载设置失败');
-  }
-};
-
-const handleSave = async () => {
-  saveLoading.value = true;
-  try {
-    const userSettingsPayload = [
-      {
-        key: 'telegram_bot_token',
-        value: formState.value.telegram_bot_token,
-        type: 'string',
-        category: 'telegram',
-        description: 'Telegram Bot Token'
-      },
-      {
-        key: 'telegram_chat_id',
-        value: formState.value.telegram_chat_id,
-        type: 'string',
-        category: 'telegram',
-        description: 'Telegram Chat ID'
-      }
-    ];
-    await api.post('/settings', userSettingsPayload);
-    message.success('设置已保存');
-  } catch (error) {
-    message.error('保存设置失败，请检查后端服务');
-    console.error('Failed to save settings:', error);
-  } finally {
-    saveLoading.value = false;
-  }
-};
-
-const handleTestTelegram = async () => {
-  testLoading.value = true;
-  try {
-    await api.post('/system/settings/test-telegram');
-    message.success('测试消息已发送，请检查您的 Telegram');
-  } catch (error: any) {
-    message.error(error.response?.data?.message || '发送测试消息失败');
-    console.error('Failed to send test message:', error);
-  } finally {
-    testLoading.value = false;
-  }
-};
-
-const handlePasswordChange = async () => {
-  passwordFormRef.value?.validate(async (errors) => {
-    if (!errors) {
-      passwordChangeLoading.value = true;
-      try {
-        await api.put('/user/password', { password: passwordFormState.value.password });
-        message.success('密码修改成功');
-        passwordFormState.value.password = ''; // Clear password field
-      } catch (error: any) {
-        message.error(error.response?.data?.message || '修改密码失败');
-      } finally {
-        passwordChangeLoading.value = false;
-      }
-    }
-  });
-};
-
+// 组件挂载时初始化设置
 onMounted(() => {
-  fetchSettings();
-  fetchSubToken();
+  initializeSettings();
+});
+
+// 组件激活时（从其他tab切换回来）重新初始化设置
+onActivated(() => {
+  initializeSettings();
 });
 </script>
+
+<style scoped>
+.n-form-item {
+  margin-bottom: 16px;
+}
+
+.n-card {
+  margin-bottom: 16px;
+}
+
+.n-divider {
+  margin: 24px 0 16px 0;
+}
+</style>

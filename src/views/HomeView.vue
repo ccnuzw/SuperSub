@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { NStatistic, NGrid, NGi, NCard, NSkeleton, NAlert, NPageHeader } from 'naive-ui';
 import { useAuthStore } from '@/stores/auth';
 import { useNodeStatusStore } from '@/stores/nodeStatus';
-import { api } from '@/utils/api';
+import { httpClient } from '@/services/http/HttpClient';
 
 const authStore = useAuthStore();
 const nodeStatusStore = useNodeStatusStore();
@@ -22,19 +22,19 @@ const logSummary = ref({
 const loading = ref(true);
 const error = ref<string | null>(null);
 
-interface StatsData {
+interface IStatsData {
   subscriptions: number;
   nodes: number;
   profiles: number;
 }
 
-interface StatsApiResponse {
+interface IStatsApiResponse {
   success: boolean;
-  data?: StatsData;
+  data?: IStatsData;
   message?: string;
 }
 
-interface LogSummaryApiResponse {
+interface ILogSummaryApiResponse {
   success: boolean;
   data?: {
     todayAccess: number;
@@ -43,7 +43,7 @@ interface LogSummaryApiResponse {
   message?: string;
 }
 
-const onlineNodes = computed(() => Object.values(nodeStatusStore.statuses).filter(s => s.status === 'healthy').length);
+const onlineNodes = computed(() => Object.values(nodeStatusStore.statuses).filter((s: any) => s.status === 'healthy').length);
 const offlineNodes = computed(() => stats.value.nodes - onlineNodes.value);
 
 
@@ -51,21 +51,21 @@ onMounted(async () => {
   loading.value = true;
   try {
     const [statsResponse, logSummaryResponse] = await Promise.all([
-      api.get<StatsApiResponse>('/stats'),
-      api.get<LogSummaryApiResponse>('/admin/logs/summary')
+      httpClient.get<IStatsApiResponse>('/stats'),
+      httpClient.get<ILogSummaryApiResponse>('/admin/logs/summary')
     ]);
 
-    if (statsResponse.data.success && statsResponse.data.data) {
-      stats.value = statsResponse.data.data;
+    if (statsResponse.success && statsResponse.data) {
+      stats.value = statsResponse.data as any;
     } else {
-      throw new Error(statsResponse.data.message || 'Failed to fetch stats');
+      throw new Error(statsResponse.message || 'Failed to fetch stats');
     }
 
-    if (logSummaryResponse.data.success && logSummaryResponse.data.data) {
-      logSummary.value = logSummaryResponse.data.data;
+    if (logSummaryResponse.success && logSummaryResponse.data) {
+      logSummary.value = logSummaryResponse.data as any;
     } else {
       // Non-critical, so just log it
-      console.error('Failed to fetch log summary:', logSummaryResponse.data.message);
+      console.error('Failed to fetch log summary:', logSummaryResponse.message);
     }
 
   } catch (err: any) {
@@ -75,9 +75,10 @@ onMounted(async () => {
   }
 
   // Fetch node statuses if not already fetched
-  if (Object.keys(nodeStatusStore.statuses).length === 0) {
-    await nodeStatusStore.fetchStatuses();
-  }
+  // Note: This requires specific node IDs to fetch
+  // if (Object.keys(nodeStatusStore.statuses).length === 0) {
+  //   await nodeStatusStore.fetchStatuses([]);
+  // }
 });
 </script>
 

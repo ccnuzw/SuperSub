@@ -8,7 +8,7 @@ const subscriptionGroups = new Hono<{ Bindings: Env }>();
 subscriptionGroups.get('/', manualAuthMiddleware, async (c) => {
     const user = c.get('jwtPayload');
     const { results } = await c.env.DB.prepare(
-        'SELECT * FROM subscription_groups WHERE user_id = ? ORDER BY sort_order ASC'
+        'SELECT sg.*, COUNT(s.id) as subscription_count FROM subscription_groups sg LEFT JOIN subscriptions s ON sg.id = s.group_id WHERE sg.user_id = ? GROUP BY sg.id ORDER BY sg.sort_order ASC'
     ).bind(user.id).all();
     return c.json({ success: true, data: results });
 });

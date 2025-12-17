@@ -3,7 +3,7 @@
     <codemirror
       v-model="code"
       placeholder="Enter your template content here..."
-      :style="{ height: '400px' }"
+      class="h-[400px]"
       :autofocus="true"
       :indent-with-tab="true"
       :tab-size="2"
@@ -15,17 +15,24 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import type { IStandardProps, IStandardEmits } from '@/utils/componentApiStandards';
 import { Codemirror } from 'vue-codemirror';
 import { yaml } from '@codemirror/lang-yaml';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView } from '@codemirror/view';
 
-const props = defineProps<{
+interface Props extends IStandardProps {
   modelValue: string;
   language?: 'yaml' | 'json' | 'text';
-}>();
+}
 
-const emit = defineEmits(['update:modelValue']);
+const props = withDefaults(defineProps<Props>(), {
+  language: 'text'
+});
+
+const emit = defineEmits<IStandardEmits & {
+  'update:modelValue': [value: string];
+}>();
 
 const code = ref(props.modelValue);
 

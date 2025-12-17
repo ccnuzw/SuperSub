@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { hash, compare } from 'bcrypt-ts';
-import { sign } from 'hono/jwt';
+import { sign, verify } from 'hono/jwt';
 import type { Env } from '../utils/types';
 
 const auth = new Hono<{ Bindings: Env }>();
@@ -53,6 +53,76 @@ auth.post('/login', async (c) => {
     const payload = { id: user.id, username: user.username, role: user.role || 'user', sub_token: user.sub_token, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) };
     const token = await sign(payload, c.env.JWT_SECRET);
     return c.json({ success: true, data: { token, user: payload } });
+});
+
+auth.get('/me', async (c) => {
+    const authHeader = c.req.header('Authorization');
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return c.json({ success: false, message: 'No authorization token provided' }, 401);
+    }
+
+    const token = authHeader.substring(7);
+
+    try {
+        const payload = await verify(token, c.env.JWT_SECRET);
+
+        // Fetch fresh user data from database
+        const user = await c.env.DB.prepare(
+            'SELECT id, username, role, sub_token, created_at, updated_at FROM users WHERE id = ?'
+        ).bind(payload.id).first<any>();
+
+        if (!user) {
+            return c.json({ success: false, message: 'User not found' }, 404);
+        }
+
+        return c.json({
+            success: true,
+            data: {
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    role: user.role || 'user',
+                    sub_token: user.sub_token
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Token verification error:', error);
+        return c.json({ success: false, message: 'Invalid token' }, 401);
+    }
+});
+
+auth.post('/logout', async (c) => {
+    const authHeader = c.req.header('Authorization');
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return c.json({ success: false, message: 'No authorization token provided' }, 401);
+    }
+
+    const token = authHeader.substring(7);
+
+    try {
+        // Verify token to ensure it's valid
+        await verify(token, c.env.JWT_SECRET);
+
+        // In a stateless JWT setup, logout is typically handled on the client side
+        // by simply removing the token. Here we just return success to indicate
+        // the logout request was processed successfully.
+
+        return c.json({
+            success: true,
+            message: 'Successfully logged out'
+        });
+    } catch (error) {
+        console.error('Token verification error during logout:', error);
+        // Even if token is invalid, we still return success for logout
+        // since the client wants to clear their local state anyway
+        return c.json({
+            success: true,
+            message: 'Successfully logged out'
+        });
+    }
 });
 
 export default auth;

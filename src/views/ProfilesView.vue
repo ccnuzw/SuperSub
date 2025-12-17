@@ -1,351 +1,640 @@
+/**
+ * 重构后的配置文件列表视图
+ * 简化逻辑，使用新的组件架构和设计系统
+ */
+
+<template>
+  <div class="profiles-view">
+    <!-- 页面头部 -->
+    <div class="mb-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">配置文件管理</h1>
+          <p class="text-gray-600 mt-1">管理和导出您的代理配置文件</p>
+        </div>
+        <div class="flex space-x-3">
+          <SsButton
+            variant="outline"
+            @click="handleImportConfig"
+          >
+            导入配置
+          </SsButton>
+          <SsButton
+            variant="primary"
+            @click="handleCreateConfig"
+          >
+            新建配置
+          </SsButton>
+        </div>
+      </div>
+    </div>
+
+    <!-- 操作栏 -->
+    <div class="bg-white p-4 rounded-lg border border-gray-200 mb-6">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <!-- 搜索和筛选 -->
+        <div class="flex flex-col sm:flex-row gap-3 flex-1">
+          <div class="relative flex-1 max-w-md">
+            <SsInput
+              v-model="searchQuery"
+              placeholder="搜索配置名称或别名..."
+              prefix-icon="Search"
+              clearable
+              @input="handleSearch"
+            />
+          </div>
+
+          <div class="flex gap-2">
+            <NSelect
+              v-model:value="statusFilter"
+              placeholder="状态筛选"
+              clearable
+              :options="statusOptions"
+              class="w-[120px]"
+            />
+
+            <NSelect
+              v-model:value="sortBy"
+              placeholder="排序方式"
+              :options="sortOptions"
+              class="w-[140px]"
+            />
+
+            <SsButton
+              variant="ghost"
+              @click="toggleSortOrder"
+              :title="sortOrder === 'asc' ? '升序' : '降序'"
+            >
+              <svg class="w-4 h-4" :class="{ 'rotate-180': sortOrder === 'desc' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4v12m0 0l4-4m6 0v12m0 0l4-4m-4 4V4" />
+              </svg>
+            </SsButton>
+          </div>
+        </div>
+
+        <!-- 批量操作 -->
+        <div class="flex items-center gap-2">
+          <SsButton
+            variant="outline"
+            size="sm"
+            @click="handleRefresh"
+            :loading="refreshing"
+          >
+            刷新
+          </SsButton>
+
+          <NDropdown
+            v-if="selectedProfiles.length > 0"
+            :options="batchActions"
+            placement="bottom-end"
+            @select="handleBatchAction"
+          >
+            <SsButton variant="outline">
+              批量操作 ({{ selectedProfiles.length }})
+              <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </SsButton>
+          </NDropdown>
+        </div>
+      </div>
+    </div>
+
+    <!-- 配置列表 -->
+    <div class="bg-white rounded-lg border border-gray-200">
+      <!-- 列表头部 -->
+      <div class="px-6 py-3 border-b border-gray-200 bg-gray-50">
+        <div class="flex items-center">
+          <input
+            type="checkbox"
+            :checked="isAllSelected"
+            :indeterminate="isIndeterminateSelected"
+            @change="handleSelectAll"
+            class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          <span class="ml-3 text-sm font-medium text-gray-700">
+            共 {{ totalCount }} 个配置文件
+          </span>
+        </div>
+      </div>
+
+      <!-- 配置项列表 -->
+      <div class="divide-y divide-gray-200">
+        <!-- 加载状态 -->
+        <div v-if="loading" class="p-8">
+          <div class="flex items-center justify-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mr-3"></div>
+            <span class="text-gray-600">加载配置文件...</span>
+          </div>
+        </div>
+
+        <!-- 空状态 -->
+        <div v-else-if="filteredProfiles.length === 0" class="p-8">
+          <div class="text-center">
+            <div class="w-16 h-16 mx-auto mb-4 text-gray-400">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">暂无配置文件</h3>
+            <p class="text-gray-500 mb-4">创建您的第一个代理配置文件</p>
+            <SsButton variant="primary" @click="handleCreateConfig">
+              创建配置
+            </SsButton>
+          </div>
+        </div>
+
+        <!-- 配置项 -->
+        <div v-else>
+          <ProfileListItem
+            v-for="profile in paginatedProfiles"
+            :key="profile.id"
+            :profile="profile"
+            :selected="selectedProfiles.includes(profile.id)"
+            :sub-token="subToken"
+            @select="handleProfileSelect"
+            @preview="handleProfilePreview"
+            @edit="handleProfileEdit"
+            @duplicate="handleProfileDuplicate"
+            @delete="handleProfileDelete"
+            @copy-url="handleCopyUrl"
+            @export="handleExportConfig"
+          />
+        </div>
+      </div>
+
+      <!-- 分页 -->
+      <div v-if="filteredProfiles.length > pageSize" class="px-6 py-4 border-t border-gray-200">
+        <NPagination
+          v-model:page="currentPage"
+          :item-count="filteredProfiles.length"
+          :page-size="pageSize"
+          show-size-picker
+          :page-sizes="[10, 20, 50, 100]"
+          @update:page-size="handlePageSizeChange"
+        />
+      </div>
+    </div>
+
+    <!-- 预览模态框 -->
+    <ProfilePreviewModal
+      v-model:show="showPreviewModal"
+      :profile="previewProfile"
+    />
+
+    <!-- 导入模态框 -->
+    <ImportConfigModal
+      v-model:show="showImportModal"
+      @success="handleImportSuccess"
+    />
+  </div>
+</template>
+
 <script setup lang="ts">
-import { ref, onMounted, computed, h } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
-import { useMessage, useDialog, NButton, NSpace, NDataTable, NPageHeader, NModal, NSpin, NIcon, NTag, NStatistic, NCard, NGrid, NGi, NScrollbar, NLog, NSteps, NStep, NCode, NList, NListItem, NThing, NDropdown } from 'naive-ui';
-import type { DataTableColumns, DropdownOption } from 'naive-ui';
-import { Pencil as EditIcon, TrashBinOutline as DeleteIcon, CopyOutline as CopyIcon, EyeOutline as PreviewIcon, DocumentTextOutline as LogIcon, EllipsisVertical as MoreIcon } from '@vicons/ionicons5';
-import { useIsMobile } from '@/composables/useMediaQuery';
-import { api } from '@/utils/api';
+import { useMessage, NDropdown, NPagination, NSelect } from 'naive-ui';
+import { SsButton, SsInput } from '@/components/base';
+import ProfileListItem from '@/components/profile/ProfileListItem.vue';
+import { ProfilePreviewModal, ImportConfigModal } from './modals';
 import { useAuthStore } from '@/stores/auth';
-import { LogoutInProgressError } from '@/utils/errors';
-import type { ApiResponse, Profile, Subscription, Node, LogEntry, LogLevel } from '@/types';
-import { regenerateLink, type ParsedNode } from '@/utils/nodeParser';
-import { getNaiveTagColor } from '@/utils/colors';
-import SubscriptionLogModal from '@/components/SubscriptionLogModal.vue';
+import { useErrorHandler } from '@/plugins/errorHandler';
+import { useClipboard } from '@/composables/common/useClipboard';
+import httpClient from '@/services/http/HttpClient';
+import type { Profile } from '@/types';
 
 const router = useRouter();
 const message = useMessage();
-const dialog = useDialog();
-const isMobile = useIsMobile();
-
-const profiles = ref<Profile[]>([]);
-const loading = ref(true);
 const authStore = useAuthStore();
+const { handleError, safeExecute } = useErrorHandler();
+const { copyText } = useClipboard();
+
+// 响应式数据
+const loading = ref(false);
+const refreshing = ref(false);
+const profiles = ref<Profile[]>([]);
+
+// 搜索和筛选
+const searchQuery = ref('');
+const statusFilter = ref<string | null>(null);
+const sortBy = ref('updated_at');
+const sortOrder = ref<'asc' | 'desc'>('desc');
+const currentPage = ref(1);
+const pageSize = ref(20);
+
+// 选择状态
+const selectedProfiles = ref<string[]>([]);
+
+// 模态框状态
+const showPreviewModal = ref(false);
+const showImportModal = ref(false);
+const previewProfile = ref<Profile | null>(null);
+
+// 计算属性
 const subToken = computed(() => authStore.user?.sub_token || '');
+const totalCount = computed(() => profiles.value.length);
 
-// For Nodes Preview Modal
-const showNodesPreviewModal = ref(false);
-const showLogsModal = ref(false);
-const loadingNodesPreview = ref(false);
-const currentProfileForPreview = ref<Profile | null>(null);
-const nodesPreviewData = ref<{
-  nodes: Partial<Node>[];
-  analysis: {
-    total: number;
-    protocols: Record<string, number>;
-    regions: Record<string, number>;
-  };
-  mode: 'local' | 'remote';
-  logs: LogEntry[];
-} | null>(null);
+const filteredProfiles = computed(() => {
+  let filtered = profiles.value;
 
-// For Subscription Logs Modal
-const showSubLogsModal = ref(false);
-const currentProfileForLogs = ref<Profile | null>(null);
-
-const getStepStatus = (level: LogLevel) => {
-  switch (level) {
-    case 'ERROR':
-      return 'error';
-    case 'WARN':
-      return 'error'; // Naive UI doesn't have 'warning', map to 'error' to highlight
-    case 'SUCCESS':
-      return 'finish';
-    case 'INFO':
-    case 'STEP':
-    case 'DEBUG':
-    default:
-      return 'process';
+  // 搜索过滤
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase().trim();
+    filtered = filtered.filter(profile =>
+      profile.name.toLowerCase().includes(query) ||
+      (profile.alias && profile.alias.toLowerCase().includes(query))
+    );
   }
-};
 
-const nodes = computed(() => nodesPreviewData.value?.nodes || []);
-
-const previewNodeColumns: DataTableColumns<Partial<Node>> = [
-  { title: '节点名称', key: 'name', width: 300, ellipsis: { tooltip: true } },
-  {
-    title: '类型',
-    key: 'type',
-    width: 100,
-    align: 'center',
-    render(row) {
-        const protocol = row.protocol || row.type || 'N/A';
-        return h(NTag, {
-            size: 'small',
-            round: true,
-            color: getNaiveTagColor(protocol, 'protocol')
-        }, { default: () => protocol.toUpperCase() });
-    }
-  },
-  { title: '服务器', key: 'server', width: 200, ellipsis: { tooltip: true } },
-  { title: '端口', key: 'port', width: 80, align: 'center' },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 100,
-    align: 'center',
-    render(row) {
-      return h(NButton, {
-        size: 'tiny',
-        ghost: true,
-        type: 'primary',
-        onClick: () => {
-          // The row object from preview is a ParsedNode.
-          const link = regenerateLink(row as ParsedNode);
-          if (link) {
-            navigator.clipboard.writeText(link);
-            message.success('已复制完整链接');
-          } else {
-            message.error('无法生成链接');
-          }
-        }
-      }, { default: () => '复制链接' });
-    }
+  // 状态过滤
+  if (statusFilter.value) {
+    filtered = filtered.filter(profile => {
+      // 这里需要根据实际的状态字段进行过滤
+      return true; // 暂时显示所有
+    });
   }
+
+  // 排序
+  filtered.sort((a, b) => {
+    let comparison = 0;
+
+    switch (sortBy.value) {
+      case 'name':
+        comparison = a.name.localeCompare(b.name);
+        break;
+      case 'created_at':
+        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        break;
+      case 'updated_at':
+        comparison = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+        break;
+      default:
+        comparison = 0;
+    }
+
+    return sortOrder.value === 'desc' ? -comparison : comparison;
+  });
+
+  return filtered;
+});
+
+const paginatedProfiles = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  return filteredProfiles.value.slice(start, end);
+});
+
+const isAllSelected = computed(() => {
+  return paginatedProfiles.value.length > 0 &&
+         paginatedProfiles.value.every(profile => selectedProfiles.value.includes(profile.id));
+});
+
+const isIndeterminateSelected = computed(() => {
+  const selectedCount = paginatedProfiles.value.filter(profile =>
+    selectedProfiles.value.includes(profile.id)
+  ).length;
+  return selectedCount > 0 && selectedCount < paginatedProfiles.value.length;
+});
+
+// 配置选项
+const statusOptions = [
+  { label: '全部状态', value: '', type: 'ignored' as const },
+  { label: '正常', value: 'normal' },
+  { label: '异常', value: 'error' },
+  { label: '未生成', value: 'pending' }
 ];
 
+const sortOptions = [
+  { label: '更新时间', value: 'updated_at' },
+  { label: '创建时间', value: 'created_at' },
+  { label: '名称', value: 'name' }
+];
 
-const createColumns = ({ onCopy, onPreview, onLogs, onEdit, onDelete }: {
-    onCopy: (row: Profile) => void,
-    onPreview: (row: Profile) => void,
-    onLogs: (row: Profile) => void,
-    onEdit: (row
-: Profile) => void,
-    onDelete: (row: Profile) => void,
-}): DataTableColumns<Profile> => {
-  return [
-    { title: '名称', key: 'name', sorter: 'default', width: 200 },
-    {
-      title: '订阅链接',
-      key: 'alias',
-      render(row) {
-        if (!subToken.value || !row.alias) {
-          return h('span', '请设置链接别名');
-        }
-        const url = `${window.location.origin}/api/public/${subToken.value}/${row.alias}`;
-        return h(NButton, { text: true, tag: 'a', href: url, target: '_blank', type: 'primary' }, { default: () => url });
-      }
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 240,
-      render(row) {
-        return h(NSpace, null, {
-          default: () => [
-            h(NButton, { size: 'small', circle: true, title: '复制链接', onClick: () => onCopy(row) }, { icon: () => h(NIcon, null, { default: () => h(CopyIcon) }) }),
-            h(NButton, { size: 'small', circle: true, title: '预览', onClick: () => onPreview(row) }, { icon: () => h(NIcon, null, { default: () => h(PreviewIcon) }) }),
-            h(NButton, { size: 'small', circle: true, title: '日志', onClick: () => onLogs(row) }, { icon: () => h(NIcon, null, { default: () => h(LogIcon) }) }),
-            h(NButton, { size: 'small', circle: true, type: 'primary', title: '编辑', onClick: () => onEdit(row) }, { icon: () => h(NIcon, null, { default: () => h(EditIcon) }) }),
-            h(NButton, { size: 'small', circle: true, type: 'error', title: '删除', onClick: () => onDelete(row) }, { icon: () => h(NIcon, null, { default: () => h(DeleteIcon) }) }),
-          ]
-        });
-      }
-    }
-  ];
-};
+const batchActions = [
+  { label: '批量导出', key: 'export' },
+  { label: '批量删除', key: 'delete' }
+];
 
-
+// 方法
 const fetchProfiles = async () => {
-  const authStore = useAuthStore();
-  if (!authStore.isAuthenticated) return;
   loading.value = true;
+
   try {
-    const response = await api.get<ApiResponse<Profile[]>>('/profiles');
-    if (response.data.success) {
-      profiles.value = response.data.data || [];
+    const response = await httpClient.get<Profile[]>('/profiles');
+
+    if (response.success && response.data) {
+      profiles.value = response.data;
     } else {
-      message.error(response.data.message || '获取配置列表失败');
+      throw new Error(response.message || '获取配置文件失败');
     }
-  } catch (err: any) {
-    if (!axios.isCancel(err)) message.error(err.message || '请求失败');
+  } catch (error) {
+    handleError(error, {
+      context: 'fetchProfiles',
+      fallback: '获取配置文件失败'
+    });
   } finally {
     loading.value = false;
   }
 };
 
+const handleSearch = () => {
+  currentPage.value = 1;
+};
 
+const handleRefresh = async () => {
+  refreshing.value = true;
+  await fetchProfiles();
+  refreshing.value = false;
+  message.success('刷新成功');
+};
 
-const handleDelete = (row: Profile) => {
-  dialog.warning({
-    title: '确认删除',
-    content: `确定要删除配置 "${row.name}" 吗？`,
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        const response = await api.delete<ApiResponse>(`/profiles/${row.id}`);
-        if (response.data.success) {
-          message.success('配置删除成功');
-          fetchProfiles();
-        } else {
-          message.error(response.data.message || '删除失败');
-        }
-      } catch (err: any) {
-        if (!axios.isCancel(err)) message.error(err.message || '请求失败');
+const handleSelectAll = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (target.checked) {
+    const newIds = paginatedProfiles.value.map(profile => profile.id);
+    selectedProfiles.value = [...new Set([...selectedProfiles.value, ...newIds])];
+  } else {
+    paginatedProfiles.value.forEach(profile => {
+      const index = selectedProfiles.value.indexOf(profile.id);
+      if (index > -1) {
+        selectedProfiles.value.splice(index, 1);
       }
-    },
+    });
+  }
+};
+
+const handleProfileSelect = (profileId: string, selected: boolean) => {
+  if (selected) {
+    if (!selectedProfiles.value.includes(profileId)) {
+      selectedProfiles.value.push(profileId);
+    }
+  } else {
+    const index = selectedProfiles.value.indexOf(profileId);
+    if (index > -1) {
+      selectedProfiles.value.splice(index, 1);
+    }
+  }
+};
+
+const handleProfilePreview = (profile: Profile) => {
+  previewProfile.value = profile;
+  showPreviewModal.value = true;
+};
+
+const handleProfileEdit = (profile: Profile) => {
+  router.push({
+    name: 'edit-profile',
+    params: { id: profile.id }
   });
 };
 
-const handleCopyLink = (row: Profile) => {
-  if (!subToken.value || !row.alias) {
-    message.error('无法复制链接：缺少订阅令牌或链接别名。');
-    return;
-  }
-  const url = `${window.location.origin}/api/public/${subToken.value}/${row.alias}`;
-  navigator.clipboard.writeText(url).then(() => message.success('链接已复制'), () => message.error('复制失败'));
-};
-
-const onPreview = async (row: Profile) => {
-  currentProfileForPreview.value = row;
-  nodesPreviewData.value = null;
-  loadingNodesPreview.value = true;
-  showNodesPreviewModal.value = true;
+const handleProfileDuplicate = async (profile: Profile) => {
   try {
-    const response = await api.get<ApiResponse<typeof nodesPreviewData.value>>(`/profiles/${row.id}/preview-nodes`);
-    if (response.data.success) {
-      if (response.data.data) {
-        nodesPreviewData.value = response.data.data;
+    // 先获取配置详情
+    const getResponse = await httpClient.get<Profile>(`/profiles/${profile.id}`);
+
+    if (getResponse.success && getResponse.data) {
+      // 创建副本
+      const { id, ...profileData } = getResponse.data; // 移除ID
+      profileData.name = `${profileData.name} (副本)`;
+
+      const createResponse = await httpClient.post<{ id: string }>('/profiles', profileData);
+
+      if (createResponse.success) {
+        message.success('配置复制成功');
+        await fetchProfiles();
+      } else {
+        throw new Error(createResponse.message || '配置复制失败');
       }
     } else {
-      message.error(response.data.message || '加载预览失败');
-      showNodesPreviewModal.value = false;
+      throw new Error(getResponse.message || '获取配置详情失败');
     }
-  } catch (err: any) {
-    if (!axios.isCancel(err)) {
-      message.error(err.message || '请求预览失败');
-      showNodesPreviewModal.value = false;
-    }
-  } finally {
-    loadingNodesPreview.value = false;
+  } catch (error) {
+    handleError(error, {
+      context: 'handleProfileDuplicate',
+      fallback: '配置复制失败'
+    });
   }
 };
 
-const onLogs = (row: Profile) => {
-  currentProfileForLogs.value = row;
-  showSubLogsModal.value = true;
+const handleProfileDelete = async (profile: Profile) => {
+  try {
+    const response = await httpClient.delete(`/profiles/${profile.id}`);
+
+    if (response.success) {
+      message.success('配置删除成功');
+      await fetchProfiles();
+    } else {
+      throw new Error(response.message || '配置删除失败');
+    }
+  } catch (error) {
+    handleError(error, {
+      context: 'handleProfileDelete',
+      fallback: '配置删除失败'
+    });
+  }
 };
 
-const columns = createColumns({
-  onCopy: handleCopyLink,
-  onPreview,
-  onLogs,
-  onEdit: (row) => router.push({ name: 'edit-profile', params: { id: row.id } }),
-  onDelete: handleDelete
+const handleCopyUrl = async (profile: Profile) => {
+  if (!profile.alias || !subToken.value) {
+    message.error('无法生成配置链接');
+    return;
+  }
+
+  const url = `${window.location.origin}/api/public/${subToken.value}/${profile.alias}`;
+  await copyText(url);
+};
+
+const handleExportConfig = async (profile: Profile) => {
+  try {
+    // 使用订阅链接导出配置
+    if (!profile.alias || !subToken.value) {
+      message.error('无法生成配置链接，请确保配置文件有别名且已登录');
+      return;
+    }
+
+    const exportUrl = `/api/public/${subToken.value}/${profile.alias}/subscribe?format=text`;
+
+    // 创建下载链接
+    const link = document.createElement('a');
+    link.href = exportUrl;
+    link.setAttribute('download', `${profile.name}.txt`);
+    link.setAttribute('target', '_blank');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    message.success('配置导出成功');
+  } catch (error) {
+    handleError(error, {
+      context: 'handleExportConfig',
+      fallback: '配置导出失败'
+    });
+  }
+};
+
+const handleCreateConfig = () => {
+  router.push({ name: 'new-profile' });
+};
+
+const handleImportConfig = () => {
+  showImportModal.value = true;
+};
+
+const handleImportSuccess = () => {
+  fetchProfiles();
+  showImportModal.value = false;
+};
+
+const handleBatchAction = async (key: string) => {
+  if (selectedProfiles.value.length === 0) {
+    message.warning('请先选择要操作的配置');
+    return;
+  }
+
+  if (key === 'export') {
+    // 简化批量导出：打开所有配置的订阅链接
+    selectedProfiles.value.forEach((profileId, index) => {
+      const profile = profiles.value.find(p => p.id === profileId);
+      if (profile && profile.alias && subToken.value) {
+        setTimeout(() => {
+          const exportUrl = `/api/public/${subToken.value}/${profile.alias}/subscribe?format=text`;
+          window.open(exportUrl, `_blank_${index}`);
+        }, index * 200); // 稍微延迟打开每个链接
+      }
+    });
+    message.success(`正在导出 ${selectedProfiles.value.length} 个配置文件`);
+    selectedProfiles.value = [];
+  } else if (key === 'delete') {
+    // 批量删除：逐个调用删除接口
+    let successCount = 0;
+    for (const profileId of selectedProfiles.value) {
+      try {
+        const response = await httpClient.delete(`/profiles/${profileId}`);
+        if (response.success) {
+          successCount++;
+        }
+      } catch (error) {
+        console.error('删除配置失败:', profileId, error);
+      }
+    }
+
+    if (successCount > 0) {
+      message.success(`成功删除 ${successCount} 个配置文件`);
+      selectedProfiles.value = [];
+      await fetchProfiles();
+    } else {
+      message.error('批量删除失败');
+    }
+  }
+};
+
+const toggleSortOrder = () => {
+  sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
+};
+
+const handlePageSizeChange = (newSize: number) => {
+  pageSize.value = newSize;
+  currentPage.value = 1;
+};
+
+// 监听器
+watch(searchQuery, () => {
+  currentPage.value = 1;
 });
 
+watch(statusFilter, () => {
+  currentPage.value = 1;
+});
+
+// 生命周期
 onMounted(() => {
   fetchProfiles();
 });
-
 </script>
 
-<template>
-  <div>
-    <n-page-header>
-      <template #title>配置管理</template>
-      <template #extra>
-        <n-space>
-          <n-button type="primary" @click="() => router.push({ name: 'new-profile' })">新增配置</n-button>
-        </n-space>
-      </template>
-    </n-page-header>
+<style scoped>
+.profiles-view {
+  @apply min-h-screen bg-gray-50;
+}
 
-    <n-data-table v-if="!isMobile" :columns="columns" :data="profiles" :loading="loading" :pagination="{ pageSize: 10 }" :bordered="false" class="mt-4" />
+/* 动画效果 */
+.profiles-view {
+  animation: fadeIn 0.3s ease-out;
+}
 
-    <n-list v-else bordered class="mt-4">
-      <n-list-item v-for="profile in profiles" :key="profile.id">
-        <n-thing :title="profile.name" />
-        <template #suffix>
-          <n-dropdown
-            trigger="click"
-            :options="[
-              { label: '复制链接', key: 'copy' },
-              { label: '预览', key: 'preview' },
-              { label: '日志', key: 'logs' },
-              { label: '编辑', key: 'edit' },
-              { label: '删除', key: 'delete' },
-            ]"
-            @select="key => {
-              if (key === 'copy') handleCopyLink(profile);
-              if (key === 'preview') onPreview(profile);
-              if (key === 'logs') onLogs(profile);
-              if (key === 'edit') router.push({ name: 'edit-profile', params: { id: profile.id } });
-              if (key === 'delete') handleDelete(profile);
-            }"
-          >
-            <n-button text>
-              <n-icon :component="MoreIcon" size="24" />
-            </n-button>
-          </n-dropdown>
-        </template>
-      </n-list-item>
-    </n-list>
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-    <!-- Nodes Preview Modal -->
-    <n-modal v-model:show="showNodesPreviewModal" preset="card" :title="`节点预览 - ${currentProfileForPreview?.name}`" :style="{ width: isMobile ? '95vw' : '1200px' }" :mask-closable="true" :trap-focus="false">
-      <n-spin :show="loadingNodesPreview">
-        <div v-if="nodesPreviewData">
-          <n-grid :cols="1">
-            <n-gi>
-              <n-card title="订阅分析" :bordered="false">
-                <template #header-extra>
-                  <n-button v-if="nodesPreviewData.logs && nodesPreviewData.logs.length > 0" text @click="showLogsModal = true">
-                    <template #icon>
-                      <n-icon><log-icon /></n-icon>
-                    </template>
-                    查看日志
-                  </n-button>
-                </template>
-                <n-grid :cols="3" :x-gap="12">
-                  <n-gi><n-statistic label="节点总数" :value="nodesPreviewData.analysis.total" /></n-gi>
-                  <n-gi>
-                    <n-statistic label="协议分布">
-                      <n-space>
-                      <n-tag v-for="(count, protocol) in nodesPreviewData.analysis.protocols" :key="protocol" :color="getNaiveTagColor(protocol, 'protocol')" round>{{ protocol.toUpperCase() }}: {{ count }}</n-tag>
-                      </n-space>
-                    </n-statistic>
-                  </n-gi>
-                  <n-gi>
-                    <n-statistic label="地区分布">
-                      <n-space :size="'small'" style="flex-wrap: wrap;">
-                        <n-tag v-for="(count, region) in nodesPreviewData.analysis.regions" :key="region" :color="getNaiveTagColor(region, 'region')" round>{{ region }}: {{ count }}</n-tag>
-                      </n-space>
-                    </n-statistic>
-                  </n-gi>
-                </n-grid>
-              </n-card>
-              <n-data-table :columns="previewNodeColumns" :data="nodes" :pagination="{ pageSize: 10 }" :max-height="400" class="mt-4" />
-            </n-gi>
-          </n-grid>
-        </div>
-        <div v-else-if="!loadingNodesPreview" style="text-align: center; padding: 20px;">没有获取到节点数据。</div>
-      </n-spin>
-    </n-modal>
+/* 响应式布局 */
+@media (max-width: 640px) {
+  .flex-col.lg\:flex-row {
+    flex-direction: column;
+  }
 
-    <!-- Logs Modal -->
-    <n-modal v-model:show="showLogsModal" preset="card" title="上帝视角日志" :style="{ width: isMobile ? '95vw' : '900px', maxHeight: '80vh' }" :mask-closable="true" :trap-focus="false">
-      <n-scrollbar style="max-height: 70vh; padding-right: 16px;">
-        <n-steps vertical>
-          <template v-for="log in nodesPreviewData?.logs" :key="log.timestamp">
-            <n-step :title="log.message" :status="getStepStatus(log.level)">
-              <p style="font-size: 12px; color: #999; margin-top: 4px; margin-bottom: 8px;">{{ new Date(log.timestamp).toLocaleString() }}</p>
-              <div v-if="log.data">
-                <n-card size="small" :bordered="true">
-                  <n-code :code="JSON.stringify(log.data, null, 2)" language="json" word-wrap />
-                </n-card>
-              </div>
-            </n-step>
-          </template>
-        </n-steps>
-      </n-scrollbar>
-    </n-modal>
-    <subscription-log-modal
-      v-model:show="showSubLogsModal"
-      :profile-id="currentProfileForLogs?.id || null"
-      :profile-name="currentProfileForLogs?.name || null"
-    />
-  </div>
-</template>
+  .flex-1.max-w-md {
+    max-width: none;
+  }
+
+  .flex.space-x-3 {
+    flex-direction: column;
+    margin-left: 0;
+    margin-top: 0.5rem;
+  }
+
+  .flex.items-center.justify-between {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 1rem;
+  }
+}
+
+/* 加载状态样式 */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 按钮组优化 */
+.flex.space-x-3 {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* 输入框优化 */
+.relative {
+  position: relative;
+}
+
+/* 表格样式优化 */
+.divide-y > :not([hidden]) ~ :not([hidden]) {
+  border-top: 1px solid #e5e7eb;
+}
+
+/* 状态指示器 */
+.text-primary-600 {
+  color: #2563eb;
+}
+
+/* 分页样式 */
+.px-6.py-4 {
+  padding: 1rem 1.5rem;
+}
+</style>

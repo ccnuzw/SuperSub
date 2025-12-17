@@ -8,7 +8,7 @@ const groups = new Hono<{ Bindings: Env }>();
 groups.get('/', manualAuthMiddleware, async (c) => {
     const user = c.get('jwtPayload');
     const { results } = await c.env.DB.prepare(
-        'SELECT * FROM node_groups WHERE user_id = ? ORDER BY sort_order ASC'
+        'SELECT ng.*, COUNT(n.id) as node_count FROM node_groups ng LEFT JOIN nodes n ON ng.id = n.group_id WHERE ng.user_id = ? ORDER BY ng.sort_order ASC'
     ).bind(user.id).all();
     return c.json({ success: true, data: results });
 });

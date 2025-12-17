@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { NPageHeader } from 'naive-ui';
-import ProfileForm from '@/components/settings/ProfileForm.vue';
+import ProfileSettingsForm from '@/components/settings/ProfileSettingsForm.vue';
 
 const props = defineProps<{
   id?: string;
@@ -23,7 +23,7 @@ const handleSaveSuccess = () => {
       <template #title>{{ pageTitle }}</template>
     </n-page-header>
     <div class="mt-6">
-      <ProfileForm :profile-id="id" @save-success="handleSaveSuccess" />
+      <ProfileSettingsForm :profile-id="id" @save-success="handleSaveSuccess" />
     </div>
   </div>
 </template>

@@ -1,8 +1,8 @@
-import { Node } from '@/types';
+import { INode, Node } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
 // Define a more specific type for a node that has been parsed but not yet saved to the DB.
-export type ParsedNode = Omit<Node, 'id' | 'user_id' | 'group_id' | 'created_at' | 'updated_at' | 'sort_order' | 'status' | 'latency' | 'last_checked' | 'error'>;
+export type ParsedNode = Omit<INode, 'id' | 'user_id' | 'group_id' | 'created_at' | 'updated_at' | 'sort_order' | 'status' | 'latency' | 'last_checked' | 'error'>;
 
 
 // A robust Base64 decoder that handles URL-safe encoding and padding issues.

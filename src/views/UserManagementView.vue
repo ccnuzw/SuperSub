@@ -53,11 +53,10 @@ import { NDataTable, NButton, useMessage, useDialog, NCard, NSwitch, NFlex, NLis
 import type { DataTableColumns } from 'naive-ui';
 import { useIsMobile } from '@/composables/useMediaQuery';
 import { EllipsisVertical as MoreIcon } from '@vicons/ionicons5';
-import { useApi } from '@/composables/useApi';
+import httpClient from '@/services/http/HttpClient';
 import type { User } from '@/types';
 import { useAuthStore } from '@/stores/auth';
 
-const api = useApi();
 const message = useMessage();
 const dialog = useDialog();
 const isMobile = useIsMobile();
@@ -72,7 +71,7 @@ const fetchSettings = async () => {
   if (!authStore.isAuthenticated) return;
   settingsLoading.value = true;
   try {
-    const response = await api.get('/admin/system-settings');
+    const response = await httpClient.get('/admin/system-settings');
     if (response.success && response.data) {
       allowRegistration.value = (response.data as { allow_registration: string }).allow_registration === 'true';
     } else {
@@ -88,7 +87,7 @@ const fetchSettings = async () => {
 const handleSettingsChange = async (value: boolean) => {
   settingsLoading.value = true;
   try {
-    const response = await api.post('/admin/system-settings', {
+    const response = await httpClient.post('/admin/system-settings', {
       allow_registration: String(value),
     });
     if (response.success) {
@@ -116,7 +115,7 @@ const handleUpdateRole = (user: User) => {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const response = await api.put(`/admin/users/${user.id}`, { role: newRole });
+        const response = await httpClient.put(`/admin/users/${user.id}`, { role: newRole });
         if (response.success) {
           message.success('用户角色更新成功');
           await fetchUsers();
@@ -138,7 +137,7 @@ const handleDeleteUser = (user: User) => {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const response = await api.delete(`/admin/users/${user.id}`);
+        const response = await httpClient.delete(`/admin/users/${user.id}`);
         if (response.success) {
           message.success('用户删除成功');
           await fetchUsers();
@@ -201,7 +200,7 @@ const fetchUsers = async () => {
   if (!authStore.isAuthenticated) return;
   loading.value = true;
   try {
-    const response = await api.get('/admin/users');
+    const response = await httpClient.get('/admin/users');
     if (response.success) {
       users.value = response.data as User[];
     } else {

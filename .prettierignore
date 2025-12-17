@@ -1,0 +1,51 @@
+# Prettier 忽略文件
+dist/
+dist-ssr/
+*.local
+.output/
+.nuxt/
+coverage/
+
+# 依赖目录
+node_modules/
+*.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 编辑器配置
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.temp
+
+# 构建产物
+.cache/
+.temp/
+.stats/
+
+# 测试覆盖率报告
+coverage/
+*.lcov
+
+# 环境变量文件
+.env*
+!.env.example
+
+# wrangler 相关
+.wrangler/
+
+# 特殊文件
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+CHANGELOG.md
+LICENSE

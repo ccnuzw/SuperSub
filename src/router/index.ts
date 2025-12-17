@@ -1,12 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import HomeView from '../views/HomeView.vue'
-import NodesView from '../views/NodesView.vue'
-import SubscriptionsView from '../views/SubscriptionsView.vue'
-import ProfilesView from '../views/ProfilesView.vue'
-import SettingsView from '../views/SettingsView.vue'
-import LoginView from '../views/LoginView.vue'
-import RegisterView from '../views/RegisterView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -14,31 +7,31 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: HomeView,
+      component: () => import('../views/HomeView.vue'),
       meta: { requiresAuth: true }
     },
     {
       path: '/nodes',
       name: 'nodes',
-      component: NodesView,
+      component: () => import('../views/NodesView.vue'),
       meta: { requiresAuth: true }
     },
     {
       path: '/subscriptions',
       name: 'subscriptions',
-      component: SubscriptionsView,
+      component: () => import('../views/SubscriptionsView.vue'),
       meta: { requiresAuth: true }
     },
     {
       path: '/profiles',
       name: 'profiles',
-      component: ProfilesView,
+      component: () => import('../views/ProfilesView.vue'),
       meta: { requiresAuth: true }
     },
     {
       path: '/settings',
       name: 'settings',
-      component: SettingsView,
+      component: () => import('../views/SettingsView.vue'),
       meta: { requiresAuth: true }
     },
     {
@@ -63,12 +56,12 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
-      component: LoginView
+      component: () => import('../views/LoginView.vue')
     },
     {
       path: '/register',
       name: 'register',
-      component: RegisterView
+      component: () => import('../views/RegisterView.vue')
     }
   ]
 })

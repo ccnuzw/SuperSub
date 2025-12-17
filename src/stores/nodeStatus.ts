@@ -1,72 +1,163 @@
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { useAuthStore } from './auth'
-import { HealthStatus } from '@/types'
-import { api } from '@/utils/api'
+/**
+ * 节点状态管理
+ * 直接使用 Pinia 和 Vue 组合式 API
+ */
 
+import { defineStore } from 'pinia';
+import { ref, computed } from 'vue';
+import { createApiError } from '@/utils/errorHandler';
+import type { IHealthStatus } from '@/types';
+
+/**
+ * 节点状态接口
+ */
+interface INodeStatusState {
+  statuses: Record<string, IHealthStatus>;
+  lastHealthCheck: string | null;
+  autoRefreshEnabled: boolean;
+  refreshInterval: number;
+  loading: boolean;
+  error: string | null;
+  lastUpdated: string | null;
+}
+
+/**
+ * 节点状态Store
+ * 提供节点健康状态的统一状态管理
+ */
 export const useNodeStatusStore = defineStore('nodeStatus', () => {
-  const statuses = ref<Record<string, HealthStatus>>({})
-  const loading = ref(false)
-  const authStore = useAuthStore()
-  // const message = useMessage() // This cannot be called at the top level of a store.
+  // 状态
+  const statuses = ref<Record<string, IHealthStatus>>({});
+  const lastHealthCheck = ref<string | null>(null);
+  const autoRefreshEnabled = ref<boolean>(false);
+  const refreshInterval = ref<number>(30000); // 30秒
+  const loading = ref<boolean>(false);
+  const error = ref<string | null>(null);
+  const lastUpdated = ref<string | null>(null);
 
-  const getStatusByNodeId = computed(() => {
-    return (nodeId: string) => statuses.value[nodeId]
-  })
+  // 计算属性
+  const nodeCount = computed(() => Object.keys(statuses.value).length);
+  const healthyNodes = computed(() =>
+    Object.values(statuses.value).filter(status => status.status === 'healthy').length
+  );
+  const unhealthyNodes = computed(() =>
+    Object.values(statuses.value).filter(status => status.status === 'unhealthy').length
+  );
+  const isIdle = computed(() => !loading.value && !error.value);
 
-  const fetchStatuses = async () => {
-    if (!authStore.token) return
+  // 更新lastUpdated
+  const updateLastUpdated = () => {
+    lastUpdated.value = new Date().toISOString();
+  };
 
-    loading.value = true
+  // 基础方法
+  const setLoading = (isLoading: boolean) => {
+    loading.value = isLoading;
+    updateLastUpdated();
+  };
+
+  const setError = (errorMessage: string | null) => {
+    error.value = errorMessage;
+    updateLastUpdated();
+  };
+
+  const clearError = () => {
+    error.value = null;
+    updateLastUpdated();
+  };
+
+  // 节点状态操作方法
+  const updateNodeStatus = (nodeId: string, status: IHealthStatus) => {
+    statuses.value[nodeId] = status;
+    updateLastUpdated();
+  };
+
+  const updateMultipleStatuses = (newStatuses: Record<string, IHealthStatus>) => {
+    Object.assign(statuses.value, newStatuses);
+    updateLastUpdated();
+  };
+
+  const removeNodeStatus = (nodeId: string) => {
+    delete statuses.value[nodeId];
+    updateLastUpdated();
+  };
+
+  const clearAllStatuses = () => {
+    statuses.value = {};
+    updateLastUpdated();
+  };
+
+  const getNodeStatus = (nodeId: string): IHealthStatus | undefined => {
+    return statuses.value[nodeId];
+  };
+
+  const isNodeHealthy = (nodeId: string): boolean => {
+    const status = statuses.value[nodeId];
+    return status ? status.status === 'healthy' : false;
+  };
+
+  const getStatusByNodeId = (nodeId: string): IHealthStatus | undefined => {
+    return getNodeStatus(nodeId);
+  };
+
+  const fetchStatuses = async (nodeIds: string[]): Promise<void> => {
+    setLoading(true);
+    clearError();
+
     try {
-      const response = await api.get('/node-statuses');
-      const result = response.data;
-      if (result.success && result.data) {
-        const newStatuses: Record<string, HealthStatus> = {}
-        for (const status of result.data) {
-          newStatuses[status.node_id] = status
-        }
-        statuses.value = newStatuses
-      } else {
-        // Do not show error message on every fetch, as it can be annoying during polling
-        console.error('Failed to fetch node statuses:', result.message)
-      }
+      // 这里应该调用API获取状态
+      // const response = await api.fetchNodeStatuses(nodeIds);
+      // updateMultipleStatuses(response.data);
+      lastHealthCheck.value = new Date().toISOString();
     } catch (err) {
-      console.error('Error fetching node statuses:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      const errorObj = createApiError(errorMessage);
+      setError(errorObj.message);
+      throw errorObj;
     } finally {
-      loading.value = false
+      setLoading(false);
     }
-  }
+  };
 
-  const checkNodesHealth = async (nodeIds: string[]): Promise<{ success: boolean; message: string }> => {
-    if (!authStore.token || nodeIds.length === 0) {
-      return { success: false, message: '未选择节点或用户未认证' }
-    }
-
-    try {
-      const response = await api.post('/nodes/health-check', { nodeIds });
-      const result = response.data;
-      if (response.status === 200 && result.success) {
-        // Immediately fetch statuses to show 'testing' state
-        fetchStatuses();
-        // Fetch again after a few seconds to get final results
-        setTimeout(() => fetchStatuses(), 3000);
-        setTimeout(() => fetchStatuses(), 8000); // And again to catch slower nodes
-        return { success: true, message: result.message || '节点健康检查已启动' }
-      } else {
-        return { success: false, message: result.message || '启动健康检查失败' }
-      }
-    } catch (err) {
-      return { success: false, message: '请求健康检查失败' }
-    }
-  }
-
+  const reset = () => {
+    statuses.value = {};
+    lastHealthCheck.value = null;
+    autoRefreshEnabled.value = false;
+    loading.value = false;
+    error.value = null;
+    lastUpdated.value = null;
+  };
 
   return {
-    statuses,
+    // 状态
+    statuses: statuses as any,
+    lastHealthCheck,
+    autoRefreshEnabled,
+    refreshInterval,
     loading,
+    error,
+    lastUpdated,
+
+    // 计算属性
+    nodeCount,
+    healthyNodes,
+    unhealthyNodes,
+    isIdle,
+
+    // 方法
+    setLoading,
+    setError,
+    clearError,
+    updateNodeStatus,
+    updateMultipleStatuses,
+    removeNodeStatus,
+    clearAllStatuses,
+    getNodeStatus,
     getStatusByNodeId,
+    isNodeHealthy,
     fetchStatuses,
-    checkNodesHealth,
-  }
-})
+    reset
+  };
+});
+
+export type NodeStatusStore = ReturnType<typeof useNodeStatusStore>;

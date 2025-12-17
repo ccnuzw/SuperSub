@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, h, watch, computed } from 'vue';
+import { h, watch, computed, onMounted } from 'vue';
 import { useMessage, NDataTable, NSpin, NTag, NEmpty, NButton, NSpace, NSwitch, NTooltip, NSelect, NCard, NCode } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
-import { Node, ApiResponse } from '@/types';
-import { useGroupStore as useNodeGroupStore } from '@/stores/groups';
-import { regenerateLink, type ParsedNode } from '@/utils/nodeParser';
-import { api } from '@/utils/api';
-import { getNaiveTagColor } from '@/utils/colors';
+import { Node } from '@/types';
+import { useGroupStore } from '@/stores/groups';
+import type { INodeGroup } from '@/types';
+import { useSubscriptionPreview } from '@/composables/useSubscriptionPreview';
 
 const props = defineProps({
   subscriptionId: {
@@ -28,150 +27,43 @@ const props = defineProps({
 });
 
 const message = useMessage();
-const nodeGroupStore = useNodeGroupStore();
-const previewData = ref<any>(null);
-const loading = ref(false);
-const importLoading = ref(false);
-const applyRules = ref(true);
-const selectedGroupId = ref<string | undefined>(undefined);
-const error = ref<string | null>(null);
+const nodeGroupStore = useGroupStore();
 
-const nodes = computed(() => {
-  if (previewData.value?.mode === 'local') {
-    return previewData.value.nodes || [];
-  }
-  return [];
-});
-
-const columns: DataTableColumns<Partial<Node>> = [
-    { title: '名称', key: 'name', ellipsis: { tooltip: true }, fixed: 'left', width: 200 },
-    {
-        title: '类型',
-        key: 'protocol',
-        width: 100,
-        align: 'center',
-        render(row) {
-            const protocol = row.protocol || row.type || 'N/A';
-            return h(NTag, {
-                size: 'small',
-                round: true,
-                color: getNaiveTagColor(protocol, 'protocol')
-            }, { default: () => protocol.toUpperCase() });
-        }
-    },
-    { title: '服务器', key: 'server', ellipsis: { tooltip: true }, width: 180 },
-    { title: '端口', key: 'port', width: 80, align: 'center' },
-    {
-        title: '操作',
-        key: 'actions',
-        width: 100,
-        align: 'center',
-        fixed: 'right',
-        render(row) {
-            return h(NButton, {
-                size: 'tiny',
-                ghost: true,
-                type: 'primary',
-                onClick: () => {
-                  const link = regenerateLink(row as ParsedNode);
-                  if (link) {
-                      navigator.clipboard.writeText(link);
-                       message.success('已复制完整链接');
-                   } else {
-                       navigator.clipboard.writeText(row.raw || '');
-                       message.success('已复制原始链接 (回退)');
-                   }
-                }
-            }, { default: () => '复制链接' });
-        }
-    }
-];
-
-const fetchPreview = async () => {
-  if (!props.subscriptionUrl) {
-    previewData.value = null;
-    return;
-  }
-  loading.value = true;
-  previewData.value = null;
-  error.value = null;
-
-  try {
-    // If there's a profileId, it means this subscription is part of a profile.
-    // We should use the profile's preview logic.
-    if (props.profileId) {
-      const response = await api.get<ApiResponse<any>>(`/profiles/${props.profileId}/preview-nodes`);
-      if (response.data.success) {
-        previewData.value = response.data.data;
-      } else {
-        throw new Error(response.data.message || '获取配置文件预览失败');
-      }
-    } else {
-      // Fallback to old logic if not part of a profile
-      const payload = {
-        url: props.subscriptionUrl,
-        subscription_id: props.subscriptionId,
-        apply_rules: applyRules.value,
-      };
-      const response = await api.post<ApiResponse<{ nodes: Partial<Node>[], analysis: any }>>('/subscriptions/preview', payload, { timeout: 15000 });
-      if (response.data.success && response.data.data?.nodes) {
-        // Adapt to the new data structure for consistency
-        previewData.value = { mode: 'local', nodes: response.data.data.nodes, analysis: response.data.data.analysis };
-      } else {
-        throw new Error(response.data.message || '获取节点预览失败');
-      }
-    }
-  } catch (err: any) {
-    const errorMessage = err.message || '请求失败，请检查网络连接或订阅地址。';
-    error.value = errorMessage;
-    message.error(errorMessage);
-  } finally {
-    loading.value = false;
-  }
-};
-
-const handleImport = async () => {
-    if (previewData.value?.mode !== 'local' || !nodes.value || nodes.value.length === 0) {
-        message.warning('没有可导入的本地节点');
-        return;
-    }
-    importLoading.value = true;
-    try {
-        // Send the array of parsed node objects directly
-        const response = await api.post<ApiResponse>('/nodes/batch-import', {
-          nodes: nodes.value,
-          groupId: selectedGroupId.value,
-        });
-        if (response.data.success) {
-            message.success(response.data.message || '节点导入成功');
-        } else {
-            message.error(response.data.message || '导入失败');
-        }
-    } catch (err) {
-        message.error('导入请求失败');
-    } finally {
-        importLoading.value = false;
-    }
-};
-
-// Expose the fetch function to the parent component
-defineExpose({
+const {
+  previewData,
+  loading,
+  importLoading,
+  applyRules,
+  selectedGroupId,
+  error,
+  nodes,
+  columns,
   fetchPreview,
-});
-
-watch(applyRules, () => {
-    fetchPreview();
-});
+  handleImport,
+  initializePreview,
+} = useSubscriptionPreview();
 
 // Re-fetch when the modal becomes visible, if it's not the initial load
 watch(() => props.show, (newVal, oldVal) => {
     if (newVal && !oldVal) {
-        fetchPreview();
+        fetchPreview(props.subscriptionUrl, props.subscriptionId, props.profileId);
     }
 });
 
+// Re-fetch when applyRules changes
+watch(applyRules, () => {
+    if (props.show) {
+        fetchPreview(props.subscriptionUrl, props.subscriptionId, props.profileId);
+    }
+});
+
+// Expose the fetch function to the parent component
+defineExpose({
+  fetchPreview: () => fetchPreview(props.subscriptionUrl, props.subscriptionId, props.profileId),
+});
+
 onMounted(() => {
-  nodeGroupStore.fetchGroups();
+  initializePreview();
 });
 </script>
 
@@ -192,7 +84,7 @@ onMounted(() => {
         <n-select
           v-model:value="selectedGroupId"
           placeholder="导入到分组 (可选)"
-          :options="nodeGroupStore.groups.map(g => ({ label: g.name, value: g.id }))"
+          :options="nodeGroupStore.groups.map((g: INodeGroup) => ({ label: g.name, value: g.id }))"
           clearable
           style="width: 200px;"
         />
@@ -209,14 +101,14 @@ onMounted(() => {
     <n-spin :show="loading">
       <div v-if="error" class="py-8 text-center">
         <p class="text-red-500">{{ error }}</p>
-        <n-button size="small" @click="fetchPreview" class="mt-2">重试</n-button>
+        <n-button size="small" @click="(event: MouseEvent) => fetchPreview(props.subscriptionUrl, props.subscriptionId, props.profileId)" class="mt-2">重试</n-button>
       </div>
       <div v-else-if="previewData">
         <!-- Remote Mode Preview -->
         <div v-if="previewData.mode === 'remote'">
           <n-card title="远程解析模式预览" :bordered="false" size="small">
             <p>此订阅所属的配置文件为 <strong>远程解析</strong> 模式。预览将显示最终组合并发送给 Subconverter 的链接列表，而不是具体的节点。</p>
-            <n-code class="mt-4" language="text" :code="previewData.urls.join('\n')" />
+            <n-code class="mt-4" language="text" :code="(previewData.urls || []).join('\n')" />
             <template #footer>
               总计链接数量: {{ previewData.analysis.total }}
             </template>

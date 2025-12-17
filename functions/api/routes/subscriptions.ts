@@ -516,6 +516,112 @@ subscriptions.post('/update-all', async (c) => {
     return c.json({ success: true, message: `Update complete. ${updatedCount} succeeded, ${failedCount} failed.` });
 });
 
+// GET /api/subscriptions/:id/preview - 获取订阅的节点数据预览
+subscriptions.get('/:id/preview', async (c) => {
+    const user = c.get('jwtPayload');
+    const { id } = c.req.param();
+
+    console.log(`[DEBUG] Preview request for subscription: ${id}, user: ${user.id}`);
+
+    try {
+        // 获取订阅信息
+        const subscription = await c.env.DB.prepare(
+            'SELECT * FROM subscriptions WHERE id = ? AND user_id = ?'
+        ).bind(id, user.id).first();
+
+        if (!subscription) {
+            console.log(`[ERROR] Subscription not found: ${id}`);
+            return c.json({ success: false, message: '订阅不存在或无权访问' }, 404);
+        }
+
+        console.log(`[DEBUG] Found subscription: ${subscription.name}, URL: ${subscription.url}`);
+
+        // 从订阅URL获取节点数据
+        console.log(`[DEBUG] Fetching subscription content from URL...`);
+        const response = await fetch(subscription.url, {
+            headers: {
+                'User-Agent': 'clash-verge',
+            },
+            signal: AbortSignal.timeout(10000) // 10秒超时
+        });
+
+        console.log(`[DEBUG] Subscription response status: ${response.status}`);
+
+        if (!response.ok) {
+            return c.json({
+                success: false,
+                message: `获取订阅失败: ${response.status} ${response.statusText}`
+            }, 502);
+        }
+
+        const buffer = await response.arrayBuffer();
+        const decoder = new TextDecoder('utf-8');
+        let content = decoder.decode(buffer, { stream: true });
+
+        // Remove BOM if present
+        if (content.charCodeAt(0) === 0xFEFF) {
+            content = content.slice(1);
+        }
+
+        console.log(`[DEBUG] Subscription content length: ${content.length} characters`);
+
+        // 使用顶部已定义的 parseSubscriptionContent 函数
+        const finalNodes = parseSubscriptionContent(content);
+        console.log(`[DEBUG] Parsed ${finalNodes.length} nodes from subscription`);
+
+        // 确保节点数据格式正确
+        const processedNodes = finalNodes.map((node, index) => ({
+            id: node.id || `node-${index}`,
+            name: node.name || `Node ${index + 1}`,
+            server: node.server || '',
+            port: node.port || 0,
+            protocol: node.protocol || node.type || 'unknown',
+            type: node.type || node.protocol || 'unknown',
+            status: 'unknown' as const,
+            latency: null,
+            sort_order: index,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            protocol_params: node.protocol_params || {},
+            server_name: node.name || node.server || `Node ${index + 1}`,
+            user_id: user.id,
+            group_id: null,
+            link: node.link || node.raw || '',
+            password: node.password || '',
+            params: '',
+            last_checked: null,
+            error: null
+        }));
+
+        console.log(`[DEBUG] Processed ${processedNodes.length} nodes for response`);
+
+        // 返回节点数据
+        return c.json({
+            success: true,
+            data: {
+                subscription: subscription,
+                nodes: processedNodes || []
+            }
+        });
+
+    } catch (error: any) {
+        console.error('[ERROR] Preview subscription failed:', error);
+
+        let errorMessage = '获取预览数据失败';
+        if (error.name === 'TimeoutError') {
+            errorMessage = '请求超时，请检查订阅链接是否可访问';
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+
+        return c.json({
+            success: false,
+            message: errorMessage,
+            error: error.message
+        }, 500);
+    }
+});
+
 subscriptions.post('/preview', async (c) => {
     const user = c.get('jwtPayload');
     const { url, subscription_id, apply_rules } = await c.req.json<{ url: string, subscription_id?: string, apply_rules?: boolean }>();

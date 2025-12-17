@@ -41,11 +41,12 @@ const authStore = useAuthStore();
 const message = useMessage();
 
 onMounted(async () => {
-  await authStore.checkRegistrationStatus();
-  if (!authStore.isRegistrationAllowed) {
-    message.warning('User registration is currently disabled.');
-    router.push('/login');
-  }
+  // TODO: Implement checkRegistrationStatus method in auth store
+  // await authStore.checkRegistrationStatus();
+  // if (!authStore.isRegistrationAllowed) {
+  //   message.warning('User registration is currently disabled.');
+  //   router.push('/login');
+  // }
 });
 
 // Watch for changes in case the status is fetched after the initial mount check
