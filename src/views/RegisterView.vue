@@ -41,12 +41,15 @@ const authStore = useAuthStore();
 const message = useMessage();
 
 onMounted(async () => {
-  // TODO: Implement checkRegistrationStatus method in auth store
-  // await authStore.checkRegistrationStatus();
-  // if (!authStore.isRegistrationAllowed) {
-  //   message.warning('User registration is currently disabled.');
-  //   router.push('/login');
-  // }
+  try {
+    await authStore.checkRegistrationStatus();
+    if (!authStore.isRegistrationAllowed) {
+      message.warning('User registration is currently disabled.');
+      router.push('/login');
+    }
+  } catch (error) {
+    console.error('Failed to check registration status:', error);
+  }
 });
 
 // Watch for changes in case the status is fetched after the initial mount check
@@ -65,10 +68,15 @@ const handleRegister = async () => {
     router.push('/login');
   } catch (error: any) {
     console.error('Registration failed:', error);
-    if (error.response && error.response.status === 409) {
+
+    // 根据不同的错误码显示不同的消息
+    const errorMessage = error.message || 'Registration failed. Please try again.';
+
+    if (error.code === 'USERNAME_EXISTS' || errorMessage.includes('Username already exists')) {
       message.error('Username already exists. Please choose another one or login.');
+    } else if (error.code === 'VALIDATION_ERROR' || errorMessage.includes('must be between') || errorMessage.includes('at least')) {
+      message.error(errorMessage); // 显示具体的验证错误
     } else {
-      const errorMessage = error.response?.data?.message || 'Registration failed. Please try again.';
       message.error(errorMessage);
     }
   } finally {

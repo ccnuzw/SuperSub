@@ -312,10 +312,13 @@ export class HttpClient implements IHttpClient {
     // 统一错误处理
     const apiError = this.createApiError(error);
 
-    // 处理401错误
+    // 处理401错误 - 但避免无限循环
     if (error.response?.status === 401) {
       const authStore = useAuthStore();
-      authStore.logout();
+      // 只有在用户已经认证的情况下才尝试logout
+      if (authStore.isAuthenticated && !error.config?.url?.includes('/auth/logout')) {
+        authStore.logout();
+      }
     }
 
     return Promise.reject(apiError);
@@ -324,11 +327,16 @@ export class HttpClient implements IHttpClient {
   private createApiError(error: AxiosError): Error {
     let appErrorType: AppErrorType;
     let message: string;
+    let errorCode: string | undefined;
 
     if (error.response) {
       // 服务器响应的错误
       const { status, data } = error.response;
-      message = (data as any)?.message || 'Server error';
+      const responseData = data as any;
+
+      // 优先使用返回的message，其次是默认message
+      message = responseData?.message || 'Server error';
+      errorCode = responseData?.code;
 
       // 映射 HTTP 状态码到 AppErrorType
       if (status === 401) {
@@ -345,10 +353,17 @@ export class HttpClient implements IHttpClient {
         appErrorType = AppErrorType.BUSINESS;
       }
 
-      return ErrorHandler.create(appErrorType, message, {
-        code: (data as any)?.code,
-        details: (data as any)?.errors
+      const apiError = ErrorHandler.create(appErrorType, message, {
+        code: errorCode,
+        details: responseData?.errors
       });
+
+      // 将错误码传递到错误对象中
+      if (errorCode) {
+        (apiError as any).code = errorCode;
+      }
+
+      return apiError;
     } else if (error.request) {
       // 网络错误
       appErrorType = AppErrorType.NETWORK;
