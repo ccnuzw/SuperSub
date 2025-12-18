@@ -415,6 +415,8 @@ const handleHeaderAction = async (event: CustomEvent) => {
   @apply min-h-screen flex flex-col px-1 sm:px-2 md:px-3 lg:px-4 xl:px-6 py-4;
   background: #ffffff;
   width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 /* 主要内容区域 */
@@ -432,8 +434,8 @@ const handleHeaderAction = async (event: CustomEvent) => {
     @apply px-1 py-3;
   }
 
-  .middle-section {
-    @apply mb-3;
+  .main-content {
+    @apply space-y-3;
   }
 }
 
@@ -446,88 +448,81 @@ const handleHeaderAction = async (event: CustomEvent) => {
 @media (min-width: 1025px) and (max-width: 1440px) {
   .page-container {
     @apply px-6 py-6;
-    max-width: 1400px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
   }
 
-  .middle-section {
-    @apply mb-6;
-  }
-
-  .bottom-section {
-    @apply min-h-[600px];
+  .main-content {
+    @apply space-y-6;
   }
 }
 
 @media (min-width: 1441px) and (max-width: 1920px) {
   .page-container {
     @apply px-8 py-8;
-    max-width: 1600px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
   }
 
-  .middle-section {
-    @apply mb-8;
-  }
-
-  .bottom-section {
-    @apply min-h-[700px];
+  .main-content {
+    @apply space-y-8;
   }
 }
 
 @media (min-width: 1921px) {
   .page-container {
     @apply px-12 py-10;
-    max-width: 1800px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
   }
 
-  .middle-section {
-    @apply mb-10;
-  }
-
-  .bottom-section {
-    @apply min-h-[800px];
+  .main-content {
+    @apply space-y-10;
   }
 }
 
 /* 响应式设计 - 真正的响应式，使用相对单位 */
 @media (min-width: 1200px) {
   .page-container {
-    @apply flex gap-4;
+    @apply block;
   }
 
-  .middle-section {
-    @apply flex-shrink-0 mb-0;
-    height: fit-content;
-    width: min(30%, 320px); /* 响应式宽度：容器宽度的30%，最大320px */
+  .main-content {
+    @apply flex-col space-x-0 space-y-2;
   }
 
-  .bottom-section {
-    @apply flex-1;
-    min-width: 0; /* 允许flexbox收缩 */
+  .group-section {
+    @apply w-full;
+    height: auto;
+  }
+
+  .table-section {
+    @apply w-full;
   }
 }
 
 /* 更大屏幕，比例调整 */
 @media (min-width: 1600px) {
   .page-container {
-    @apply gap-6;
+    @apply block;
   }
 
-  .middle-section {
-    width: min(28%, 384px); /* 稍微减小比例，增加最大宽度 */
+  .main-content {
+    @apply space-y-3;
   }
 }
 
 /* 超大屏幕，进一步优化比例 */
 @media (min-width: 1920px) {
   .page-container {
-    @apply gap-8;
+    @apply block;
   }
 
-  .middle-section {
-    width: min(25%, 448px); /* 继续减小比例，增加最大宽度 */
+  .main-content {
+    @apply space-y-3;
   }
 }
 

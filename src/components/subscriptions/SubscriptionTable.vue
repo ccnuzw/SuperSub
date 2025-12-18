@@ -5,62 +5,50 @@
 
 <template>
   <div class="subscription-table-container">
-    <!-- 工具栏 -->
-    <div class="table-toolbar">
-      <div class="toolbar-left">
-        <n-space>
-          <n-button
-            v-if="hasFailedSubscriptions"
-            type="warning"
-            size="small"
-            @click="$emit('retry-failed')"
-          >
-            <template #icon>
-              <n-icon><RefreshOutline /></n-icon>
-            </template>
-            重试失败 ({{ failedCount }})
-          </n-button>
+    <!-- 批量操作栏 - 当有选中订阅时显示 -->
+    <div v-if="selectedKeys.length > 0" class="batch-actions-bar">
+      <div class="batch-actions-content">
+        <span class="selected-count">
+          已选择 {{ selectedKeys.length }} 个订阅
+        </span>
 
+        <div class="batch-actions-buttons">
           <n-button
-            v-if="hasFailedSubscriptions"
-            type="error"
-            size="small"
-            @click="$emit('clear-failed')"
-          >
-            <template #icon>
-              <n-icon><TrashOutline /></n-icon>
-            </template>
-            清除失败
-          </n-button>
-        </n-space>
-      </div>
-
-      <div class="toolbar-right">
-        <n-space>
-          <n-button
-            v-if="hasSelected"
-            type="error"
-            size="small"
-            @click="$emit('batch-delete')"
-          >
-            <template #icon>
-              <n-icon><TrashOutline /></n-icon>
-            </template>
-            批量删除 ({{ selectedCount }})
-          </n-button>
-
-          <n-button
-            v-if="hasSelected"
             type="primary"
             size="small"
             @click="$emit('batch-update')"
+            :loading="batchUpdating"
           >
             <template #icon>
               <n-icon><SyncOutline /></n-icon>
             </template>
             批量更新
           </n-button>
-        </n-space>
+
+          <n-button
+            type="default"
+            size="small"
+            @click="$emit('batch-delete')"
+          >
+            <template #icon>
+              <n-icon><TrashOutline /></n-icon>
+            </template>
+            批量删除
+          </n-button>
+
+          <n-dropdown
+            :options="batchMenuOptions"
+            placement="bottom-end"
+            @select="handleBatchMenuAction"
+          >
+            <n-button size="small" quaternary>
+              更多操作
+              <template #icon>
+                <n-icon><EllipsisVerticalOutline /></n-icon>
+              </template>
+            </n-button>
+          </n-dropdown>
+        </div>
       </div>
     </div>
 
@@ -78,30 +66,26 @@
 
     <!-- 更新状态指示器 -->
     <div v-if="updatingCount > 0" class="updating-indicator">
-      <n-progress
-        type="line"
-        :percentage="(updatedCount / totalUpdatingCount) * 100"
-        :show-indicator="false"
-      />
+      <n-spin size="small" />
       <span class="updating-text">
-        正在更新 {{ updatingCount }} 个订阅... ({{ updatedCount }}/{{ totalUpdatingCount }})
+        正在更新 {{ updatingCount }} 个订阅...
       </span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, h } from 'vue'
-import { NButton, NTag, NSpace, NIcon, NDropdown, NProgress } from 'naive-ui'
+import { computed, h, ref } from 'vue'
+import { NButton, NTag, NSpace, NIcon, NDropdown, NSpin, NTooltip, type DataTableColumns, type DropdownOption } from 'naive-ui'
 import {
   EyeOutline,
   CreateOutline,
   SyncOutline,
   TrashOutline,
   EllipsisVerticalOutline,
-  RefreshOutline
+  RefreshOutline,
+  CopyOutline
 } from '@vicons/ionicons5'
-import type { DataTableColumns, DropdownOption } from 'naive-ui'
 import type { Subscription } from '@/types'
 import { businessUtils } from '@/components/business'
 import type { IListComponentProps, IListComponentEmits } from '@/utils/componentApiStandards'
@@ -139,6 +123,7 @@ const emit = defineEmits<IEmits>()
 // 计算属性
 const hasSelected = computed(() => props.selectedKeys.length > 0)
 const selectedCount = computed(() => props.selectedKeys.length)
+const batchUpdating = ref(false)
 
 const failedSubscriptions = computed(() =>
   props.subscriptions.filter(s => s.status === 'error')
@@ -155,6 +140,33 @@ const updatedCount = computed(() => {
 })
 
 const totalUpdatingCount = computed(() => props.updatingIds.size)
+
+// 批量操作菜单选项
+const batchMenuOptions: DropdownOption[] = [
+  {
+    label: '重试失败',
+    key: 'retry-failed',
+    icon: () => h(NIcon, null, { default: () => h(RefreshOutline) })
+  },
+  {
+    label: '清除失败',
+    key: 'clear-failed',
+    icon: () => h(NIcon, null, { default: () => h(TrashOutline) })
+  },
+  {
+    type: 'divider' as const
+  },
+  {
+    label: '全选当前页',
+    key: 'select-all-page',
+    icon: () => h(NIcon, null, { default: () => h(CopyOutline) })
+  },
+  {
+    label: '取消选择',
+    key: 'deselect-all',
+    icon: () => h(NIcon, null, { default: () => h(CreateOutline) })
+  }
+]
 
 // 表格配置
 const paginationConfig = computed(() => ({
@@ -285,6 +297,27 @@ const renderActions = (subscription: Subscription) => {
   })
 }
 
+// 批量操作处理函数
+const handleBatchMenuAction = (key: string) => {
+  switch (key) {
+    case 'retry-failed':
+      emit('retry-failed')
+      break
+    case 'clear-failed':
+      emit('clear-failed')
+      break
+    case 'select-all-page':
+      // 选择当前页所有订阅
+      const currentPageSubscriptionIds = props.subscriptions.map(sub => sub.id)
+      emit('update:selected-keys', currentPageSubscriptionIds)
+      break
+    case 'deselect-all':
+      // 取消所有选择
+      emit('update:selected-keys', [])
+      break
+  }
+}
+
 // 表格列定义
 const columns: DataTableColumns<Subscription> = [
   {
@@ -348,19 +381,29 @@ const columns: DataTableColumns<Subscription> = [
 .subscription-table-container {
   @apply bg-white rounded-lg shadow-sm;
   border: 1px solid rgba(0, 0, 0, 0.06);
+  overflow: hidden;
 }
 
-.table-toolbar {
-  @apply flex justify-between items-center p-4 border-b border-gray-200;
+/* 批量操作栏 */
+.batch-actions-bar {
+  @apply border-b border-gray-200 bg-blue-50 px-4 py-3 rounded-t-lg;
+  animation: slideDown 0.2s ease-out;
 }
 
-.toolbar-left,
-.toolbar-right {
-  @apply flex items-center space-x-3;
+.batch-actions-content {
+  @apply flex items-center justify-between;
+}
+
+.selected-count {
+  @apply text-sm text-blue-700 font-medium;
+}
+
+.batch-actions-buttons {
+  @apply flex items-center space-x-2;
 }
 
 .updating-indicator {
-  @apply flex items-center space-x-3 px-4 py-3 bg-blue-50 border-t border-blue-200;
+  @apply flex items-center space-x-2 px-4 py-3 bg-blue-50 border-t border-blue-200 rounded-b-lg;
 }
 
 .updating-text {
@@ -369,16 +412,20 @@ const columns: DataTableColumns<Subscription> = [
 
 /* 深色模式 */
 .dark .subscription-table-container {
-  @apply bg-gray-800/90;
+  @apply bg-gray-800;
   border-color: rgba(75, 85, 99, 0.3);
 }
 
-.dark .table-toolbar {
-  @apply border-gray-700;
+.dark .batch-actions-bar {
+  @apply border-gray-700 bg-blue-900/20;
+}
+
+.dark .selected-count {
+  @apply text-blue-400;
 }
 
 .dark .updating-indicator {
-  @apply bg-blue-900/20 border-blue-800;
+  @apply bg-blue-900/20 border-blue-800 rounded-b-lg;
 }
 
 .dark .updating-text {
@@ -441,13 +488,24 @@ const columns: DataTableColumns<Subscription> = [
     @apply shadow-sm;
   }
 
-  .table-toolbar {
-    @apply flex-col space-y-3 p-3;
+  .batch-actions-content {
+    @apply flex-col space-y-3;
   }
 
-  .toolbar-left,
-  .toolbar-right {
+  .batch-actions-buttons {
     @apply w-full justify-center;
+  }
+}
+
+/* 动画效果 */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>

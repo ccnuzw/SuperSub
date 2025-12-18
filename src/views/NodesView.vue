@@ -10,11 +10,14 @@
     <div class="main-content">
       <!-- 分组选择区域 -->
       <div class="group-section">
-        <GroupSelector
-          v-model:selected-group-id="selectedGroupId"
-          :groups="groupOptions"
+        <NodeGroupTabs
+          v-model:active-tab="selectedGroupId"
+          :groups="groupsWithCount"
           :loading="groupStore.loading"
-          @create-group="handleCreateGroup"
+          :total-count="nodes.length"
+          @group-click="handleGroupClick"
+          @group-context-menu="handleGroupContextMenu"
+          @add-group="handleCreateGroup"
         />
       </div>
 
@@ -61,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, useDialog } from 'naive-ui'
 import { useClipboard } from '@/composables/common/useClipboard'
@@ -69,7 +72,7 @@ import { useClipboard } from '@/composables/common/useClipboard'
 // 组件导入
 import NodeTable from '@/components/nodes/NodeTable.vue'
 import NodeFormModal from '@/components/nodes/NodeFormModal.vue'
-import GroupSelector from '@/components/nodes/GroupSelector.vue'
+import NodeGroupTabs from '@/components/nodes/NodeGroupTabs.vue'
 import NodeBulkImportModal from '@/components/nodes/NodeBulkImportModal.vue'
 
 // Store导入
@@ -104,7 +107,7 @@ const groupStore = useGroupStore()
 
 // 本地状态管理
 const selectedKeys = ref<string[]>([])
-const selectedGroupId = ref('')
+const selectedGroupId = ref('all')
 
 // 模态框状态
 const showAddModal = ref(false)
@@ -137,12 +140,20 @@ const groupOptions = computed(() => {
   return options
 })
 
+// 带节点数量的分组列表
+const groupsWithCount = computed(() => {
+  return groupStore.groups.map((group: any) => ({
+    ...group,
+    node_count: nodes.value.filter(node => node.group_id === group.id).length
+  }))
+})
+
 // 过滤后的节点
 const filteredNodes = computed(() => {
   let filtered = nodes.value
 
   // 如果选择了分组，过滤节点
-  if (selectedGroupId.value) {
+  if (selectedGroupId.value && selectedGroupId.value !== 'all') {
     filtered = filtered.filter(node => node.group_id === selectedGroupId.value)
   }
 
@@ -311,9 +322,51 @@ const handleMoveNodesToGroupWrapper = (nodes: any[]) => {
   handleMoveNodesToGroup(nodeIds, groupId)
 }
 
-const handleCreateGroup = async (groupName: string) => {
+const handleCreateGroup = () => {
+  dialog.create({
+    title: '创建新分组',
+    content: () => {
+      return h('div', { class: 'py-2' }, [
+        h('p', { class: 'text-gray-600 mb-4' }, '请输入分组名称'),
+        h('input', {
+          ref: 'inputRef',
+          type: 'text',
+          placeholder: '分组名称',
+          onInput: (e: any) => {
+            groupName = e.target.value
+          },
+          onKeydown: (e: KeyboardEvent) => {
+            if (e.key === 'Enter') {
+              dialog.destroyAll()
+              if (groupName.trim()) {
+                createGroup(groupName.trim())
+              }
+            }
+          },
+          class: 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+          autofocus: true
+        })
+      ])
+    },
+    positiveText: '创建',
+    negativeText: '取消',
+    onPositiveClick: () => {
+      if (groupName.trim()) {
+        createGroup(groupName.trim())
+        return true
+      } else {
+        message.warning('分组名称不能为空')
+        return false
+      }
+    }
+  })
+}
+
+let groupName = ''
+
+const createGroup = async (name: string) => {
   try {
-    const response = await httpClient.post('/groups', { name: groupName })
+    const response = await httpClient.post('/groups', { name })
 
     if (response.success) {
       message.success('分组创建成功')
@@ -325,6 +378,15 @@ const handleCreateGroup = async (groupName: string) => {
     console.error('Create group failed:', error)
     message.error(error.message || '创建失败，请稍后重试')
   }
+}
+
+const handleGroupClick = (group: any) => {
+  selectedGroupId.value = group.id
+}
+
+const handleGroupContextMenu = (group: any, event: MouseEvent) => {
+  event.preventDefault()
+  // 暂时禁用右键菜单，可以在头部操作菜单中管理分组
 }
 
 // 处理批量导入
@@ -408,6 +470,8 @@ const handleSelectedKeysChange = (keys: string[]) => {
   @apply min-h-screen flex flex-col px-1 sm:px-2 md:px-3 lg:px-4 xl:px-6 py-4;
   background: #ffffff;
   width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 /* 主要内容区域 */
@@ -443,8 +507,9 @@ const handleSelectedKeysChange = (keys: string[]) => {
 @media (min-width: 1025px) and (max-width: 1440px) {
   .page-container {
     @apply px-6 py-6;
-    max-width: 1400px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
   }
 
   .main-content {
@@ -455,8 +520,9 @@ const handleSelectedKeysChange = (keys: string[]) => {
 @media (min-width: 1441px) and (max-width: 1920px) {
   .page-container {
     @apply px-8 py-8;
-    max-width: 1600px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
   }
 
   .main-content {
@@ -467,8 +533,9 @@ const handleSelectedKeysChange = (keys: string[]) => {
 @media (min-width: 1921px) {
   .page-container {
     @apply px-12 py-10;
-    max-width: 1800px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
   }
 
   .main-content {
@@ -483,7 +550,7 @@ const handleSelectedKeysChange = (keys: string[]) => {
   }
 
   .main-content {
-    @apply flex-col space-x-0 space-y-4;
+    @apply flex-col space-x-0 space-y-2;
   }
 
   .group-section {
@@ -503,7 +570,7 @@ const handleSelectedKeysChange = (keys: string[]) => {
   }
 
   .main-content {
-    @apply space-y-6;
+    @apply space-y-3;
   }
 }
 
@@ -514,7 +581,7 @@ const handleSelectedKeysChange = (keys: string[]) => {
   }
 
   .main-content {
-    @apply space-y-8;
+    @apply space-y-3;
   }
 }
 
