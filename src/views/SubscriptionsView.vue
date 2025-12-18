@@ -5,98 +5,38 @@
 
 <template>
   <div class="page-container">
-    <!-- 粘性头部 -->
-    <div class="sticky-header">
-      <div class="content-wrapper">
-        <n-page-header
-          title="订阅管理"
-          subtitle="管理和配置代理订阅源"
-          @back="$router.back()"
-        >
-          <template #extra>
-            <n-space size="medium">
-              <n-button
-                type="primary"
-                size="medium"
-                @click="showAddModal = true"
-                :loading="loading"
-                class="action-button"
-              >
-                <template #icon>
-                  <n-icon><AddOutline /></n-icon>
-                </template>
-                添加订阅
-              </n-button>
-
-              <n-dropdown
-                :options="headerActions"
-                placement="bottom-end"
-                @select="handleHeaderAction"
-              >
-                <n-button circle size="medium" class="action-button">
-                  <template #icon>
-                    <n-icon><EllipsisVerticalOutline /></n-icon>
-                  </template>
-                </n-button>
-              </n-dropdown>
-            </n-space>
-          </template>
-        </n-page-header>
-      </div>
+    <!-- 中间区域：分组标签 -->
+    <div class="middle-section">
+      <SubscriptionGroupTabs
+        v-model:active-tab="activeTab"
+        :groups="groups"
+        :loading="groupLoading"
+        :total-count="subscriptions.length"
+        @group-click="handleGroupClick"
+        @group-context-menu="handleGroupContextMenu"
+        @add-group="handleCreateGroup"
+      />
     </div>
 
-    <!-- 主要内容区域 -->
-    <div class="content-wrapper">
-      <div class="content-grid">
-        <!-- 顶部区域：统计信息 -->
-        <div class="top-section">
-          <SubscriptionStats
-            :total="subscriptions.length"
-            :healthy="healthyCount"
-            :updating="updatingCount"
-            :failed="failedCount"
-            :selected="selectedCount"
-          />
-        </div>
-
-        <!-- 中间区域：分组标签 -->
-        <div class="middle-section">
-          <div class="section-card">
-            <SubscriptionGroupTabs
-              v-model:active-tab="activeTab"
-              :groups="groups"
-              :loading="groupLoading"
-              :total-count="subscriptions.length"
-              @group-click="handleGroupClick"
-              @group-context-menu="handleGroupContextMenu"
-              @add-group="handleCreateGroup"
-            />
-          </div>
-        </div>
-
-        <!-- 底部区域：订阅表格 -->
-        <div class="bottom-section">
-          <div class="section-card table-card">
-            <SubscriptionTable
-              :subscriptions="filteredSubscriptions"
-              :selected-keys="selectedKeys"
-              :updating-ids="updatingIds"
-              :loading="loading"
-              :pagination="pagination"
-              @update:selected-keys="selectedKeys = $event"
-              @retry-failed="handleRetryFailed"
-              @clear-failed="handleClearFailed"
-              @batch-delete="handleBatchDelete"
-              @batch-update="handleBatchUpdate"
-              @edit="handleEditSubscription"
-              @delete="handleDeleteSubscription"
-              @update="handleUpdateSubscription"
-              @preview="handlePreviewSubscription"
-              @copy-url="handleCopySubscriptionUrl"
-            />
-          </div>
-        </div>
-      </div>
+  <!-- 底部区域：订阅表格 -->
+    <div class="bottom-section">
+      <SubscriptionTable
+        :subscriptions="filteredSubscriptions"
+        :selected-keys="selectedKeys"
+        :updating-ids="updatingIds"
+        :loading="loading"
+        :pagination="pagination"
+        @update:selected-keys="selectedKeys = $event"
+        @retry-failed="handleRetryFailed"
+        @clear-failed="handleClearFailed"
+        @batch-delete="handleBatchDelete"
+        @batch-update="handleBatchUpdate"
+        @edit="handleEditSubscription"
+        @delete="handleDeleteSubscription"
+        @update="handleUpdateSubscription"
+        @preview="handlePreviewSubscription"
+        @copy-url="handleCopySubscriptionUrl"
+      />
     </div>
 
     <!-- 添加/编辑订阅模态框 -->
@@ -148,9 +88,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, h } from 'vue'
+import { ref, computed, onMounted, onUnmounted, h, inject, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMessage, useDialog, NButton, NIcon, NPageHeader, NSpace, NDropdown } from 'naive-ui'
+import { useMessage, useDialog } from 'naive-ui'
 import {
   AddOutline,
   EllipsisVerticalOutline,
@@ -165,7 +105,6 @@ import { useClipboard } from '@/composables/common/useClipboard'
 import SubscriptionTable from '@/components/subscriptions/SubscriptionTable.vue'
 import SubscriptionFormModal from '@/components/subscriptions/SubscriptionFormModal.vue'
 import SubscriptionGroupTabs from '@/components/subscriptions/SubscriptionGroupTabs.vue'
-import SubscriptionStats from '@/components/subscriptions/SubscriptionStats.vue'
 import SubscriptionGroupFormModal from '@/components/subscriptions/SubscriptionGroupFormModal.vue'
 import BulkImportModal from '@/components/subscriptions/BulkImportModal.vue'
 import SubscriptionPreviewModal from '@/components/subscriptions/SubscriptionPreviewModal.vue'
@@ -183,6 +122,9 @@ const router = useRouter()
 const message = useMessage()
 const dialog = useDialog()
 const { copy } = useClipboard()
+
+// 注入更新顶部栏统计信息的方法
+const updateHeaderStats = inject<((stats: Record<string, any>) => void) | null>('updateHeaderStats')
 
 // 使用 Composables
 const {
@@ -321,58 +263,18 @@ const groupOptions2 = computed(() => [
   }))
 ])
 
-// 头部操作菜单
-const headerActions: DropdownOption[] = [
-  {
-    label: '刷新数据',
-    key: 'refresh',
-    icon: () => h(NIcon, null, () => h(RefreshOutline))
-  },
-  {
-    label: '批量导入',
-    key: 'bulk-import',
-    icon: () => h(NIcon, null, () => h(AddOutline))
-  },
-  {
-    label: '导出订阅',
-    key: 'export',
-    icon: () => h(NIcon, null, () => h(DownloadOutline))
-  },
-  {
-    type: 'divider'
-  },
-  {
-    label: '新建分组',
-    key: 'create-group',
-    icon: () => h(NIcon, null, () => h(SettingsOutline))
-  },
-  {
-    label: '分组管理',
-    key: 'group-management',
-    icon: () => h(NIcon, null, () => h(SettingsOutline))
+// 监听数据变化，更新顶部栏统计信息
+watch([subscriptions, selectedKeys, updatingIds], () => {
+  if (updateHeaderStats) {
+    updateHeaderStats({
+      total: subscriptions.value.length,
+      healthy: healthyCount.value,
+      updating: updatingCount.value,
+      failed: failedCount.value,
+      selected: selectedCount.value
+    })
   }
-]
-
-// 事件处理
-const handleHeaderAction = (key: string) => {
-  switch (key) {
-    case 'refresh':
-      handleRefresh()
-      break
-    case 'bulk-import':
-      showImportModal.value = true
-      break
-    case 'export':
-      handleExportSubscriptions()
-      break
-    case 'create-group':
-      handleCreateGroup()
-      break
-    case 'group-management':
-      showGroupManagement.value = true
-      break
-  }
-}
+}, { immediate: true })
 
 const handleRefresh = async () => {
   await Promise.all([
@@ -456,120 +358,101 @@ const handleSaveGroup = async (groupData: Partial<ISubscriptionGroup>) => {
 // 生命周期
 onMounted(async () => {
   await handleRefresh()
+
+  // 添加顶部栏事件监听
+  window.addEventListener('header-action', handleHeaderAction)
 })
+
+// 组件卸载时移除事件监听
+onUnmounted(() => {
+  window.removeEventListener('header-action', handleHeaderAction)
+})
+
+// 顶部栏事件处理
+const handleHeaderAction = async (event: CustomEvent) => {
+  const { type, action } = event.detail
+
+  if (type === 'primary') {
+    switch (action) {
+      case 'add-subscription':
+        showAddModal.value = true
+        break
+    }
+  } else if (type === 'menu') {
+    switch (action) {
+      case 'bulk-import':
+        showImportModal.value = true
+        break
+      case 'refresh':
+        await handleRefresh()
+        message.success('数据刷新完成')
+        break
+      case 'export':
+        handleExportSubscriptions()
+        break
+      case 'create-group':
+        handleCreateGroup()
+        break
+      case 'group-management':
+        showGroupManagement.value = true
+        break
+      case 'retry-failed':
+        await handleRetryFailed()
+        break
+      case 'clear-failed':
+        await handleClearFailed()
+        break
+    }
+  }
+}
 </script>
 
 <style scoped>
-/* 页面容器 */
+/* 内容包装器 - 直接在页面容器中 */
 .page-container {
-  @apply min-h-screen;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-}
-
-/* 内容包装器 - 使用更宽的容器 */
-.content-wrapper {
-  @apply max-w-full mx-auto px-1 sm:px-2 md:px-3 lg:px-4 xl:px-6;
+  @apply min-h-screen flex flex-col px-1 sm:px-2 md:px-3 lg:px-4 xl:px-6 py-4;
+  background: #ffffff;
   width: 100%;
 }
 
-/* 粘性头部 */
-.sticky-header {
-  @apply sticky top-0 z-40;
-  backdrop-filter: blur(12px);
-  background: rgba(255, 255, 255, 0.8);
-  border-bottom: 1px solid rgba(229, 231, 235, 0.3);
-}
-
-/* 内容网格布局 - 减少间距 */
-.content-grid {
-  @apply space-y-4 py-4;
-}
-
-/* 区域划分 */
-.top-section {
-  @apply transition-all duration-300;
-}
-
+/* 区域划分 - 直接使用页面空间 */
 .middle-section {
-  @apply transition-all duration-300;
+  @apply mb-4 transition-all duration-300;
+  flex-shrink: 0;
 }
 
 .bottom-section {
   @apply transition-all duration-300;
-}
-
-/* 统一卡片样式 - 减少内边距 */
-.section-card {
-  @apply bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20;
-  @apply transition-all duration-300 hover:shadow-xl;
-  padding: 1rem;
-}
-
-.table-card {
-  @apply p-0 overflow-hidden;
-}
-
-.table-card :deep(.n-data-table) {
-  border-radius: 0.75rem;
-}
-
-.table-card :deep(.n-data-table .n-data-table-base-table) {
-  border-radius: 0.75rem;
-}
-
-/* 按钮样式优化 */
-.action-button {
-  @apply transition-all duration-200 hover:scale-105;
+  flex: 1;
+  min-height: 0; /* 允许flexbox子项收缩 */
 }
 
 /* 响应式设计 - 优化不同屏幕尺寸 */
 @media (max-width: 640px) {
-  .content-wrapper {
-    @apply px-1;
+  .page-container {
+    @apply px-1 py-3;
   }
 
-  .content-grid {
-    @apply space-y-3 py-3;
-  }
-
-  .section-card {
-    padding: 0.5rem;
+  .middle-section {
+    @apply mb-3;
   }
 }
 
 @media (min-width: 641px) and (max-width: 1024px) {
-  .content-wrapper {
-    @apply px-2;
-  }
-
-  .content-grid {
-    @apply space-y-4;
-  }
-
-  .section-card {
-    padding: 0.75rem;
+  .page-container {
+    @apply px-2 py-4;
   }
 }
 
 @media (min-width: 1280px) {
-  .content-wrapper {
-    @apply px-4;
+  .page-container {
+    @apply px-4 py-4;
   }
 }
 
 /* 深色模式适配 */
 .dark .page-container {
   background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-}
-
-.dark .sticky-header {
-  background: rgba(31, 41, 55, 0.8);
-  border-bottom-color: rgba(75, 85, 99, 0.3);
-}
-
-.dark .section-card {
-  @apply bg-gray-800/80 border-gray-700/20;
-  background: rgba(31, 41, 55, 0.8);
 }
 
 /* 加载动画 */

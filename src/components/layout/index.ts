@@ -7,6 +7,7 @@
 export { default as AppLayout } from './AppLayout.vue';
 export { default as AppHeader } from './AppHeader.vue';
 export { default as ContentHeader } from './ContentHeader.vue';
+export { default as DynamicHeader } from './DynamicHeader.vue';
 export { default as Sidebar } from './Sidebar.vue';
 
 // 类型定义
@@ -123,7 +124,7 @@ export const layoutUtils = {
 export const LAYOUT_CONSTANTS = {
   SIDEBAR_WIDTH: 280,
   SIDEBAR_COLLAPSED_WIDTH: 64,
-  HEADER_HEIGHT: 80,
+  HEADER_HEIGHT: 64,
   CONTENT_HEADER_HEIGHT: 80,
   MOBILE_BREAKPOINT: 768,
   TABLET_BREAKPOINT: 1024,

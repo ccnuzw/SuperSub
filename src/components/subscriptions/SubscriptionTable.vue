@@ -347,6 +347,7 @@ const columns: DataTableColumns<Subscription> = [
 <style scoped>
 .subscription-table-container {
   @apply bg-white rounded-lg shadow-sm;
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .table-toolbar {
@@ -368,7 +369,8 @@ const columns: DataTableColumns<Subscription> = [
 
 /* 深色模式 */
 .dark .subscription-table-container {
-  @apply bg-gray-800;
+  @apply bg-gray-800/90;
+  border-color: rgba(75, 85, 99, 0.3);
 }
 
 .dark .table-toolbar {

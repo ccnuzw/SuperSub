@@ -16,6 +16,7 @@ declare module 'vue' {
     ContentHeader: typeof import('./src/components/layout/ContentHeader.vue')['default']
     ContentPreview: typeof import('./src/components/profile/preview/ContentPreview.vue')['default']
     ConversionSettings: typeof import('./src/components/settings/ConversionSettings.vue')['default']
+    DynamicHeader: typeof import('./src/components/layout/DynamicHeader.vue')['default']
     EnhancedNodeTable: typeof import('./src/components/nodes/EnhancedNodeTable.vue')['default']
     GeneralSettings: typeof import('./src/components/settings/GeneralSettings.vue')['default']
     GenerationLogs: typeof import('./src/components/profile/preview/GenerationLogs.vue')['default']

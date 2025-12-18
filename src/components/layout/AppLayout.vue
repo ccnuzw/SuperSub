@@ -33,10 +33,13 @@
           'app-layout__main--sidebar-collapsed': sidebarCollapsed
         }"
       >
-        <!-- 内容区域顶部：包含页面信息 -->
-        <ContentHeader
+        <!-- 内容区域顶部：动态顶部栏 -->
+        <DynamicHeader
           :title="title"
           :description="description"
+          :stats-props="headerStatsProps"
+          @primary-action="handleHeaderPrimaryAction"
+          @menu-action="handleHeaderMenuAction"
         />
 
         <!-- 页面内容 -->
@@ -62,9 +65,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, provide } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { Sidebar, ContentHeader } from './index';
+import { Sidebar, DynamicHeader } from './index';
 import { useAuthStore } from '@/stores/auth';
 import { useThemeStore } from '@/stores/theme';
 import { useIsMobile } from '@/composables/useMediaQuery';
@@ -119,6 +122,52 @@ const handleMobileMenuToggle = () => {
 
 const closeMobileSidebar = () => {
   mobileSidebarOpen.value = false;
+};
+
+// 顶部栏统计信息属性
+const headerStatsProps = ref<Record<string, any>>({});
+
+// 提供更新统计信息的方法
+const updateHeaderStats = (stats: Record<string, any>) => {
+  headerStatsProps.value = stats;
+};
+
+provide('updateHeaderStats', updateHeaderStats);
+
+// 顶部栏事件处理
+const handleHeaderPrimaryAction = (action: string) => {
+  // 向当前路由组件发送事件
+  const currentComponent = router.currentRoute.value.matched[0]?.components?.default;
+
+  // 这里可以通过事件总线或者其他方式通知当前页面组件
+  console.log('Primary action:', action);
+
+  // 暂时通过路由参数传递简单动作
+  switch (action) {
+    case 'add-subscription':
+      // 触发订阅管理的添加订阅功能
+      window.dispatchEvent(new CustomEvent('header-action', { detail: { type: 'primary', action } }));
+      break;
+  }
+};
+
+const handleHeaderMenuAction = (action: string) => {
+  // 向当前路由组件发送菜单动作
+  console.log('Menu action:', action);
+
+  switch (action) {
+    case 'bulk-import':
+      window.dispatchEvent(new CustomEvent('header-action', { detail: { type: 'menu', action } }));
+      break;
+    case 'refresh':
+      window.dispatchEvent(new CustomEvent('header-action', { detail: { type: 'menu', action } }));
+      break;
+    case 'export':
+      window.dispatchEvent(new CustomEvent('header-action', { detail: { type: 'menu', action } }));
+      break;
+    default:
+      window.dispatchEvent(new CustomEvent('header-action', { detail: { type: 'menu', action } }));
+  }
 };
 
 const handleSidebarToggle = () => {
@@ -249,7 +298,8 @@ defineExpose({
 
 /* 内容区域 */
 .app-layout__content {
-  @apply flex-1 overflow-y-auto p-4 lg:p-6 bg-gray-50;
+  @apply flex-1 overflow-y-auto;
+  /* 移除了背景色和内边距，让页面自己控制 */
 }
 
 /* 移动端菜单按钮 */
@@ -276,7 +326,7 @@ defineExpose({
 /* 响应式优化 */
 @media (max-width: 640px) {
   .app-layout__content {
-    @apply p-3;
+    /* 移除了移动端的内边距 */
   }
 
   .mobile-menu-button {
@@ -294,7 +344,7 @@ defineExpose({
 }
 
 .dark .app-layout__content {
-  @apply bg-gray-900;
+  /* 移除了深色模式的背景色 */
 }
 
 .dark .mobile-menu-button {

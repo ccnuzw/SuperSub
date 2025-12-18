@@ -96,15 +96,16 @@ const props = defineProps<IProps>()
 
 /* 迷你卡片容器 */
 .mini-cards-container {
-  @apply flex flex-wrap gap-3 justify-center;
+  @apply flex items-center justify-center gap-2;
 }
 
 /* 迷你卡片基础样式 */
 .mini-card {
-  @apply flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-200 hover:shadow-md;
+  @apply flex items-center gap-2 px-2.5 py-2 rounded-lg border transition-all duration-200 hover:shadow-md;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(8px);
-  min-width: 100px;
+  min-width: 85px;
+  height: 40px;
 }
 
 /* 卡片图标 */
@@ -114,11 +115,11 @@ const props = defineProps<IProps>()
 
 /* 卡片内容 */
 .card-content {
-  @apply flex flex-col;
+  @apply flex flex-col justify-center;
 }
 
 .card-value {
-  @apply text-lg font-bold;
+  @apply text-base font-bold;
   line-height: 1.2;
 }
 
@@ -176,20 +177,21 @@ const props = defineProps<IProps>()
 /* 响应式设计 */
 @media (max-width: 640px) {
   .subscription-stats {
-    @apply p-3;
+    @apply p-2;
   }
 
   .mini-cards-container {
-    @apply gap-2;
+    @apply gap-1.5;
   }
 
   .mini-card {
     @apply px-2 py-1.5;
-    min-width: 85px;
+    min-width: 70px;
+    height: 36px;
   }
 
   .card-value {
-    @apply text-base;
+    @apply text-sm;
   }
 
   .card-label {
@@ -199,11 +201,12 @@ const props = defineProps<IProps>()
 
 @media (min-width: 641px) and (max-width: 768px) {
   .mini-cards-container {
-    @apply gap-2.5;
+    @apply gap-1.5;
   }
 
   .mini-card {
-    min-width: 95px;
+    min-width: 75px;
+    height: 38px;
   }
 }
 

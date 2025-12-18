@@ -100,7 +100,8 @@ defineEmits<{
 
 <style scoped>
 .subscription-group-tabs {
-  @apply w-full;
+  @apply w-full bg-white rounded-lg shadow-sm p-3;
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .group-tab {
@@ -108,7 +109,7 @@ defineEmits<{
 }
 
 .group-tab:hover {
-  @apply bg-gray-50;
+  @apply bg-gray-100/50;
 }
 
 /* 标签页样式优化 */
@@ -126,12 +127,12 @@ defineEmits<{
 }
 
 :deep(.n-tabs .n-tabs-tab:hover) {
-  @apply bg-gray-50;
+  @apply bg-gray-100/50;
 }
 
 :deep(.n-tabs .n-tabs-tab--active) {
-  @apply bg-primary-50 text-primary-600;
   background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+  @apply text-primary-600 font-semibold;
 }
 
 :deep(.n-tabs .n-tabs-bar) {
@@ -165,9 +166,14 @@ defineEmits<{
 }
 
 /* 深色模式适配 */
+.dark .subscription-group-tabs {
+  @apply bg-gray-800/90;
+  border-color: rgba(75, 85, 99, 0.3);
+}
+
 .dark .group-tab:hover,
 .dark :deep(.n-tabs .n-tabs-tab:hover) {
-  @apply bg-gray-700;
+  @apply bg-gray-700/50;
 }
 
 .dark :deep(.n-tabs .n-tabs-tab--active) {
