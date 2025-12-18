@@ -173,8 +173,11 @@ const paginationConfig = computed(() => ({
   pageSize: props.pagination.pageSize,
   itemCount: props.pagination.itemCount,
   showSizePicker: true,
-  pageSizes: [20, 50, 100, 200],
-  showQuickJumper: true
+  pageSizes: [10, 20, 50, 100, 200],
+  showQuickJumper: true,
+  // 确保表格高度自适应
+  scrollX: 1200
+  // 不设置 maxHeight，让表格高度自适应内容
 }))
 
 // 状态渲染
@@ -429,7 +432,12 @@ const columns: DataTableColumns<INode> = [
 .node-table-container {
   @apply bg-white rounded-lg shadow-sm;
   border: 1px solid rgba(0, 0, 0, 0.06);
-  overflow: hidden;
+  overflow: visible;
+  /* 确保容器高度自适应内容 */
+  height: auto;
+  min-height: auto;
+  /* 减少底部间距 */
+  margin-bottom: 12px;
 }
 
 /* 批量操作栏 */
@@ -485,6 +493,13 @@ const columns: DataTableColumns<INode> = [
   border-color: rgba(75, 85, 99, 0.3);
 }
 
+/* 通用分页器间距 - 减少不必要的间距 */
+.node-table-container :deep(.n-data-table .n-data-table-pagination) {
+  padding-right: 16px;
+  padding-bottom: 8px;
+  padding-top: 8px;
+}
+
 .dark .batch-actions-bar {
   @apply border-gray-700 bg-blue-900/20;
 }
@@ -504,7 +519,22 @@ const columns: DataTableColumns<INode> = [
 /* 桌面端大屏幕优化 */
 @media (min-width: 1200px) {
   .node-table-container {
-    @apply min-h-[600px];
+    @apply bg-white rounded-lg shadow-sm;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    overflow: visible;
+    /* 移除高度限制，让内容自然展示 */
+  }
+
+  /* 确保表格不会被截断 */
+  .node-table-container :deep(.n-data-table) {
+    overflow: visible;
+  }
+
+  /* 添加分页器间距 */
+  .node-table-container :deep(.n-data-table .n-data-table-pagination) {
+    padding-right: 24px;
+    padding-bottom: 16px;
+    padding-top: 16px;
   }
 
   :deep(.n-data-table .n-data-table-base-table) {
@@ -523,7 +553,20 @@ const columns: DataTableColumns<INode> = [
 /* 超宽屏优化 */
 @media (min-width: 1600px) {
   .node-table-container {
-    @apply min-h-[700px];
+    @apply bg-white rounded-lg shadow-sm;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    overflow: visible;
+  }
+
+  .node-table-container :deep(.n-data-table) {
+    overflow: visible;
+  }
+
+  /* 添加分页器间距 */
+  .node-table-container :deep(.n-data-table .n-data-table-pagination) {
+    padding-right: 32px;
+    padding-bottom: 20px;
+    padding-top: 20px;
   }
 
   :deep(.n-data-table .n-data-table-base-table) {
@@ -538,7 +581,20 @@ const columns: DataTableColumns<INode> = [
 /* 4K屏幕优化 */
 @media (min-width: 1921px) {
   .node-table-container {
-    @apply min-h-[800px];
+    @apply bg-white rounded-lg shadow-sm;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    overflow: visible;
+  }
+
+  .node-table-container :deep(.n-data-table) {
+    overflow: visible;
+  }
+
+  /* 添加分页器间距 */
+  .node-table-container :deep(.n-data-table .n-data-table-pagination) {
+    padding-right: 40px;
+    padding-bottom: 24px;
+    padding-top: 24px;
   }
 
   :deep(.n-data-table .n-data-table-base-table) {

@@ -124,7 +124,7 @@ const testingIds = ref(new Set<string>())
 // 分页配置
 const pagination = ref({
   page: 1,
-  pageSize: 20,
+  pageSize: 10,
   itemCount: computed(() => nodes.value.length)
 })
 
@@ -467,14 +467,20 @@ const handleSelectedKeysChange = (keys: string[]) => {
 <style scoped>
 /* 内容包装器 - 直接在页面容器中 */
 .page-container {
-  @apply min-h-screen flex flex-col py-4;
+  @apply flex flex-col;
   background: #ffffff;
   width: 100%;
   max-width: none;
   margin: 0;
+  /* 减少垂直间距，紧贴布局 */
+  padding-top: 16px;
+  padding-bottom: 16px;
   /* 与顶部栏的 px-6 保持一致 */
   padding-left: 24px;
   padding-right: 24px;
+  /* 移除 min-h-screen，让容器高度自适应内容 */
+  min-height: auto;
+  height: auto;
 }
 
 /* 主要内容区域 */
@@ -482,8 +488,10 @@ const handleSelectedKeysChange = (keys: string[]) => {
   @apply transition-all duration-300;
   display: flex;
   flex-direction: column;
-  flex: 1;
+  /* 移除 flex: 1，让容器高度自适应内容 */
   gap: 1rem;
+  height: auto;
+  min-height: auto;
 }
 
 /* 响应式设计 - 优化不同屏幕尺寸 */
@@ -495,7 +503,7 @@ const handleSelectedKeysChange = (keys: string[]) => {
   }
 
   .main-content {
-    @apply space-y-3;
+    @apply space-y-2;
   }
 }
 
@@ -513,6 +521,21 @@ const handleSelectedKeysChange = (keys: string[]) => {
 
 @media (min-width: 1025px) and (max-width: 1440px) {
   .page-container {
+    @apply py-4;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .main-content {
+    @apply space-y-4;
+  }
+}
+
+@media (min-width: 1441px) and (max-width: 1920px) {
+  .page-container {
     @apply py-6;
     width: 100%;
     max-width: none;
@@ -526,7 +549,7 @@ const handleSelectedKeysChange = (keys: string[]) => {
   }
 }
 
-@media (min-width: 1441px) and (max-width: 1920px) {
+@media (min-width: 1921px) {
   .page-container {
     @apply py-8;
     width: 100%;
@@ -538,21 +561,6 @@ const handleSelectedKeysChange = (keys: string[]) => {
 
   .main-content {
     @apply space-y-8;
-  }
-}
-
-@media (min-width: 1921px) {
-  .page-container {
-    @apply py-10;
-    width: 100%;
-    max-width: none;
-    margin: 0;
-    padding-left: 24px;
-    padding-right: 24px;
-  }
-
-  .main-content {
-    @apply space-y-10;
   }
 }
 

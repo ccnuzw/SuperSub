@@ -161,6 +161,20 @@ const pageConfig = computed(() => {
         { label: '导出配置', key: 'export-config', icon: DownloadOutline },
         { label: '导入配置', key: 'import-config', icon: AddOutline }
       ]
+    },
+    'user-management': {
+      title: '用户管理',
+      description: '管理系统用户和权限',
+      statsComponent: null,
+      primaryAction: {
+        text: '添加用户',
+        icon: AddOutline,
+        action: 'add-user'
+      },
+      menuItems: [
+        { label: '刷新数据', key: 'refresh', icon: RefreshOutline },
+        { label: '导出用户', key: 'export', icon: DownloadOutline }
+      ]
     }
   }
 

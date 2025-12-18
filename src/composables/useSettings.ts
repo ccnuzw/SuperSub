@@ -15,6 +15,10 @@ import { AppError, AppErrorType } from '@/utils/errorHandler';
 const formRefGlobal = ref<FormInst | null>(null);
 const passwordFormRefGlobal = ref<FormInst | null>(null);
 
+// 初始化状态标记
+let isInitializing = false;
+let initializationPromise: Promise<void> | null = null;
+
 export function useSettings() {
   const message = useMessage();
   const settingsStore = useSettingsStore();
@@ -59,6 +63,10 @@ export function useSettings() {
   const isLoading = computed(() => settingsStore.loading);
   const hasError = computed(() => !!settingsStore.error);
   const errorMessage = computed(() => settingsStore.error);
+  const hasSettings = computed(() => {
+    // 检查是否有保存的设置
+    return !!(formState.value.telegram_bot_token || formState.value.telegram_chat_id)
+  });
 
   // 监听store加载状态，同步到本地loading状态
   watch(isLoading, (loading) => {
@@ -81,18 +89,35 @@ export function useSettings() {
 
   // 初始化设置
   const initializeSettings = async () => {
-    if (!authStore.isAuthenticated) {
-      return;
+    // 防止重复初始化
+    if (isInitializing) {
+      return initializationPromise;
     }
 
-    try {
-      await settingsStore.initializeSettings();
-    } catch (error) {
-      if (error instanceof AppError && error.type === AppErrorType.USER_CANCEL) {
+    if (settingsStore.isInitialized) {
+      return; // 已经初始化过了
+    }
+
+    isInitializing = true;
+    initializationPromise = (async () => {
+      if (!authStore.isAuthenticated) {
         return;
       }
-      message.error('初始化设置失败');
-    }
+
+      try {
+        await settingsStore.initializeSettings();
+      } catch (error) {
+        if (error instanceof AppError && error.type === AppErrorType.USER_CANCEL) {
+          return;
+        }
+        message.error('初始化设置失败');
+      } finally {
+        isInitializing = false;
+        initializationPromise = null;
+      }
+    })();
+
+    return initializationPromise;
   };
 
   // 保存设置
@@ -249,5 +274,6 @@ export function useSettings() {
     isLoading,
     hasError,
     errorMessage,
+    hasSettings,
   };
 }

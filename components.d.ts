@@ -38,7 +38,9 @@ declare module 'vue' {
     NodeSelection: typeof import('./src/components/business/node/NodeSelection.vue')['default']
     NodeStatusIndicator: typeof import('./src/components/business/NodeStatusIndicator.vue')['default']
     NodeTable: typeof import('./src/components/nodes/NodeTable.vue')['default']
+    NotificationSettings: typeof import('./src/components/settings/NotificationSettings.vue')['default']
     NSpin: typeof import('naive-ui')['NSpin']
+    PasswordSettings: typeof import('./src/components/settings/PasswordSettings.vue')['default']
     PreviewEmpty: typeof import('./src/components/profile/preview/PreviewEmpty.vue')['default']
     PreviewHeader: typeof import('./src/components/profile/preview/PreviewHeader.vue')['default']
     PreviewStats: typeof import('./src/components/profile/preview/PreviewStats.vue')['default']
@@ -53,6 +55,9 @@ declare module 'vue' {
     RegionDistribution: typeof import('./src/components/profile/preview/RegionDistribution.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    SettingsContentContainer: typeof import('./src/components/settings/SettingsContentContainer.vue')['default']
+    SettingsForm: typeof import('./src/components/settings/SettingsForm.vue')['default']
+    SettingsNavigation: typeof import('./src/components/settings/SettingsNavigation.vue')['default']
     Sidebar: typeof import('./src/components/layout/Sidebar.vue')['default']
     SsBadge: typeof import('./src/components/base/SsBadge.vue')['default']
     SsButton: typeof import('./src/components/base/SsButton.vue')['default']
@@ -69,5 +74,7 @@ declare module 'vue' {
     SubscriptionStats: typeof import('./src/components/subscriptions/SubscriptionStats.vue')['default']
     SubscriptionStatusIndicator: typeof import('./src/components/business/SubscriptionStatusIndicator.vue')['default']
     SubscriptionTable: typeof import('./src/components/subscriptions/SubscriptionTable.vue')['default']
+    TokenSettings: typeof import('./src/components/settings/TokenSettings.vue')['default']
+    UserFormModal: typeof import('./src/components/users/UserFormModal.vue')['default']
   }
 }
