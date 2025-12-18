@@ -467,11 +467,14 @@ const handleSelectedKeysChange = (keys: string[]) => {
 <style scoped>
 /* 内容包装器 - 直接在页面容器中 */
 .page-container {
-  @apply min-h-screen flex flex-col px-1 sm:px-2 md:px-3 lg:px-4 xl:px-6 py-4;
+  @apply min-h-screen flex flex-col py-4;
   background: #ffffff;
   width: 100%;
   max-width: none;
   margin: 0;
+  /* 与顶部栏的 px-6 保持一致 */
+  padding-left: 24px;
+  padding-right: 24px;
 }
 
 /* 主要内容区域 */
@@ -486,7 +489,9 @@ const handleSelectedKeysChange = (keys: string[]) => {
 /* 响应式设计 - 优化不同屏幕尺寸 */
 @media (max-width: 640px) {
   .page-container {
-    @apply px-1 py-3;
+    @apply py-3;
+    padding-left: 16px;
+    padding-right: 16px;
   }
 
   .main-content {
@@ -496,7 +501,9 @@ const handleSelectedKeysChange = (keys: string[]) => {
 
 @media (min-width: 641px) and (max-width: 1024px) {
   .page-container {
-    @apply px-2 py-4;
+    @apply py-4;
+    padding-left: 20px;
+    padding-right: 20px;
   }
 
   .main-content {
@@ -506,10 +513,12 @@ const handleSelectedKeysChange = (keys: string[]) => {
 
 @media (min-width: 1025px) and (max-width: 1440px) {
   .page-container {
-    @apply px-6 py-6;
+    @apply py-6;
     width: 100%;
     max-width: none;
     margin: 0;
+    padding-left: 24px;
+    padding-right: 24px;
   }
 
   .main-content {
@@ -519,10 +528,12 @@ const handleSelectedKeysChange = (keys: string[]) => {
 
 @media (min-width: 1441px) and (max-width: 1920px) {
   .page-container {
-    @apply px-8 py-8;
+    @apply py-8;
     width: 100%;
     max-width: none;
     margin: 0;
+    padding-left: 24px;
+    padding-right: 24px;
   }
 
   .main-content {
@@ -532,10 +543,12 @@ const handleSelectedKeysChange = (keys: string[]) => {
 
 @media (min-width: 1921px) {
   .page-container {
-    @apply px-12 py-10;
+    @apply py-10;
     width: 100%;
     max-width: none;
     margin: 0;
+    padding-left: 24px;
+    padding-right: 24px;
   }
 
   .main-content {
