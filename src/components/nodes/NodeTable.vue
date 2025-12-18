@@ -61,7 +61,6 @@
       :row-key="(row: INode) => row.id"
       :checked-row-keys="(selectedKeys || [])"
       @update:checked-row-keys="$emit('update:selected-keys', $event)"
-      :scroll-x="false"
     />
 
     <!-- 节点状态指示器 -->

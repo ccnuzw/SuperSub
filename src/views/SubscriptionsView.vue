@@ -5,10 +5,16 @@
 
 <template>
   <div class="page-container">
-    <!-- 桌面端：左侧分组和右侧表格 -->
-    <!-- 移动端：上下布局 -->
-    <div class="main-content">
-      <!-- 分组选择区域 -->
+    <!-- 全局页面加载状态 -->
+    <div v-if="pageLoading" class="page-loading">
+      <n-spin size="large" />
+      <p class="loading-text">加载中...</p>
+    </div>
+
+    <!-- 页面内容 -->
+    <div v-else class="main-content">
+      <!-- 桌面端：左侧分组和右侧表格 -->
+      <!-- 移动端：上下布局 -->
       <div class="group-section">
         <SubscriptionGroupTabs
           v-model:active-tab="activeTab"
@@ -92,9 +98,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, h, inject, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, h, inject, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMessage, useDialog } from 'naive-ui'
+import { useMessage, useDialog, NSpin } from 'naive-ui'
 import {
   AddOutline,
   EllipsisVerticalOutline,
@@ -127,8 +133,11 @@ const message = useMessage()
 const dialog = useDialog()
 const { copy } = useClipboard()
 
+// 页面级别的loading状态
+const pageLoading = ref(true)
+
 // 注入更新顶部栏统计信息的方法
-const updateHeaderStats = inject<((stats: Record<string, any>) => void) | null>('updateHeaderStats')
+const updateHeaderStats = inject<((stats: Record<string, any>) => void) | null>('updateHeaderStats', null)
 
 // 使用 Composables
 const {
@@ -268,13 +277,18 @@ const groupOptions2 = computed(() => [
 ])
 
 // 监听数据变化，更新顶部栏统计信息
-watch([subscriptions, selectedKeys, updatingIds], () => {
-  if (updateHeaderStats) {
-    updateHeaderStats({
-      total: subscriptions.value.length,
-      healthy: healthyCount.value,
-      failed: failedCount.value
-    })
+watch([subscriptions, selectedKeys, updatingIds], async () => {
+  await nextTick()
+  if (updateHeaderStats && typeof updateHeaderStats === 'function') {
+    try {
+      updateHeaderStats({
+        total: subscriptions.value.length,
+        healthy: healthyCount.value,
+        failed: failedCount.value
+      })
+    } catch (error) {
+      console.warn('Failed to update header stats:', error)
+    }
   }
 }, { immediate: true })
 
@@ -359,7 +373,12 @@ const handleSaveGroup = async (groupData: Partial<ISubscriptionGroup>) => {
 
 // 生命周期
 onMounted(async () => {
-  await handleRefresh()
+  try {
+    await handleRefresh()
+  } finally {
+    // 确保无论数据加载是否成功，都隐藏loading
+    pageLoading.value = false
+  }
 
   // 添加顶部栏事件监听
   window.addEventListener('header-action', handleHeaderAction as EventListener)
@@ -528,5 +547,17 @@ const handleHeaderAction = async (event: CustomEvent) => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* 页面加载状态 */
+.page-loading {
+  @apply flex flex-col items-center justify-center;
+  min-height: 400px;
+  gap: 1rem;
+}
+
+.loading-text {
+  @apply text-gray-600 text-sm;
+  font-family: 'Inter', sans-serif;
 }
 </style>

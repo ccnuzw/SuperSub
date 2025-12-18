@@ -178,7 +178,7 @@ const handleSaveTest = async () => {
 
 // 组件挂载时，数据已由父组件初始化
 onMounted(() => {
-  console.log('NotificationSettings mounted - data should be loaded by parent')
+  // 数据已由父组件加载，无需额外操作
 })
 </script>
 

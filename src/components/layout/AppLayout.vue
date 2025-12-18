@@ -45,8 +45,8 @@
         <!-- 页面内容 -->
         <div class="app-layout__content">
           <RouterView v-slot="{ Component, route }">
-            <Transition name="page" mode="out-in">
-              <component :is="Component" :key="route.path" />
+            <Transition name="page" mode="default">
+              <component :is="Component" :key="route.name || route.path" />
             </Transition>
           </RouterView>
         </div>
@@ -306,17 +306,17 @@ defineExpose({
 /* 页面切换动画 */
 .page-enter-active,
 .page-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .page-enter-from {
   opacity: 0;
-  transform: translateX(20px);
+  transform: translateX(10px);
 }
 
 .page-leave-to {
   opacity: 0;
-  transform: translateX(-20px);
+  transform: translateX(-10px);
 }
 
 /* 响应式优化 */

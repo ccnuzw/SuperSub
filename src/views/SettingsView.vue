@@ -84,7 +84,7 @@ onMounted(async () => {
   // 统一初始化设置数据
   try {
     await initializeSettings()
-    console.log('Settings initialized successfully')
+    // 设置初始化成功
   } catch (error) {
     console.error('Failed to initialize settings:', error)
     message.error('初始化设置失败，请稍后重试')

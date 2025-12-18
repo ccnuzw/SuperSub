@@ -104,6 +104,15 @@ const pageConfig = computed(() => {
       type?: 'divider'
     }[]
   }> = {
+    home: {
+      title: '仪表板',
+      description: '系统概览和统计信息',
+      statsComponent: null,
+      menuItems: [
+        { label: '刷新数据', key: 'refresh', icon: RefreshOutline },
+        { label: '导出报告', key: 'export-report', icon: DownloadOutline }
+      ]
+    },
     subscriptions: {
       title: '订阅管理',
       description: '管理和配置代理订阅源',

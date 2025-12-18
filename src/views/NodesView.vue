@@ -5,10 +5,16 @@
 
 <template>
   <div class="page-container">
-    <!-- 桌面端：左侧分组和右侧表格 -->
-    <!-- 移动端：上下布局 -->
-    <div class="main-content">
-      <!-- 分组选择区域 -->
+    <!-- 全局页面加载状态 -->
+    <div v-if="pageLoading" class="page-loading">
+      <n-spin size="large" />
+      <p class="loading-text">加载中...</p>
+    </div>
+
+    <!-- 页面内容 -->
+    <div v-else class="main-content">
+      <!-- 桌面端：左侧分组和右侧表格 -->
+      <!-- 移动端：上下布局 -->
       <div class="group-section">
         <NodeGroupTabs
           v-model:active-tab="selectedGroupId"
@@ -66,7 +72,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, h } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMessage, useDialog } from 'naive-ui'
+import { useMessage, useDialog, NSpin } from 'naive-ui'
 import { useClipboard } from '@/composables/common/useClipboard'
 
 // 组件导入
@@ -84,6 +90,9 @@ const router = useRouter()
 const message = useMessage()
 const dialog = useDialog()
 const { copyText } = useClipboard()
+
+// 页面级别的loading状态
+const pageLoading = ref(true)
 
 // 使用 Composables
 const {
@@ -409,10 +418,15 @@ const handleBulkImport = async (data: { links: string[]; groupId?: string }) => 
 
 // 生命周期
 onMounted(async () => {
-  await Promise.all([
-    handleRefresh(),
-    groupStore.fetchGroups()
-  ])
+  try {
+    await Promise.all([
+      handleRefresh(),
+      groupStore.fetchGroups()
+    ])
+  } finally {
+    // 确保无论数据加载是否成功，都隐藏loading
+    pageLoading.value = false
+  }
 
   // 添加顶部栏事件监听
   window.addEventListener('header-action', handleHeaderAction as EventListener)
@@ -583,5 +597,17 @@ const handleSelectedKeysChange = (keys: string[]) => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* 页面加载状态 */
+.page-loading {
+  @apply flex flex-col items-center justify-center;
+  min-height: 400px;
+  gap: 1rem;
+}
+
+.loading-text {
+  @apply text-gray-600 text-sm;
+  font-family: 'Inter', sans-serif;
 }
 </style>

@@ -61,7 +61,6 @@
       :row-key="(row: Subscription) => row.id"
       :checked-row-keys="selectedKeys"
       @update:checked-row-keys="$emit('update:selected-keys', $event)"
-      :scroll-x="false"
     />
 
     <!-- 更新状态指示器 -->
@@ -176,8 +175,33 @@ const paginationConfig = computed(() => ({
   showSizePicker: true,
   pageSizes: [10, 20, 50, 100, 200],
   showQuickJumper: true
-  // 移除 scrollX，让表格完全自适应宽度
 }))
+
+// 表格配置 - 添加响应式滚动设置
+const tableConfig = computed(() => {
+  // 根据屏幕宽度决定是否需要滚动
+  const width = window.innerWidth || 1200
+
+  if (width < 768) {
+    // 移动端 - 需要水平滚动
+    return {
+      scrollX: 1200, // 设置一个固定的滚动宽度
+      maxWidth: '100vw'
+    }
+  } else if (width < 1200) {
+    // 平板端 - 可能需要滚动
+    return {
+      scrollX: 1000,
+      maxWidth: '100%'
+    }
+  } else {
+    // 桌面端 - 不需要滚动
+    return {
+      scrollX: undefined,
+      maxWidth: '100%'
+    }
+  }
+})
 
 // 状态标签渲染
 const renderStatus = (status: string) => {
@@ -211,13 +235,27 @@ const renderProtocols = (subscription: Subscription) => {
       key: protocol,
       type: color as any,
       size: 'small',
-      style: { marginRight: '4px' }
+      style: {
+        marginRight: '2px',
+        marginBottom: '2px',
+        fontSize: '11px',
+        padding: '2px 6px',
+        lineHeight: '1.2'
+      }
     }, {
       default: () => `${protocol.toUpperCase()}(${count})`
     })
   })
 
-  return h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '4px' } }, protocols)
+  return h('div', {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: '2px',
+      maxWidth: '160px',
+      lineHeight: '1.2'
+    }
+  }, protocols)
 }
 
 // 操作按钮渲染
@@ -327,7 +365,7 @@ const columns: DataTableColumns<Subscription> = [
   {
     title: '名称',
     key: 'name',
-    // 移除固定宽度，让其自适应
+    width: 200,  /* 设置固定宽度，保证名称列不会太宽 */
     ellipsis: {
       tooltip: true
     }
@@ -353,7 +391,10 @@ const columns: DataTableColumns<Subscription> = [
   {
     title: '协议',
     key: 'protocols',
-    // 移除固定宽度，让其自适应
+    width: 180,  /* 设置协议列固定宽度，避免过宽 */
+    ellipsis: {
+      tooltip: true
+    },
     render: (row) => renderProtocols(row)
   },
   {
@@ -365,7 +406,8 @@ const columns: DataTableColumns<Subscription> = [
   {
     title: '自动更新',
     key: 'is_auto_update',
-    width: 80,  /* 减小自动更新列宽度 */
+    width: 100,  /* 增加自动更新列宽度，避免标题换行 */
+    align: 'center',  /* 居中对齐 */
     render: (row) => row.is_auto_update ? '是' : '否'
   },
   {
@@ -537,6 +579,7 @@ const columns: DataTableColumns<Subscription> = [
 }
 
 /* 响应式设计 */
+/* 小屏幕手机端 - 最大640px */
 @media (max-width: 640px) {
   .subscription-table-container {
     @apply shadow-sm;
@@ -548,6 +591,61 @@ const columns: DataTableColumns<Subscription> = [
 
   .batch-actions-buttons {
     @apply w-full justify-center;
+  }
+
+  /* 移动端隐藏部分列，保留核心信息 */
+  .subscription-table-container :deep(.n-data-table) {
+    font-size: 12px;
+  }
+
+  /* 移动端协议标签优化显示 */
+  .subscription-table-container :deep(.n-data-table td[data-col-key="protocols"] .n-tag) {
+    font-size: 10px;
+    padding: 2px 4px;
+    margin-right: 2px;
+  }
+}
+
+/* 中等屏幕 - 平板端 641px到968px */
+@media (min-width: 641px) and (max-width: 968px) {
+  .subscription-table-container {
+    @apply shadow-sm;
+  }
+
+  .batch-actions-content {
+    @apply flex-col space-y-2;
+  }
+
+  .batch-actions-buttons {
+    @apply w-full justify-center flex-wrap;
+  }
+
+  /* 平板端优化表格间距 */
+  .subscription-table-container :deep(.n-data-table) {
+    font-size: 13px;
+  }
+
+  .subscription-table-container :deep(.n-data-table .n-data-table-pagination) {
+    padding-right: 8px;
+    padding-bottom: 8px;
+    padding-top: 8px;
+  }
+}
+
+/* 大屏幕手机 - 968px到1200px */
+@media (min-width: 969px) and (max-width: 1200px) {
+  .subscription-table-container {
+    @apply shadow-sm;
+  }
+
+  /* 操作按钮优化 */
+  .subscription-table-container :deep(.n-data-table td[data-col-key="actions"] .n-space) {
+    gap: 4px !important;
+  }
+
+  .subscription-table-container :deep(.n-data-table td[data-col-key="actions"] .n-button) {
+    padding: 4px 8px;
+    font-size: 12px;
   }
 }
 

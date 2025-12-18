@@ -18,24 +18,6 @@ export const useAuthStore = defineStore('auth', () => {
   // 路由实例
   const router = useRouter();
 
-  // 初始化时恢复token
-  const initializeAuth = () => {
-    try {
-      const data = localStorage.getItem('supersub-auth');
-      if (data) {
-        const parsedData = JSON.parse(data);
-        if (parsedData.token) {
-          setToken(parsedData.token);
-        }
-        if (parsedData.user) {
-          setUser(parsedData.user);
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to restore auth data:', error);
-    }
-  };
-
   // 状态
   const user = ref<IUser | null>(null);
   const token = ref<string | null>(null);
@@ -54,6 +36,20 @@ export const useAuthStore = defineStore('auth', () => {
     lastUpdated.value = new Date().toISOString();
   };
 
+  // 保存到持久化 - 移动到这里确保在setToken/setUser之前定义
+  const saveToPersistence = () => {
+    try {
+      const data = {
+        user: user.value,
+        token: token.value,
+        lastUpdated: lastUpdated.value
+      };
+      localStorage.setItem('supersub-auth', JSON.stringify(data));
+    } catch (error) {
+      console.warn('Failed to save auth data to localStorage:', error);
+    }
+  };
+
   // 基础的store方法
   const setUser = (newUser: IUser | null) => {
     user.value = newUser;
@@ -65,6 +61,33 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = newToken;
     updateLastUpdated();
     saveToPersistence();
+  };
+
+  // 初始化时恢复token - 优化错误处理
+  const initializeAuth = () => {
+    try {
+      const data = localStorage.getItem('supersub-auth');
+      if (data) {
+        const parsedData = JSON.parse(data);
+        if (parsedData.token) {
+          token.value = parsedData.token;
+        }
+        if (parsedData.user) {
+          user.value = parsedData.user;
+        }
+        if (parsedData.lastUpdated) {
+          lastUpdated.value = parsedData.lastUpdated;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to restore auth data:', error);
+      // 清理损坏的数据
+      try {
+        localStorage.removeItem('supersub-auth');
+      } catch (clearError) {
+        console.warn('Failed to clear corrupted auth data:', clearError);
+      }
+    }
   };
 
   // 初始化认证状态（在所有函数定义后调用）
@@ -202,20 +225,6 @@ export const useAuthStore = defineStore('auth', () => {
       return data ? JSON.parse(data) : null;
     } catch {
       return null;
-    }
-  };
-
-  // 保存到持久化
-  const saveToPersistence = () => {
-    try {
-      const data = {
-        user: user.value,
-        token: token.value,
-        lastUpdated: lastUpdated.value
-      };
-      localStorage.setItem('supersub-auth', JSON.stringify(data));
-    } catch (error) {
-      console.warn('Failed to save auth data to localStorage:', error);
     }
   };
 
