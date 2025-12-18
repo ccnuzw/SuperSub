@@ -5,6 +5,8 @@
 
 <template>
   <div class="profiles-view">
+    <!-- 内容包装器 -->
+    <div class="content-wrapper">
     <!-- 页面头部 -->
     <div class="mb-6">
       <div class="flex justify-between items-center">
@@ -187,6 +189,7 @@
       v-model:show="showImportModal"
       @success="handleImportSuccess"
     />
+    </div>
   </div>
 </template>
 
@@ -558,6 +561,12 @@ onMounted(() => {
   @apply min-h-screen bg-gray-50;
 }
 
+/* 内容包装器 */
+.content-wrapper {
+  @apply max-w-full mx-auto px-1 sm:px-2 md:px-3 lg:px-4 xl:px-6;
+  width: 100%;
+}
+
 /* 动画效果 */
 .profiles-view {
   animation: fadeIn 0.3s ease-out;
@@ -576,6 +585,10 @@ onMounted(() => {
 
 /* 响应式布局 */
 @media (max-width: 640px) {
+  .content-wrapper {
+    @apply px-1;
+  }
+
   .flex-col.lg\:flex-row {
     flex-direction: column;
   }
@@ -595,6 +608,18 @@ onMounted(() => {
     align-items: flex-start;
     justify-content: flex-start;
     gap: 1rem;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .content-wrapper {
+    @apply px-2;
+  }
+}
+
+@media (min-width: 1280px) {
+  .content-wrapper {
+    @apply px-4;
   }
 }
 

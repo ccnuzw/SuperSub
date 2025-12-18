@@ -468,9 +468,10 @@ onMounted(async () => {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
-/* 内容包装器 */
+/* 内容包装器 - 使用更宽的容器 */
 .content-wrapper {
-  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  @apply max-w-full mx-auto px-1 sm:px-2 md:px-3 lg:px-4 xl:px-6;
+  width: 100%;
 }
 
 /* 粘性头部 */
@@ -481,9 +482,9 @@ onMounted(async () => {
   border-bottom: 1px solid rgba(229, 231, 235, 0.3);
 }
 
-/* 内容网格布局 */
+/* 内容网格布局 - 减少间距 */
 .content-grid {
-  @apply space-y-6 py-6;
+  @apply space-y-4 py-4;
 }
 
 /* 区域划分 */
@@ -499,11 +500,11 @@ onMounted(async () => {
   @apply transition-all duration-300;
 }
 
-/* 统一卡片样式 */
+/* 统一卡片样式 - 减少内边距 */
 .section-card {
   @apply bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20;
   @apply transition-all duration-300 hover:shadow-xl;
-  padding: 1.5rem;
+  padding: 1rem;
 }
 
 .table-card {
@@ -523,24 +524,38 @@ onMounted(async () => {
   @apply transition-all duration-200 hover:scale-105;
 }
 
-/* 响应式设计 */
+/* 响应式设计 - 优化不同屏幕尺寸 */
 @media (max-width: 640px) {
   .content-wrapper {
-    @apply px-4;
+    @apply px-1;
   }
 
   .content-grid {
-    @apply space-y-4 py-4;
+    @apply space-y-3 py-3;
   }
 
   .section-card {
-    padding: 1rem;
+    padding: 0.5rem;
   }
 }
 
 @media (min-width: 641px) and (max-width: 1024px) {
+  .content-wrapper {
+    @apply px-2;
+  }
+
   .content-grid {
-    @apply space-y-5;
+    @apply space-y-4;
+  }
+
+  .section-card {
+    padding: 0.75rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .content-wrapper {
+    @apply px-4;
   }
 }
 
