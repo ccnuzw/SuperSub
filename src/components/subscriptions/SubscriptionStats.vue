@@ -4,78 +4,72 @@
 
 <template>
   <div class="subscription-stats">
-    <n-grid :cols="5" :x-gap="16">
-      <n-gi>
-        <n-statistic label="总订阅数" :value="total">
-          <template #prefix>
-            <n-icon color="#18a058">
-              <BookOutline />
-            </n-icon>
-          </template>
-        </n-statistic>
-      </n-gi>
-
-      <n-gi>
-        <n-statistic label="正常" :value="healthy" value-style="color: #18a058">
-          <template #prefix>
-            <n-icon color="#18a058">
-              <CheckmarkCircleOutline />
-            </n-icon>
-          </template>
-        </n-statistic>
-      </n-gi>
-
-      <n-gi>
-        <n-statistic label="更新中" :value="updating" value-style="color: #2080f0">
-          <template #prefix>
-            <n-icon color="#2080f0">
-              <SyncOutline />
-            </n-icon>
-          </template>
-        </n-statistic>
-      </n-gi>
-
-      <n-gi>
-        <n-statistic label="失败" :value="failed" value-style="color: #d03050">
-          <template #prefix>
-            <n-icon color="#d03050">
-              <WarningOutline />
-            </n-icon>
-          </template>
-        </n-statistic>
-      </n-gi>
-
-      <n-gi>
-        <n-statistic label="已选择" :value="selected" value-style="color: #2080f0">
-          <template #prefix>
-            <n-icon color="#2080f0">
-              <CheckboxOutline />
-            </n-icon>
-          </template>
-        </n-statistic>
-      </n-gi>
-    </n-grid>
-
-    <!-- 健康率进度条 -->
-    <div v-if="total > 0" class="health-progress">
-      <div class="progress-label">
-        <span>健康率</span>
-        <span class="health-percentage">{{ healthPercentage }}%</span>
+    <div class="mini-cards-container">
+      <div class="mini-card total">
+        <div class="card-icon">
+          <n-icon color="#18a058" size="18">
+            <BookOutline />
+          </n-icon>
+        </div>
+        <div class="card-content">
+          <div class="card-value">{{ total }}</div>
+          <div class="card-label">总订阅数</div>
+        </div>
       </div>
-      <n-progress
-        type="line"
-        :percentage="healthPercentage"
-        :color="progressColor"
-        :height="8"
-        :border-radius="4"
-      />
+
+      <div class="mini-card healthy">
+        <div class="card-icon">
+          <n-icon color="#18a058" size="18">
+            <CheckmarkCircleOutline />
+          </n-icon>
+        </div>
+        <div class="card-content">
+          <div class="card-value">{{ healthy }}</div>
+          <div class="card-label">正常</div>
+        </div>
+      </div>
+
+      <div class="mini-card updating">
+        <div class="card-icon">
+          <n-icon color="#2080f0" size="18">
+            <SyncOutline />
+          </n-icon>
+        </div>
+        <div class="card-content">
+          <div class="card-value">{{ updating }}</div>
+          <div class="card-label">更新中</div>
+        </div>
+      </div>
+
+      <div class="mini-card failed">
+        <div class="card-icon">
+          <n-icon color="#d03050" size="18">
+            <WarningOutline />
+          </n-icon>
+        </div>
+        <div class="card-content">
+          <div class="card-value">{{ failed }}</div>
+          <div class="card-label">失败</div>
+        </div>
+      </div>
+
+      <div class="mini-card selected">
+        <div class="card-icon">
+          <n-icon color="#2080f0" size="18">
+            <CheckboxOutline />
+          </n-icon>
+        </div>
+        <div class="card-content">
+          <div class="card-value">{{ selected }}</div>
+          <div class="card-label">已选择</div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { NGrid, NGi, NStatistic, NIcon, NProgress } from 'naive-ui'
+import { NIcon } from 'naive-ui'
 import {
   BookOutline,
   CheckmarkCircleOutline,
@@ -93,100 +87,179 @@ interface IProps {
 }
 
 const props = defineProps<IProps>()
-
-// 计算健康率
-const healthPercentage = computed(() => {
-  if (props.total === 0) return 0
-  return Math.round((props.healthy / props.total) * 100)
-})
-
-// 进度条颜色
-const progressColor = computed(() => {
-  const percentage = healthPercentage.value
-  if (percentage >= 80) return '#18a058' // 绿色
-  if (percentage >= 60) return '#f0a020' // 橙色
-  return '#d03050' // 红色
-})
 </script>
 
 <style scoped>
 .subscription-stats {
-  @apply p-6;
+  @apply p-4;
 }
 
-/* 健康率进度条 */
-.health-progress {
-  @apply mt-6 pt-6 border-t border-gray-100;
+/* 迷你卡片容器 */
+.mini-cards-container {
+  @apply flex flex-wrap gap-3 justify-center;
 }
 
-.progress-label {
-  @apply flex justify-between items-center mb-3;
+/* 迷你卡片基础样式 */
+.mini-card {
+  @apply flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-200 hover:shadow-md;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  min-width: 100px;
 }
 
-.progress-label span:first-child {
-  @apply text-sm font-medium text-gray-600;
+/* 卡片图标 */
+.card-icon {
+  @apply flex-shrink-0;
 }
 
-.health-percentage {
-  @apply text-sm font-bold text-gray-900;
+/* 卡片内容 */
+.card-content {
+  @apply flex flex-col;
+}
+
+.card-value {
+  @apply text-lg font-bold;
+  line-height: 1.2;
+}
+
+.card-label {
+  @apply text-xs text-gray-600;
+  line-height: 1.2;
+}
+
+/* 不同类型卡片的颜色 */
+.mini-card.total {
+  @apply border-emerald-200;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(255, 255, 255, 0.9));
+}
+
+.mini-card.total .card-value {
+  color: #10b981;
+}
+
+.mini-card.healthy {
+  @apply border-emerald-200;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(255, 255, 255, 0.9));
+}
+
+.mini-card.healthy .card-value {
+  color: #10b981;
+}
+
+.mini-card.updating {
+  @apply border-blue-200;
+  background: linear-gradient(135deg, rgba(32, 126, 236, 0.05), rgba(255, 255, 255, 0.9));
+}
+
+.mini-card.updating .card-value {
+  color: #2080f0;
+}
+
+.mini-card.failed {
+  @apply border-red-200;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.05), rgba(255, 255, 255, 0.9));
+}
+
+.mini-card.failed .card-value {
+  color: #d03050;
+}
+
+.mini-card.selected {
+  @apply border-blue-200;
+  background: linear-gradient(135deg, rgba(32, 126, 236, 0.05), rgba(255, 255, 255, 0.9));
+}
+
+.mini-card.selected .card-value {
+  color: #2080f0;
 }
 
 /* 响应式设计 */
 @media (max-width: 640px) {
   .subscription-stats {
-    @apply p-4;
+    @apply p-3;
   }
 
-  :deep(.n-grid) {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 1rem !important;
+  .mini-cards-container {
+    @apply gap-2;
   }
 
-  .health-progress {
-    @apply mt-4 pt-4;
+  .mini-card {
+    @apply px-2 py-1.5;
+    min-width: 85px;
   }
 
-  .progress-label {
-    @apply mb-2;
+  .card-value {
+    @apply text-base;
   }
-}
 
-@media (min-width: 641px) and (max-width: 1024px) {
-  :deep(.n-grid) {
-    grid-template-columns: repeat(3, 1fr) !important;
+  .card-label {
+    @apply text-xs;
   }
 }
 
-@media (min-width: 1025px) {
-  :deep(.n-grid) {
-    grid-template-columns: repeat(5, 1fr) !important;
+@media (min-width: 641px) and (max-width: 768px) {
+  .mini-cards-container {
+    @apply gap-2.5;
+  }
+
+  .mini-card {
+    min-width: 95px;
   }
 }
 
 /* 深色模式适配 */
-.dark .health-progress {
-  @apply border-gray-700;
+.dark .mini-card {
+  background: rgba(31, 41, 55, 0.9);
+  border-color: rgba(75, 85, 99, 0.3);
 }
 
-.dark .progress-label span:first-child {
+.dark .card-label {
   @apply text-gray-400;
 }
 
-.dark .health-percentage {
-  @apply text-gray-100;
+.dark .mini-card.total {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(31, 41, 55, 0.9));
 }
 
-/* 统计项动画 */
-:deep(.n-statistic) {
-  transition: all 0.3s ease;
+.dark .mini-card.healthy {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(31, 41, 55, 0.9));
 }
 
-:deep(.n-statistic:hover) {
-  transform: translateY(-2px);
+.dark .mini-card.updating {
+  border-color: rgba(32, 126, 236, 0.3);
+  background: linear-gradient(135deg, rgba(32, 126, 236, 0.1), rgba(31, 41, 55, 0.9));
 }
 
-/* 进度条优化 */
-:deep(.n-progress-graph-line-fill) {
-  transition: width 0.6s ease;
+.dark .mini-card.failed {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(31, 41, 55, 0.9));
+}
+
+.dark .mini-card.selected {
+  border-color: rgba(32, 126, 236, 0.3);
+  background: linear-gradient(135deg, rgba(32, 126, 236, 0.1), rgba(31, 41, 55, 0.9));
+}
+
+/* 悬停动画 */
+.mini-card:hover {
+  transform: translateY(-1px);
+}
+
+/* 加载动画 */
+.mini-cards-container {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

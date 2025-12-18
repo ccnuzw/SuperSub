@@ -32,18 +32,6 @@
             </template>
             清除失败
           </n-button>
-
-          <n-button
-            type="primary"
-            size="small"
-            @click="$emit('update-all')"
-            :loading="isUpdating"
-          >
-            <template #icon>
-              <n-icon><SyncOutline /></n-icon>
-            </template>
-            全部更新
-          </n-button>
         </n-space>
       </div>
 
@@ -71,17 +59,6 @@
               <n-icon><SyncOutline /></n-icon>
             </template>
             批量更新
-          </n-button>
-
-          <n-button
-            type="default"
-            size="small"
-            @click="$emit('bulk-import')"
-          >
-            <template #icon>
-              <n-icon><AddOutline /></n-icon>
-            </template>
-            批量导入
           </n-button>
         </n-space>
       </div>
@@ -122,8 +99,7 @@ import {
   SyncOutline,
   TrashOutline,
   EllipsisVerticalOutline,
-  RefreshOutline,
-  AddOutline
+  RefreshOutline
 } from '@vicons/ionicons5'
 import type { DataTableColumns, DropdownOption } from 'naive-ui'
 import type { Subscription } from '@/types'
@@ -149,10 +125,8 @@ interface IEmits extends IListComponentEmits<Subscription> {
   'update:selected-keys': [keys: string[]]
   'retry-failed': []
   'clear-failed': []
-  'update-all': []
   'batch-delete': []
   'batch-update': []
-  'bulk-import': []
   'edit': [subscription: Subscription]
   'delete': [subscription: Subscription]
   'update': [subscription: Subscription]
