@@ -121,7 +121,7 @@ const pageConfig = computed(() => {
         { label: '导出订阅', key: 'export', icon: DownloadOutline },
         { label: '重试失败', key: 'retry-failed', icon: RefreshOutline, show: false },
         { label: '清除失败', key: 'clear-failed', icon: TrashOutline, show: false },
-        { type: 'divider' as const },
+        { label: '---', key: 'divider-1', type: 'divider' as const },
         { label: '新建分组', key: 'create-group', icon: SettingsOutline },
         { label: '分组管理', key: 'group-management', icon: SettingsOutline }
       ]
@@ -140,7 +140,7 @@ const pageConfig = computed(() => {
         { label: '刷新状态', key: 'refresh', icon: RefreshOutline },
         { label: '导出节点', key: 'export', icon: DownloadOutline },
         { label: '批量测试', key: 'batch-test', icon: SyncOutline },
-        { type: 'divider' as const },
+        { label: '---', key: 'divider-1', type: 'divider' as const },
         { label: '清理无效节点', key: 'cleanup', icon: TrashOutline }
       ]
     },
@@ -233,10 +233,8 @@ defineExpose({
 
 <style scoped>
 .dynamic-header {
-  @apply bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between;
+  @apply bg-white px-6 py-3 flex items-center justify-between;
   min-height: 64px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.95) 100%);
-  backdrop-filter: blur(12px);
 }
 
 .dynamic-header__left {
@@ -336,8 +334,7 @@ defineExpose({
 
 /* 深色模式支持 */
 .dark .dynamic-header {
-  background: linear-gradient(135deg, rgba(31, 41, 55, 0.95) 0%, rgba(17, 24, 39, 0.95) 100%);
-  @apply border-gray-700;
+  @apply bg-gray-800;
 }
 
 .dark .page-title {

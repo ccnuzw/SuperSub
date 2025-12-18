@@ -29,6 +29,11 @@
         @delete="handleDeleteNode"
         @copy="handleCopyNode"
         @move-to-group="handleMoveToGroup"
+        @batch-test="handleBatchTest"
+        @batch-delete="handleBatchDelete"
+        @batch-export="handleBatchExport"
+        @cleanup-invalid="handleCleanupInvalid"
+        @test-all-nodes="handleTestAllNodes"
       />
     </div>
 
@@ -210,6 +215,67 @@ const handleBatchDelete = async () => {
       }
     }
   })
+}
+
+const handleBatchExport = () => {
+  const selectedNodes = nodes.value.filter(node => selectedKeys.value.includes(node.id))
+  if (selectedNodes.length === 0) {
+    message.warning('请先选择要导出的节点')
+    return
+  }
+
+  const nodeLinks = selectedNodes.map(node => node.link || '').filter(Boolean)
+  const blob = new Blob([nodeLinks.join('\n')], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `nodes_${new Date().toISOString().split('T')[0]}.txt`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  message.success(`已导出 ${selectedNodes.length} 个节点`)
+}
+
+const handleCleanupInvalid = () => {
+  // 查找状态为异常或延迟过高的节点
+  const invalidNodes = nodes.value.filter(node => {
+    return node.status === 'unhealthy' ||
+           node.status === 'error' ||
+           (node.latency && node.latency > 5000) // 延迟超过5秒
+  })
+
+  if (invalidNodes.length === 0) {
+    message.info('没有发现无效节点')
+    return
+  }
+
+  dialog.warning({
+    title: '清理无效节点',
+    content: `发现 ${invalidNodes.length} 个无效节点（状态异常或延迟过高）。确定要删除这些节点吗？此操作不可撤销。`,
+    positiveText: '清理',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        const invalidNodeIds = invalidNodes.map(node => node.id)
+        await handleBatchDeleteNodes(invalidNodeIds)
+        message.success(`已清理 ${invalidNodes.length} 个无效节点`)
+      } catch (error) {
+        console.error('Cleanup failed:', error)
+        message.error('清理无效节点失败')
+      }
+    }
+  })
+}
+
+const handleTestAllNodes = async () => {
+  if (nodes.value.length === 0) {
+    message.warning('没有节点可测试')
+    return
+  }
+
+  message.info(`开始测试所有 ${nodes.value.length} 个节点...`)
+  await handleTestAll()
 }
 
 const handleExportNodes = () => {

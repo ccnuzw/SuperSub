@@ -140,16 +140,18 @@
           </button>
         </div>
       </div>
-    </div>
 
-    <!-- 右侧中部折叠按钮 -->
-    <button
-      class="sidebar-collapse-btn"
-      @click="handleToggle"
-      :title="collapsed ? '展开侧边栏' : '折叠侧边栏'"
-    >
-      <component :is="collapsed ? MenuExpandIcon : MenuCollapseIcon" />
-    </button>
+      <!-- 折叠按钮 -->
+      <div class="function-item" :title="collapsed ? '展开侧边栏' : '折叠侧边栏'">
+        <button
+          class="function-button collapse-button"
+          @click="handleToggle"
+        >
+          <component :is="collapsed ? MenuExpandIcon : MenuCollapseIcon" class="function-icon" />
+          <span v-if="!collapsed" class="function-text">{{ collapsed ? '展开' : '收起' }}</span>
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -312,7 +314,7 @@ const toggleUserMenu = () => {
 
 <style scoped>
 .sidebar {
-  @apply flex flex-col h-full bg-white border-r border-gray-200 transition-all duration-300 ease-in-out;
+  @apply flex flex-col h-full bg-white transition-all duration-300 ease-in-out;
   width: 280px;
 }
 
@@ -321,7 +323,7 @@ const toggleUserMenu = () => {
 }
 
 .sidebar__logo {
-  @apply p-6 border-b border-gray-200 transition-all duration-300 ease-in-out;
+  @apply p-6 transition-all duration-300 ease-in-out;
 }
 
 .sidebar--collapsed .sidebar__logo {
@@ -350,7 +352,7 @@ const toggleUserMenu = () => {
 
 /* 功能区域 (原顶部栏功能) */
 .sidebar__functions {
-  @apply px-3 py-4 border-t border-gray-200 space-y-2 transition-all duration-300;
+  @apply px-3 py-4 space-y-2 transition-all duration-300;
 }
 
 .sidebar--collapsed .sidebar__functions {
@@ -419,13 +421,9 @@ const toggleUserMenu = () => {
   @apply text-xs text-gray-500 truncate;
 }
 
-/* 右侧中部折叠按钮 */
-.sidebar-collapse-btn {
-  @apply absolute -right-3 top-1/2 transform -translate-y-1/2 w-6 h-6 bg-white border border-gray-300 rounded-full flex items-center justify-center shadow-md hover:shadow-lg hover:bg-gray-50 transition-all duration-200 z-20 text-gray-600 hover:text-gray-900;
-}
-
-.sidebar-collapse-btn svg {
-  @apply w-4 h-4;
+/* 折叠按钮样式 */
+.collapse-button {
+  @apply text-gray-600 hover:text-gray-900 hover:bg-gray-50;
 }
 
 .sidebar__nav {
@@ -496,11 +494,6 @@ const toggleUserMenu = () => {
   .sidebar--open {
     @apply translate-x-0;
   }
-
-  /* 移动端隐藏右侧折叠按钮 */
-  .sidebar-collapse-btn {
-    @apply hidden;
-  }
 }
 
 /* 动画效果 */
@@ -548,12 +541,12 @@ const toggleUserMenu = () => {
 
 /* 深色模式支持 */
 .dark .sidebar {
-  @apply bg-gray-800 border-gray-700;
+  @apply bg-gray-800;
 }
 
 .dark .sidebar__logo,
 .dark .sidebar__functions {
-  @apply border-gray-700;
+  /* 移除边框样式 */
 }
 
 .dark .nav-section__title {
@@ -584,8 +577,8 @@ const toggleUserMenu = () => {
   @apply text-gray-400;
 }
 
-.dark .sidebar-collapse-btn {
-  @apply bg-gray-700 border-gray-600 text-gray-400 hover:bg-gray-600 hover:text-gray-200;
+.dark .collapse-button {
+  @apply text-gray-400 hover:bg-gray-700 hover:text-gray-200;
 }
 
 /* 移动端样式更新 */

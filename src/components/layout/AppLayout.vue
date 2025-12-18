@@ -235,19 +235,15 @@ defineExpose({
   },
   closeMobileSidebar,
   openGlobalSearch: (query?: string) => {
-    if (query) {
-      globalSearchQuery.value = query;
-      showGlobalSearch.value = true;
-    } else {
-      showGlobalSearch.value = true;
-    }
+    // 全局搜索功能待实现
+    console.log('Global search with query:', query);
   }
 });
 </script>
 
 <style scoped>
 .app-layout {
-  @apply h-screen bg-gray-50 relative;
+  @apply h-screen bg-white relative;
 }
 
 .app-layout--mobile {
@@ -260,7 +256,7 @@ defineExpose({
 
 /* 侧边栏样式 */
 .app-layout__sidebar {
-  @apply h-full bg-white border-r border-gray-200 transition-all duration-300 ease-in-out z-30;
+  @apply h-full bg-white transition-all duration-300 ease-in-out z-30;
   width: 280px;
   flex-shrink: 0;
 }
@@ -299,7 +295,7 @@ defineExpose({
 /* 内容区域 */
 .app-layout__content {
   @apply flex-1 overflow-y-auto;
-  /* 移除了背景色和内边距，让页面自己控制 */
+  /* 移除内边距，让页面自己控制 */
 }
 
 /* 移动端菜单按钮 */
@@ -336,11 +332,12 @@ defineExpose({
 
 /* 深色模式支持 */
 .dark .app-layout {
-  @apply bg-gray-900;
+  @apply bg-gray-800;
 }
 
 .dark .app-layout__sidebar {
-  @apply bg-gray-800 border-gray-700;
+  @apply bg-gray-800;
+  /* 移除边框样式 */
 }
 
 .dark .app-layout__content {

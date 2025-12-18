@@ -105,7 +105,7 @@
     <!-- 配置列表 -->
     <div class="bg-white rounded-lg border border-gray-200">
       <!-- 列表头部 -->
-      <div class="px-6 py-3 border-b border-gray-200 bg-gray-50">
+      <div class="px-6 py-3 border-b border-gray-200 bg-white">
         <div class="flex items-center">
           <input
             type="checkbox"
@@ -558,7 +558,7 @@ onMounted(() => {
 
 <style scoped>
 .profiles-view {
-  @apply min-h-screen bg-gray-50;
+  @apply min-h-screen bg-white;
 }
 
 /* 内容包装器 */
