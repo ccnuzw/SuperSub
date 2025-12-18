@@ -42,32 +42,32 @@ const props = withDefaults(defineProps<IProps>(), {
 
 /* 内容头部样式 */
 .content-header {
-  @apply px-6 py-4 border-b border-gray-200;
+  @apply px-4 py-3 border-b border-gray-200;
   background: linear-gradient(135deg, rgba(249, 250, 251, 0.8) 0%, rgba(243, 244, 246, 0.8) 100%);
 }
 
 .content-title {
-  @apply text-lg font-semibold text-gray-900 mb-1;
+  @apply text-base font-semibold text-gray-900 mb-1;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
 
 .content-description {
-  @apply text-sm text-gray-600 leading-relaxed;
+  @apply text-xs text-gray-600 leading-relaxed;
 }
 
 /* 内容主体样式 */
 .content-body {
-  @apply p-6;
+  @apply p-4;
 }
 
 /* 响应式设计 */
 @media (max-width: 640px) {
   .content-header {
-    @apply px-4 py-3;
+    @apply px-3 py-2;
   }
 
   .content-title {
-    @apply text-base;
+    @apply text-sm;
   }
 
   .content-description {
@@ -75,17 +75,17 @@ const props = withDefaults(defineProps<IProps>(), {
   }
 
   .content-body {
-    @apply p-4;
+    @apply p-3;
   }
 }
 
 @media (min-width: 1024px) {
   .content-header {
-    @apply px-8 py-5;
+    @apply px-5 py-3.5;
   }
 
   .content-body {
-    @apply p-8;
+    @apply p-5;
   }
 }
 

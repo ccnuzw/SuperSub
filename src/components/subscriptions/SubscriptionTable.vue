@@ -61,7 +61,7 @@
       :row-key="(row: Subscription) => row.id"
       :checked-row-keys="selectedKeys"
       @update:checked-row-keys="$emit('update:selected-keys', $event)"
-      :scroll-x="1200"
+      :scroll-x="false"
     />
 
     <!-- 更新状态指示器 -->
@@ -175,10 +175,8 @@ const paginationConfig = computed(() => ({
   itemCount: props.pagination.itemCount,
   showSizePicker: true,
   pageSizes: [10, 20, 50, 100, 200],
-  showQuickJumper: true,
-  // 确保表格高度自适应
-  scrollX: 1200
-  // 不设置 maxHeight，让表格高度自适应内容
+  showQuickJumper: true
+  // 移除 scrollX，让表格完全自适应宽度
 }))
 
 // 状态标签渲染
@@ -329,7 +327,7 @@ const columns: DataTableColumns<Subscription> = [
   {
     title: '名称',
     key: 'name',
-    width: 200,
+    // 移除固定宽度，让其自适应
     ellipsis: {
       tooltip: true
     }
@@ -337,43 +335,44 @@ const columns: DataTableColumns<Subscription> = [
   {
     title: '状态',
     key: 'status',
-    width: 100,
+    width: 80,  /* 减小状态列宽度 */
     render: (row) => renderStatus(row.status)
   },
   {
     title: '节点数',
     key: 'node_count',
-    width: 100,
+    width: 80,  /* 减小节点数列宽度 */
     render: (row) => row.node_count || 0
   },
   {
     title: '可用节点',
     key: 'healthy_node_count',
-    width: 100,
+    width: 90,  /* 减小可用节点列宽度 */
     render: (row) => row.healthy_node_count || 0
   },
   {
     title: '协议',
     key: 'protocols',
-    width: 200,
+    // 移除固定宽度，让其自适应
     render: (row) => renderProtocols(row)
   },
   {
     title: '最后更新',
     key: 'last_update',
-    width: 150,
+    width: 120,  /* 减小最后更新列宽度 */
     render: (row) => businessUtils.formatRelativeTime(row.last_update || '')
   },
   {
     title: '自动更新',
     key: 'is_auto_update',
-    width: 100,
+    width: 80,  /* 减小自动更新列宽度 */
     render: (row) => row.is_auto_update ? '是' : '否'
   },
   {
     title: '操作',
     key: 'actions',
-    width: 200,
+    width: 240,  /* 增加操作列宽度以适应所有按钮 */
+    minWidth: 220,  /* 添加最小宽度保证 */
     fixed: 'right',
     render: (row) => renderActions(row)
   }
@@ -388,8 +387,8 @@ const columns: DataTableColumns<Subscription> = [
   /* 确保容器高度自适应内容 */
   height: auto;
   min-height: auto;
-  /* 减少底部间距 */
-  margin-bottom: 12px;
+  /* 减少底部间距，让布局更紧凑 */
+  margin-bottom: 8px;
 }
 
 /* 批量操作栏 */
@@ -426,9 +425,9 @@ const columns: DataTableColumns<Subscription> = [
 
 /* 通用分页器间距 - 减少不必要的间距 */
 .subscription-table-container :deep(.n-data-table .n-data-table-pagination) {
-  padding-right: 16px;
-  padding-bottom: 8px;
-  padding-top: 8px;
+  padding-right: 12px;
+  padding-bottom: 6px;
+  padding-top: 6px;
 }
 
 .dark .batch-actions-bar {
@@ -462,9 +461,9 @@ const columns: DataTableColumns<Subscription> = [
 
   /* 添加分页器间距 */
   .subscription-table-container :deep(.n-data-table .n-data-table-pagination) {
-    padding-right: 24px;
-    padding-bottom: 16px;
-    padding-top: 16px;
+    padding-right: 16px;
+    padding-bottom: 12px;
+    padding-top: 12px;
   }
 
   :deep(.n-data-table .n-data-table-base-table) {
@@ -490,9 +489,9 @@ const columns: DataTableColumns<Subscription> = [
 
   /* 添加分页器间距 */
   .subscription-table-container :deep(.n-data-table .n-data-table-pagination) {
-    padding-right: 32px;
-    padding-bottom: 20px;
-    padding-top: 20px;
+    padding-right: 20px;
+    padding-bottom: 16px;
+    padding-top: 16px;
   }
 
   :deep(.n-data-table .n-data-table-base-table) {
@@ -518,9 +517,9 @@ const columns: DataTableColumns<Subscription> = [
 
   /* 添加分页器间距 */
   .subscription-table-container :deep(.n-data-table .n-data-table-pagination) {
-    padding-right: 40px;
-    padding-bottom: 24px;
-    padding-top: 24px;
+    padding-right: 24px;
+    padding-bottom: 18px;
+    padding-top: 18px;
   }
 
   :deep(.n-data-table .n-data-table-base-table) {

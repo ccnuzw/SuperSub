@@ -70,18 +70,7 @@ const currentTabComponent = computed(() => {
 // 事件处理 - 遵循命名规范：handle + 动作 + On + 目标
 const handleTabChangeOnTab = (tab: string) => {
   activeTab.value = tab
-  message.info(`切换到${getTabName(tab)}`)
-}
-
-// 获取标签页名称
-const getTabName = (tab: string): string => {
-  const nameMap: Record<string, string> = {
-    notifications: '通知设置',
-    token: '令牌设置',
-    password: '密码修改',
-    conversion: '转换设置',
-  }
-  return nameMap[tab] || '未知设置'
+  // 移除切换提示，保持简洁的用户体验
 }
 
 // 计算加载状态
@@ -106,14 +95,15 @@ onMounted(async () => {
 <style scoped>
 /* 页面容器样式 - 与节点管理保持一致 */
 .page-container {
-  @apply min-h-screen flex flex-col py-4;
+  @apply w-full flex flex-col;
   background: #ffffff;
   width: 100%;
   max-width: none;
   margin: 0;
   /* 与顶部栏的 px-6 保持一致 */
-  padding-left: 24px;
-  padding-right: 24px;
+  padding: 16px 24px;
+  /* 移除min-h-screen，使用fit-content */
+  min-height: calc(100vh - 200px);
 }
 
 /* 主要内容区域 */
@@ -134,7 +124,7 @@ onMounted(async () => {
 .content-section {
   @apply w-full flex-1;
   position: relative;
-  min-height: 500px;
+  /* 移除固定的min-height，让内容自适应 */
 }
 
 /* 加载样式 */
@@ -161,7 +151,7 @@ onMounted(async () => {
 /* 响应式设计 - 与节点管理保持一致 */
 @media (max-width: 640px) {
   .page-container {
-    @apply py-3;
+    @apply py-2;
     padding-left: 16px;
     padding-right: 16px;
   }
@@ -173,7 +163,7 @@ onMounted(async () => {
 
 @media (min-width: 641px) and (max-width: 1024px) {
   .page-container {
-    @apply py-4;
+    @apply py-3;
     padding-left: 20px;
     padding-right: 20px;
   }
@@ -184,6 +174,36 @@ onMounted(async () => {
 }
 
 @media (min-width: 1025px) and (max-width: 1440px) {
+  .page-container {
+    @apply py-4;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .main-content {
+    @apply space-y-4;
+  }
+}
+
+@media (min-width: 1441px) and (max-width: 1920px) {
+  .page-container {
+    @apply py-5;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .main-content {
+    @apply space-y-5;
+  }
+}
+
+@media (min-width: 1921px) {
   .page-container {
     @apply py-6;
     width: 100%;
@@ -198,36 +218,6 @@ onMounted(async () => {
   }
 }
 
-@media (min-width: 1441px) and (max-width: 1920px) {
-  .page-container {
-    @apply py-8;
-    width: 100%;
-    max-width: none;
-    margin: 0;
-    padding-left: 24px;
-    padding-right: 24px;
-  }
-
-  .main-content {
-    @apply space-y-8;
-  }
-}
-
-@media (min-width: 1921px) {
-  .page-container {
-    @apply py-10;
-    width: 100%;
-    max-width: none;
-    margin: 0;
-    padding-left: 24px;
-    padding-right: 24px;
-  }
-
-  .main-content {
-    @apply space-y-10;
-  }
-}
-
 /* 桌面端响应式布局 */
 @media (min-width: 1200px) {
   .page-container {
@@ -235,7 +225,7 @@ onMounted(async () => {
   }
 
   .main-content {
-    @apply flex-col space-x-0 space-y-2;
+    @apply flex-col space-x-0 space-y-1.5;
   }
 
   .navigation-section {
@@ -255,7 +245,7 @@ onMounted(async () => {
   }
 
   .main-content {
-    @apply space-y-3;
+    @apply space-y-2;
   }
 }
 

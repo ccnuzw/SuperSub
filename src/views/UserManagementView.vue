@@ -329,6 +329,8 @@ onUnmounted(() => {
   /* 移除 min-h-screen，让容器高度自适应内容 */
   min-height: auto;
   height: auto;
+  /* 移除可能导致滚动条的属性 */
+  box-sizing: border-box;
 }
 
 /* 系统设置卡片 */
@@ -336,6 +338,9 @@ onUnmounted(() => {
   @apply bg-white;
   border-radius: 12px;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  /* 确保宽度完全自适应 */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* 表格区域 */
@@ -344,11 +349,18 @@ onUnmounted(() => {
   border-radius: 12px;
   overflow: visible;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  /* 移除 flex-1，让容器高度自适应内容 */
+  /* 让容器高度自适应内容，但保持最小可见高度 */
   height: auto;
-  min-height: auto;
+  min-height: 120px;
+  /* 让容器根据内容自然展开 */
+  flex: 0 1 auto;
   /* 添加底部间距 */
   margin-bottom: 12px;
+  /* 确保宽度完全自适应 */
+  width: 100%;
+  box-sizing: border-box;
+  /* 确保容器始终显示边框 */
+  display: block;
 }
 
 /* 用户表格样式 */
@@ -437,14 +449,24 @@ onUnmounted(() => {
 
   .table-section {
     border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    /* 移动端调整最小高度 */
+    min-height: 100px;
+    /* 移动端减少阴影强度 */
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   }
 
   .mobile-users-container {
     border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .mobile-users-list {
     border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   /* 移动端分页器间距 */
@@ -465,6 +487,16 @@ onUnmounted(() => {
 
   .system-settings-card {
     @apply mb-4;
+  }
+
+  .table-section {
+    width: 100%;
+    box-sizing: border-box;
+    /* 平板端适中最小高度 */
+    min-height: 110px;
+    border-radius: 10px;
+    /* 平板端适中的阴影 */
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08);
   }
 
   /* 平板端分页器间距 */
@@ -490,6 +522,16 @@ onUnmounted(() => {
     @apply mb-5;
   }
 
+  .table-section {
+    width: 100%;
+    box-sizing: border-box;
+    /* 桌面端标准最小高度 */
+    min-height: 120px;
+    border-radius: 11px;
+    /* 桌面端标准阴影 */
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.09);
+  }
+
   /* 桌面端分页器间距 */
   .users-table :deep(.n-data-table .n-data-table-pagination) {
     padding-right: 24px;
@@ -513,6 +555,16 @@ onUnmounted(() => {
     @apply mb-6;
   }
 
+  .table-section {
+    width: 100%;
+    box-sizing: border-box;
+    /* 超宽屏增加最小高度 */
+    min-height: 130px;
+    border-radius: 12px;
+    /* 超宽屏增强阴影 */
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  }
+
   /* 超宽屏分页器间距 */
   .users-table :deep(.n-data-table .n-data-table-pagination) {
     padding-right: 32px;
@@ -534,6 +586,16 @@ onUnmounted(() => {
 
   .system-settings-card {
     @apply mb-8;
+  }
+
+  .table-section {
+    width: 100%;
+    box-sizing: border-box;
+    /* 4K屏更大的最小高度 */
+    min-height: 140px;
+    border-radius: 12px;
+    /* 4K屏最强阴影 */
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.12);
   }
 
   /* 4K屏分页器间距 */

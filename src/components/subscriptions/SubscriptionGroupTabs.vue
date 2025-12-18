@@ -100,8 +100,10 @@ defineEmits<{
 
 <style scoped>
 .subscription-group-tabs {
-  @apply w-full bg-white rounded-lg shadow-sm p-1.5;
+  @apply w-full bg-white rounded-lg shadow-sm;
   border: 1px solid rgba(0, 0, 0, 0.06);
+  /* 减少内部padding，让内容更紧凑 */
+  padding: 8px;
 }
 
 .group-tab {
@@ -118,7 +120,8 @@ defineEmits<{
 }
 
 :deep(.n-tabs .n-tabs-nav) {
-  @apply px-2 py-0.5;
+  /* 减少导航栏的padding */
+  padding: 4px 8px;
 }
 
 :deep(.n-tabs .n-tabs-tab) {
@@ -147,9 +150,11 @@ defineEmits<{
 /* 桌面端响应式设计 */
 @media (min-width: 1200px) {
   .subscription-group-tabs {
-    @apply sticky top-4 z-10;
-    max-height: calc(100vh - 8rem);
-    overflow-y: auto;
+    @apply w-full;
+    /* 移除 sticky 和 max-height，让组件自然流动 */
+    /* @apply sticky top-4 z-10; */
+    /* max-height: calc(100vh - 8rem); */
+    /* overflow-y: auto; */
   }
 
   .subscription-group-tabs::-webkit-scrollbar {
@@ -167,7 +172,8 @@ defineEmits<{
   /* 响应式标签页 */
   :deep(.n-tabs .n-tabs-tab) {
     @apply px-2.5 py-1;
-    min-width: 70px; /* 最小宽度，但会根据内容自适应 */
+    /* 移除最小宽度限制，让标签完全自适应 */
+    /* min-width: 70px; */
   }
 
   :deep(.n-tabs .n-tabs-nav) {
@@ -186,7 +192,8 @@ defineEmits<{
 @media (min-width: 1600px) {
   :deep(.n-tabs .n-tabs-tab) {
     @apply px-3 py-1.5;
-    min-width: 90px;
+    /* 移除最小宽度限制 */
+    /* min-width: 90px; */
   }
 
   :deep(.n-tabs .n-tabs-nav) {
@@ -198,7 +205,8 @@ defineEmits<{
 @media (min-width: 1920px) {
   :deep(.n-tabs .n-tabs-tab) {
     @apply px-4 py-2;
-    min-width: 110px;
+    /* 移除最小宽度限制 */
+    /* min-width: 110px; */
   }
 }
 

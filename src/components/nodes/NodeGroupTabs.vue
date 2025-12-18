@@ -103,8 +103,10 @@ defineEmits<{
 
 <style scoped>
 .node-group-tabs {
-  @apply w-full bg-white rounded-lg shadow-sm p-1.5;
+  @apply w-full bg-white rounded-lg shadow-sm;
   border: 1px solid rgba(0, 0, 0, 0.06);
+  /* 减少内部padding，让内容更紧凑 */
+  padding: 8px;
 }
 
 .group-tab {
@@ -121,7 +123,8 @@ defineEmits<{
 }
 
 :deep(.n-tabs .n-tabs-nav) {
-  @apply px-2 py-0.5;
+  /* 减少导航栏的padding */
+  padding: 4px 8px;
 }
 
 :deep(.n-tabs .n-tabs-tab) {

@@ -417,15 +417,16 @@ const handleHeaderAction = async (event: CustomEvent) => {
   width: 100%;
   max-width: none;
   margin: 0;
-  /* 减少垂直间距，紧贴布局 */
-  padding-top: 16px;
-  padding-bottom: 16px;
-  /* 与顶部栏的 px-6 保持一致 */
-  padding-left: 24px;
-  padding-right: 24px;
-  /* 移除 min-h-screen，让容器高度自适应内容 */
+  /* 减少垂直间距，避免出现滚动条 */
+  padding-top: 12px;
+  padding-bottom: 12px;
+  /* 减少水平间距，增加可用空间 */
+  padding-left: 16px;
+  padding-right: 16px;
+  /* 完全自适应内容高度 */
   min-height: auto;
   height: auto;
+  box-sizing: border-box;
 }
 
 /* 主要内容区域 */
@@ -433,117 +434,78 @@ const handleHeaderAction = async (event: CustomEvent) => {
   @apply transition-all duration-300;
   display: flex;
   flex-direction: column;
-  /* 移除 flex: 1，让容器高度自适应内容 */
-  gap: 1rem;
+  /* 减少间距，避免出现滚动条 */
+  gap: 0.75rem;
   height: auto;
   min-height: auto;
+  /* 确保宽度完全自适应 */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* 响应式设计 - 优化不同屏幕尺寸 */
 @media (max-width: 640px) {
   .page-container {
-    @apply py-3;
-    padding-left: 16px;
-    padding-right: 16px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
   .main-content {
-    @apply space-y-2;
+    gap: 0.5rem;
   }
 }
 
 @media (min-width: 641px) and (max-width: 1024px) {
   .page-container {
-    @apply py-4;
-    padding-left: 20px;
-    padding-right: 20px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .main-content {
+    gap: 0.6rem;
   }
 }
 
 @media (min-width: 1025px) and (max-width: 1440px) {
   .page-container {
-    @apply py-4;
-    width: 100%;
-    max-width: none;
-    margin: 0;
-    padding-left: 24px;
-    padding-right: 24px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    padding-left: 16px;
+    padding-right: 16px;
   }
 
   .main-content {
-    @apply space-y-4;
+    gap: 0.75rem;
   }
 }
 
 @media (min-width: 1441px) and (max-width: 1920px) {
   .page-container {
-    @apply py-6;
-    width: 100%;
-    max-width: none;
-    margin: 0;
-    padding-left: 24px;
-    padding-right: 24px;
+    padding-top: 14px;
+    padding-bottom: 14px;
+    padding-left: 18px;
+    padding-right: 18px;
   }
 
   .main-content {
-    @apply space-y-6;
+    gap: 1rem;
   }
 }
 
 @media (min-width: 1921px) {
   .page-container {
-    @apply py-8;
-    width: 100%;
-    max-width: none;
-    margin: 0;
-    padding-left: 24px;
-    padding-right: 24px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+    padding-left: 20px;
+    padding-right: 20px;
   }
 
   .main-content {
-    @apply space-y-8;
-  }
-}
-
-/* 响应式设计 - 真正的响应式，使用相对单位 */
-@media (min-width: 1200px) {
-  .page-container {
-    @apply block;
-  }
-
-  .main-content {
-    @apply flex-col space-x-0 space-y-2;
-  }
-
-  .group-section {
-    @apply w-full;
-    height: auto;
-  }
-
-  .table-section {
-    @apply w-full;
-  }
-}
-
-/* 更大屏幕，比例调整 */
-@media (min-width: 1600px) {
-  .page-container {
-    @apply block;
-  }
-
-  .main-content {
-    @apply space-y-3;
-  }
-}
-
-/* 超大屏幕，进一步优化比例 */
-@media (min-width: 1920px) {
-  .page-container {
-    @apply block;
-  }
-
-  .main-content {
-    @apply space-y-3;
+    gap: 1.2rem;
   }
 }
 

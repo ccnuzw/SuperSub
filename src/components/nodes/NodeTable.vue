@@ -61,7 +61,7 @@
       :row-key="(row: INode) => row.id"
       :checked-row-keys="(selectedKeys || [])"
       @update:checked-row-keys="$emit('update:selected-keys', $event)"
-      :scroll-x="1200"
+      :scroll-x="false"
     />
 
     <!-- 节点状态指示器 -->
@@ -174,10 +174,8 @@ const paginationConfig = computed(() => ({
   itemCount: props.pagination.itemCount,
   showSizePicker: true,
   pageSizes: [10, 20, 50, 100, 200],
-  showQuickJumper: true,
-  // 确保表格高度自适应
-  scrollX: 1200
-  // 不设置 maxHeight，让表格高度自适应内容
+  showQuickJumper: true
+  // 移除 scrollX，让表格完全自适应宽度
 }))
 
 // 状态渲染
@@ -495,9 +493,9 @@ const columns: DataTableColumns<INode> = [
 
 /* 通用分页器间距 - 减少不必要的间距 */
 .node-table-container :deep(.n-data-table .n-data-table-pagination) {
-  padding-right: 16px;
-  padding-bottom: 8px;
-  padding-top: 8px;
+  padding-right: 12px;
+  padding-bottom: 6px;
+  padding-top: 6px;
 }
 
 .dark .batch-actions-bar {
@@ -532,9 +530,9 @@ const columns: DataTableColumns<INode> = [
 
   /* 添加分页器间距 */
   .node-table-container :deep(.n-data-table .n-data-table-pagination) {
-    padding-right: 24px;
-    padding-bottom: 16px;
-    padding-top: 16px;
+    padding-right: 16px;
+    padding-bottom: 12px;
+    padding-top: 12px;
   }
 
   :deep(.n-data-table .n-data-table-base-table) {
@@ -564,9 +562,9 @@ const columns: DataTableColumns<INode> = [
 
   /* 添加分页器间距 */
   .node-table-container :deep(.n-data-table .n-data-table-pagination) {
-    padding-right: 32px;
-    padding-bottom: 20px;
-    padding-top: 20px;
+    padding-right: 20px;
+    padding-bottom: 16px;
+    padding-top: 16px;
   }
 
   :deep(.n-data-table .n-data-table-base-table) {
@@ -592,9 +590,9 @@ const columns: DataTableColumns<INode> = [
 
   /* 添加分页器间距 */
   .node-table-container :deep(.n-data-table .n-data-table-pagination) {
-    padding-right: 40px;
-    padding-bottom: 24px;
-    padding-top: 24px;
+    padding-right: 24px;
+    padding-bottom: 18px;
+    padding-top: 18px;
   }
 
   :deep(.n-data-table .n-data-table-base-table) {
