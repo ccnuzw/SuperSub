@@ -17,8 +17,8 @@
     <div class="dynamic-header__center">
       <component
         :is="statsComponent"
-        v-if="statsComponent && Object.keys(statsProps).length > 0"
-        v-bind="statsProps"
+        v-if="statsComponent && statsProps && Object.keys(statsProps).length > 0"
+        v-bind="statsProps || {}"
         class="stats-component"
       />
     </div>
@@ -121,7 +121,7 @@ const pageConfig = computed(() => {
         { label: '导出订阅', key: 'export', icon: DownloadOutline },
         { label: '重试失败', key: 'retry-failed', icon: RefreshOutline, show: false },
         { label: '清除失败', key: 'clear-failed', icon: TrashOutline, show: false },
-        { type: 'divider' },
+        { type: 'divider' as const },
         { label: '新建分组', key: 'create-group', icon: SettingsOutline },
         { label: '分组管理', key: 'group-management', icon: SettingsOutline }
       ]
@@ -130,11 +130,17 @@ const pageConfig = computed(() => {
       title: '节点管理',
       description: '管理和配置代理节点',
       statsComponent: null, // 暂时没有节点统计组件
+      primaryAction: {
+        text: '添加节点',
+        icon: AddOutline,
+        action: 'add-node'
+      },
       menuItems: [
-        { label: '添加节点', key: 'add-node', icon: AddOutline },
         { label: '批量导入', key: 'bulk-import', icon: AddOutline },
         { label: '刷新状态', key: 'refresh', icon: RefreshOutline },
         { label: '导出节点', key: 'export', icon: DownloadOutline },
+        { label: '批量测试', key: 'batch-test', icon: SyncOutline },
+        { type: 'divider' as const },
         { label: '清理无效节点', key: 'cleanup', icon: TrashOutline }
       ]
     },

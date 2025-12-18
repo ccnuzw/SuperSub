@@ -5,94 +5,10 @@
 
 <template>
   <div class="node-table-container">
-    <!-- 工具栏 -->
-    <div class="table-toolbar">
-      <div class="toolbar-left">
-        <n-space>
-          <n-button
-            v-if="hasSelected"
-            type="error"
-            size="small"
-            @click="$emit('batch-delete')"
-          >
-            <template #icon>
-              <n-icon><TrashOutline /></n-icon>
-            </template>
-            删除 ({{ selectedCount }})
-          </n-button>
-
-          <n-button
-            v-if="hasSelected"
-            type="primary"
-            size="small"
-            @click="$emit('test-selected')"
-          >
-            <template #icon>
-              <n-icon><FlashOutline /></n-icon>
-            </template>
-            批量测试
-          </n-button>
-
-          <n-button
-            type="default"
-            size="small"
-            @click="$emit('batch-import')"
-          >
-            <template #icon>
-              <n-icon><AddOutline /></n-icon>
-            </template>
-            批量导入
-          </n-button>
-        </n-space>
-      </div>
-
-      <div class="toolbar-right">
-        <n-space>
-          <n-button
-            size="small"
-            @click="$emit('test-all')"
-            :loading="testingAll"
-          >
-            <template #icon>
-              <n-icon><FlashOutline /></n-icon>
-            </template>
-            全部测试
-          </n-button>
-
-          <n-dropdown
-            :options="batchActions"
-            placement="bottom-end"
-            @select="$emit('batch-action', $event)"
-          >
-            <n-button size="small">
-              批量操作
-              <template #icon>
-                <n-icon><EllipsisVerticalOutline /></n-icon>
-              </template>
-            </n-button>
-          </n-dropdown>
-        </n-space>
-      </div>
-    </div>
-
-    <!-- 搜索和筛选 -->
-    <div class="table-filters">
-      <n-input
-        v-model:value="searchKeyword"
-        placeholder="搜索节点名称、服务器..."
-        clearable
-        class="max-w-[300px]"
-      >
-        <template #prefix>
-          <n-icon><SearchOutline /></n-icon>
-        </template>
-      </n-input>
-    </div>
-
     <!-- 数据表格 -->
     <n-data-table
       :columns="columns"
-      :data="filteredNodes"
+      :data="nodes"
       :loading="loading"
       :pagination="paginationConfig"
       :row-key="(row: INode) => row.id"
@@ -112,28 +28,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, ref, onBeforeUnmount } from 'vue'
+import { computed, h } from 'vue'
 import {
   NButton,
   NTag,
   NSpace,
   NIcon,
   NDropdown,
-  NInput,
   NSpin,
   NTooltip,
   type DataTableColumns,
   type DropdownOption
 } from 'naive-ui'
 import {
-  TrashOutline,
-  FlashOutline,
-  AddOutline,
-  EllipsisVerticalOutline,
   CreateOutline,
   CopyOutline,
   SpeedometerOutline,
-  SearchOutline
+  TrashOutline,
+  EllipsisVerticalOutline
 } from '@vicons/ionicons5'
 import type { INode } from '@/types'
 import { businessUtils } from '@/components/business'
@@ -158,11 +70,6 @@ const props = withDefaults(defineProps<IProps>(), {
 
 const emit = defineEmits<{
   'update:selected-keys': [keys: string[]]
-  'batch-delete': []
-  'batch-action': [action: string]
-  'batch-import': []
-  'test-selected': []
-  'test-all': []
   'test-node': [node: INode]
   'edit': [node: INode]
   'delete': [node: INode]
@@ -170,34 +77,15 @@ const emit = defineEmits<{
   'move-to-group': [nodes: INode[]]
 }>()
 
-// 搜索关键词
-const searchKeyword = ref('')
-
 // 计算属性
-const hasSelected = computed(() => (props.selectedKeys || []).length > 0)
 const selectedCount = computed(() => (props.selectedKeys || []).length)
 const testingCount = computed(() => props.testingIds.size)
-const testingAll = ref(false)
-
-// 过滤后的节点
-const filteredNodes = computed(() => {
-  if (!searchKeyword.value.trim()) {
-    return props.nodes
-  }
-
-  const keyword = searchKeyword.value.toLowerCase()
-  return props.nodes.filter(node =>
-    node.name.toLowerCase().includes(keyword) ||
-    node.server.toLowerCase().includes(keyword) ||
-    (node.region && node.region.toLowerCase().includes(keyword))
-  )
-})
 
 // 表格配置
 const paginationConfig = computed(() => ({
   page: props.pagination.page,
   pageSize: props.pagination.pageSize,
-  itemCount: filteredNodes.value.length,
+  itemCount: props.pagination.itemCount,
   showSizePicker: true,
   pageSizes: [20, 50, 100, 200],
   showQuickJumper: true
@@ -265,6 +153,16 @@ const renderActions = (node: INode) => {
       icon: () => h(NIcon, null, { default: () => h(CopyOutline) })
     },
     {
+      label: '测试连接',
+      key: 'test',
+      icon: () => h(NIcon, null, { default: () => h(SpeedometerOutline) })
+    },
+    {
+      label: '编辑节点',
+      key: 'edit',
+      icon: () => h(NIcon, null, { default: () => h(CreateOutline) })
+    },
+    {
       label: '移动到分组',
       key: 'move-to-group',
       icon: () => h(NIcon, null, { default: () => h(SpeedometerOutline) })
@@ -286,6 +184,12 @@ const renderActions = (node: INode) => {
     switch (key) {
       case 'copy':
         emit('copy', node)
+        break
+      case 'test':
+        emit('test-node', node)
+        break
+      case 'edit':
+        emit('edit', node)
         break
       case 'move-to-group':
         emit('move-to-group', [node])
@@ -334,25 +238,6 @@ const renderActions = (node: INode) => {
     ]
   })
 }
-
-// 批量操作菜单
-const batchActions: DropdownOption[] = [
-  {
-    label: '排序',
-    key: 'sort'
-  },
-  {
-    label: '去重',
-    key: 'deduplicate'
-  },
-  {
-    type: 'divider'
-  },
-  {
-    label: '清空当前分组',
-    key: 'clear'
-  }
-]
 
 // 表格列定义
 const columns: DataTableColumns<INode> = [
@@ -412,30 +297,11 @@ const columns: DataTableColumns<INode> = [
     render: (row) => renderActions(row)
   }
 ]
-
-// 组件卸载时清理
-onBeforeUnmount(() => {
-  // 停止所有正在进行的测试操作
-  testingAll.value = false
-})
 </script>
 
 <style scoped>
 .node-table-container {
   @apply bg-white rounded-lg shadow-sm;
-}
-
-.table-toolbar {
-  @apply flex justify-between items-center p-4 border-b border-gray-200;
-}
-
-.toolbar-left,
-.toolbar-right {
-  @apply flex items-center space-x-3;
-}
-
-.table-filters {
-  @apply px-4 py-3 border-b border-gray-200 bg-gray-50;
 }
 
 .testing-indicator {
@@ -449,14 +315,6 @@ onBeforeUnmount(() => {
 /* 深色模式 */
 .dark .node-table-container {
   @apply bg-gray-800;
-}
-
-.dark .table-toolbar {
-  @apply border-gray-700;
-}
-
-.dark .table-filters {
-  @apply border-gray-700 bg-gray-700/50;
 }
 
 .dark .testing-indicator {

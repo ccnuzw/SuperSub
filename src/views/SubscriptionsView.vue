@@ -256,7 +256,7 @@ const failedCount = computed(() =>
 )
 
 const groupOptions2 = computed(() => [
-  { label: '未分组', value: null },
+  { label: '未分组', value: '' },
   ...groups.value.map((group: ISubscriptionGroup) => ({
     label: group.name,
     value: group.id
@@ -360,12 +360,12 @@ onMounted(async () => {
   await handleRefresh()
 
   // 添加顶部栏事件监听
-  window.addEventListener('header-action', handleHeaderAction)
+  window.addEventListener('header-action', handleHeaderAction as EventListener)
 })
 
 // 组件卸载时移除事件监听
 onUnmounted(() => {
-  window.removeEventListener('header-action', handleHeaderAction)
+  window.removeEventListener('header-action', handleHeaderAction as EventListener)
 })
 
 // 顶部栏事件处理

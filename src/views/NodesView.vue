@@ -5,85 +5,31 @@
 
 <template>
   <div class="page-container">
-    <!-- 粘性头部 -->
-    <div class="sticky-header">
-      <div class="content-wrapper">
-        <n-page-header
-          title="节点管理"
-          subtitle="管理和配置代理节点"
-          @back="$router.back()"
-        >
-          <template #extra>
-            <n-space size="medium">
-              <n-button
-                type="primary"
-                size="medium"
-                @click="showAddModal = true"
-                :loading="loading"
-                class="action-button"
-              >
-                <template #icon>
-                  <n-icon><AddOutline /></n-icon>
-                </template>
-                添加节点
-              </n-button>
-
-              <n-dropdown
-                :options="headerActions"
-                placement="bottom-end"
-                @select="handleHeaderAction"
-              >
-                <n-button circle size="medium" class="action-button">
-                  <template #icon>
-                    <n-icon><EllipsisVerticalOutline /></n-icon>
-                  </template>
-                </n-button>
-              </n-dropdown>
-            </n-space>
-          </template>
-        </n-page-header>
-      </div>
+    <!-- 分组选择器 -->
+    <div class="middle-section">
+      <GroupSelector
+        v-model:selected-group-id="selectedGroupId"
+        :groups="groupOptions"
+        :loading="groupStore.loading"
+        @create-group="handleCreateGroup"
+      />
     </div>
 
-    <!-- 主要内容区域 -->
-    <div class="content-wrapper">
-      <div class="content-grid">
-        <!-- 顶部区域：分组选择器 -->
-        <div class="top-section">
-          <div class="section-card">
-            <GroupSelector
-              v-model:selected-group-id="selectedGroupId"
-              :groups="groupOptions"
-              :loading="groupStore.loading"
-              @create-group="handleCreateGroup"
-            />
-          </div>
-        </div>
-
-        <!-- 底部区域：节点表格 -->
-        <div class="bottom-section">
-          <div class="section-card table-card">
-            <NodeTable
-              :nodes="filteredNodes"
-              :loading="loading"
-              :selected-keys="selectedKeys"
-              :testing-ids="testingIds"
-              :pagination="pagination"
-              @update:selected-keys="handleSelectedKeysChange"
-              @batch-delete="handleBatchDelete"
-              @batch-action="handleBatchActionWrapper"
-              @batch-import="showImportModal = true"
-              @test-selected="handleTestSelected"
-              @test-all="handleTestAll"
-              @test-node="handleTestNode"
-              @edit="handleEditNode"
-              @delete="handleDeleteNode"
-              @copy="handleCopyNode"
-              @move-to-group="handleMoveNodesToGroupWrapper"
-            />
-          </div>
-        </div>
-      </div>
+    <!-- 节点表格 -->
+    <div class="bottom-section">
+      <NodeTable
+        :nodes="filteredNodes"
+        :loading="loading"
+        :selected-keys="selectedKeys"
+        :testing-ids="testingIds"
+        :pagination="pagination"
+        @update:selected-keys="handleSelectedKeysChange"
+        @test-node="handleTestNode"
+        @edit="handleEditNode"
+        @delete="handleDeleteNode"
+        @copy="handleCopyNode"
+        @move-to-group="handleMoveToGroup"
+      />
     </div>
 
     <!-- 添加/编辑节点模态框 -->
@@ -106,17 +52,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, h } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMessage, useDialog, NButton, NIcon, NPageHeader, NSpace, NDropdown } from 'naive-ui'
-import {
-  AddOutline,
-  EllipsisVerticalOutline,
-  RefreshOutline,
-  DownloadOutline,
-  FlashOutline
-} from '@vicons/ionicons5'
-import type { DropdownOption } from 'naive-ui'
+import { useMessage, useDialog } from 'naive-ui'
 import { useClipboard } from '@/composables/common/useClipboard'
 
 // 组件导入
@@ -201,51 +139,6 @@ const filteredNodes = computed(() => {
 
   return filtered
 })
-
-// 头部操作菜单
-const headerActions: DropdownOption[] = [
-  {
-    label: '刷新数据',
-    key: 'refresh',
-    icon: () => h(NIcon, null, { default: () => h(RefreshOutline) })
-  },
-  {
-    label: '批量导入',
-    key: 'bulk-import',
-    icon: () => h(NIcon, null, { default: () => h(AddOutline) })
-  },
-  {
-    label: '导出节点',
-    key: 'export',
-    icon: () => h(NIcon, null, { default: () => h(DownloadOutline) })
-  },
-  {
-    type: 'divider'
-  },
-  {
-    label: '批量测试',
-    key: 'batch-test',
-    icon: () => h(NIcon, null, { default: () => h(FlashOutline) })
-  }
-]
-
-// 事件处理
-const handleHeaderAction = (key: string) => {
-  switch (key) {
-    case 'refresh':
-      handleRefresh()
-      break
-    case 'bulk-import':
-      showImportModal.value = true
-      break
-    case 'export':
-      handleExportNodes()
-      break
-    case 'batch-test':
-      handleBatchTest()
-      break
-  }
-}
 
 const handleRefresh = async () => {
   await fetchNodes()
@@ -338,6 +231,10 @@ const handleBatchActionWrapper = (action: string) => {
   handleBatchAction(action as 'sort' | 'deduplicate' | 'clear')
 }
 
+const handleMoveToGroup = (nodes: any[]) => {
+  handleMoveNodesToGroupWrapper(nodes)
+}
+
 const handleMoveNodesToGroupWrapper = (nodes: any[]) => {
   const nodeIds = nodes.map((node: any) => node.id)
   const groupId = selectedGroupId.value || ''
@@ -384,7 +281,48 @@ onMounted(async () => {
     handleRefresh(),
     groupStore.fetchGroups()
   ])
+
+  // 添加顶部栏事件监听
+  window.addEventListener('header-action', handleHeaderAction as EventListener)
 })
+
+// 组件卸载时移除事件监听
+onUnmounted(() => {
+  window.removeEventListener('header-action', handleHeaderAction as EventListener)
+})
+
+// 顶部栏事件处理
+const handleHeaderAction = async (event: CustomEvent) => {
+  const { type, action } = event.detail
+
+  if (type === 'primary') {
+    switch (action) {
+      case 'add-node':
+        showAddModal.value = true
+        break
+    }
+  } else if (type === 'menu') {
+    switch (action) {
+      case 'bulk-import':
+        showImportModal.value = true
+        break
+      case 'refresh':
+        await handleRefresh()
+        message.success('数据刷新完成')
+        break
+      case 'export':
+        handleExportNodes()
+        break
+      case 'batch-test':
+        handleBatchTest()
+        break
+      case 'cleanup':
+        // 清理无效节点功能
+        message.info('清理功能开发中')
+        break
+    }
+  }
+}
 
 // 监听选择变化
 const handleSelectedKeysChange = (keys: string[]) => {
@@ -395,62 +333,23 @@ const handleSelectedKeysChange = (keys: string[]) => {
 </script>
 
 <style scoped>
-/* 页面容器 */
+/* 内容包装器 - 直接在页面容器中 */
 .page-container {
-  @apply min-h-screen;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-}
-
-/* 内容包装器 - 使用更宽的容器 */
-.content-wrapper {
-  @apply max-w-full mx-auto px-1 sm:px-2 md:px-3 lg:px-4 xl:px-6;
+  @apply min-h-screen flex flex-col px-1 sm:px-2 md:px-3 lg:px-4 xl:px-6 py-4;
+  background: #ffffff;
   width: 100%;
 }
 
-/* 粘性头部 */
-.sticky-header {
-  @apply sticky top-0 z-40;
-  backdrop-filter: blur(12px);
-  background: rgba(255, 255, 255, 0.8);
-  border-bottom: 1px solid rgba(229, 231, 235, 0.3);
-}
-
-/* 内容网格布局 - 减少间距 */
-.content-grid {
-  @apply space-y-4 py-4;
-}
-
-/* 区域划分 */
-.top-section {
-  @apply transition-all duration-300;
+/* 区域划分 - 直接使用页面空间 */
+.middle-section {
+  @apply mb-4 transition-all duration-300;
+  flex-shrink: 0;
 }
 
 .bottom-section {
   @apply transition-all duration-300;
-}
-
-/* 统一卡片样式 - 减少内边距 */
-.section-card {
-  @apply bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20;
-  @apply transition-all duration-300 hover:shadow-xl;
-  padding: 1rem;
-}
-
-.table-card {
-  @apply p-0 overflow-hidden;
-}
-
-.table-card :deep(.n-data-table) {
-  border-radius: 0.75rem;
-}
-
-.table-card :deep(.n-data-table .n-data-table-base-table) {
-  border-radius: 0.75rem;
-}
-
-/* 按钮样式优化 */
-.action-button {
-  @apply transition-all duration-200 hover:scale-105;
+  flex: 1;
+  min-height: 0; /* 允许flexbox子项收缩 */
 }
 
 /* 响应式设计 - 优化不同屏幕尺寸 */
