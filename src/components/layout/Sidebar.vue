@@ -170,7 +170,7 @@ import {
   PeopleOutline as PeopleIcon,
   SettingsOutline as SettingsIcon,
   LogOutOutline as LogoutIcon,
-  ChevronForwardOutline as MenuExpandIcon,
+  MenuOutline as MenuExpandIcon,
   ChevronBackOutline as MenuCollapseIcon,
   NotificationsOutline as NotificationsIcon,
   SunnyOutline as LightIcon,

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>侧边栏响应式测试</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .test-info {
+            padding: 20px;
+            background: #f0f0f0;
+            margin-bottom: 20px;
+        }
+        .breakpoint-indicator {
+            display: inline-block;
+            padding: 5px 10px;
+            margin: 5px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .mobile { background: #ff6b6b; color: white; }
+        .tablet { background: #4ecdc4; color: white; }
+        .desktop { background: #45b7d1; color: white; }
+
+        /* 响应式指示器 */
+        .mobile-only { display: none; }
+        .tablet-only { display: none; }
+        .desktop-only { display: none; }
+
+        @media (max-width: 767px) {
+            .mobile-only { display: inline-block; }
+            .breakpoint-indicator.mobile { display: inline-block; }
+        }
+
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .tablet-only { display: inline-block; }
+            .breakpoint-indicator.tablet { display: inline-block; }
+        }
+
+        @media (min-width: 1024px) {
+            .desktop-only { display: inline-block; }
+            .breakpoint-indicator.desktop { display: inline-block; }
+        }
+
+        .sidebar-mock {
+            height: 100vh;
+            background: #2c3e50;
+            color: white;
+            transition: width 0.3s ease;
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 280px;
+            z-index: 1000;
+        }
+
+        .sidebar-mock.collapsed {
+            width: 64px;
+        }
+
+        @media (max-width: 767px) {
+            .sidebar-mock {
+                transform: translateX(-100%);
+            }
+            .sidebar-mock.mobile-open {
+                transform: translateX(0);
+            }
+        }
+
+        .content {
+            margin-left: 280px;
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .sidebar-mock.collapsed + .content {
+            margin-left: 64px;
+        }
+
+        @media (max-width: 767px) {
+            .content {
+                margin-left: 0;
+            }
+        }
+
+        .toggle-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            padding: 10px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        @media (min-width: 768px) {
+            .mobile-menu-btn {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="test-info">
+        <h2>🧪 侧边栏响应式布局测试</h2>
+        <p>当前屏幕尺寸: <span id="screen-size"></span></p>
+        <p>当前断点:
+            <span class="breakpoint-indicator mobile">📱 移动端 (&lt;768px)</span>
+            <span class="breakpoint-indicator tablet">📱 平板 (768px-1023px)</span>
+            <span class="breakpoint-indicator desktop">🖥️ 桌面 (≥1024px)</span>
+        </p>
+    </div>
+
+    <button class="toggle-btn mobile-menu-btn" onclick="toggleMobileMenu()">☰ 移动菜单</button>
+    <button class="toggle-btn" onclick="toggleSidebar()" style="left: 300px;">🔄 切换侧边栏</button>
+
+    <div class="sidebar-mock" id="sidebar">
+        <div style="padding: 20px;">
+            <h3>🔧 SuperSub</h3>
+            <div style="margin-top: 30px;">
+                <div style="padding: 10px; margin: 5px 0; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                    🏠 首页
+                </div>
+                <div style="padding: 10px; margin: 5px 0; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                    📋 订阅管理
+                </div>
+                <div style="padding: 10px; margin: 5px 0; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                    🔗 节点管理
+                </div>
+                <div style="padding: 10px; margin: 5px 0; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                    ⚙️ 配置文件
+                </div>
+                <div style="padding: 10px; margin: 5px 0; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                    🛠️ 系统设置
+                </div>
+                <hr style="margin: 20px 0; border: 1px solid rgba(255,255,255,0.2);">
+                <div style="padding: 10px; margin: 5px 0; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                    🔔 通知
+                </div>
+                <div style="padding: 10px; margin: 5px 0; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                    🌙 主题切换
+                </div>
+                <div style="padding: 10px; margin: 5px 0; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                    👤 用户菜单
+                </div>
+                <div style="padding: 10px; margin: 5px 0; background: rgba(52,152,219,0.3); border-radius: 5px;">
+                    🔄 收起/展开
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+        <h1>🎯 主要内容区域</h1>
+        <p>这是页面的主要内容，会根据侧边栏的状态自动调整边距。</p>
+
+        <h2>📋 测试清单</h2>
+        <ul>
+            <li>✅ 调整浏览器窗口大小，观察断点变化</li>
+            <li>✅ 点击"切换侧边栏"按钮测试折叠功能</li>
+            <li>✅ 在移动端尺寸下测试移动菜单按钮</li>
+            <li>✅ 验证不同屏幕尺寸下的布局适应性</li>
+        </ul>
+
+        <h2>🎨 预期行为</h2>
+        <div style="background: #ecf0f1; padding: 15px; border-radius: 5px; margin: 10px 0;">
+            <strong>桌面端 (≥1024px):</strong> 侧边栏固定显示，可折叠
+        </div>
+        <div style="background: #ecf0f1; padding: 15px; border-radius: 5px; margin: 10px 0;">
+            <strong>平板 (768px-1023px):</strong> 侧边栏固定显示，可折叠
+        </div>
+        <div style="background: #ecf0f1; padding: 15px; border-radius: 5px; margin: 10px 0;">
+            <strong>移动端 (&lt;768px):</strong> 侧边栏隐藏为抽屉模式，通过菜单按钮打开
+        </div>
+
+        <h2>🔧 技术细节</h2>
+        <ul>
+            <li><strong>动画时长:</strong> 300ms ease-in-out</li>
+            <li><strong>侧边栏宽度:</strong> 展开时280px，折叠时64px</li>
+            <li><strong>断点设置:</strong> 768px (移动端), 1024px (桌面端)</li>
+            <li><strong>CSS媒体查询:</strong> @media max-width 和 min-width</li>
+        </ul>
+    </div>
+
+    <script>
+        function updateScreenSize() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            document.getElementById('screen-size').textContent = `${width} x ${height}px`;
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('mobile-open');
+        }
+
+        // 初始化
+        updateScreenSize();
+        window.addEventListener('resize', updateScreenSize);
+
+        // 模拟持久化功能
+        const savedCollapsed = localStorage.getItem('sidebar-collapsed');
+        if (savedCollapsed === 'true') {
+            document.getElementById('sidebar').classList.add('collapsed');
+        }
+
+        // 保存状态
+        const originalToggle = toggleSidebar;
+        toggleSidebar = function() {
+            originalToggle();
+            const isCollapsed = document.getElementById('sidebar').classList.contains('collapsed');
+            localStorage.setItem('sidebar-collapsed', isCollapsed);
+        };
+    </script>
+</body>
+</html>

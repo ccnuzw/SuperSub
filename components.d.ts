@@ -37,7 +37,6 @@ declare module 'vue' {
     NodeSelection: typeof import('./src/components/business/node/NodeSelection.vue')['default']
     NodeStatusIndicator: typeof import('./src/components/business/NodeStatusIndicator.vue')['default']
     NodeTable: typeof import('./src/components/nodes/NodeTable.vue')['default']
-    NSpin: typeof import('naive-ui')['NSpin']
     PreviewEmpty: typeof import('./src/components/profile/preview/PreviewEmpty.vue')['default']
     PreviewHeader: typeof import('./src/components/profile/preview/PreviewHeader.vue')['default']
     PreviewStats: typeof import('./src/components/profile/preview/PreviewStats.vue')['default']

@@ -501,6 +501,63 @@ const columns: DataTableColumns<INode> = [
   @apply text-blue-400;
 }
 
+/* 桌面端大屏幕优化 */
+@media (min-width: 1200px) {
+  .node-table-container {
+    @apply min-h-[600px];
+  }
+
+  :deep(.n-data-table .n-data-table-base-table) {
+    @apply text-sm;
+  }
+
+  :deep(.n-data-table .n-data-table-th) {
+    @apply font-semibold;
+  }
+
+  .batch-actions-buttons {
+    @apply space-x-3;
+  }
+}
+
+/* 超宽屏优化 */
+@media (min-width: 1600px) {
+  .node-table-container {
+    @apply min-h-[700px];
+  }
+
+  :deep(.n-data-table .n-data-table-base-table) {
+    @apply text-base;
+  }
+
+  .batch-actions-bar {
+    @apply px-6 py-4;
+  }
+}
+
+/* 4K屏幕优化 */
+@media (min-width: 1921px) {
+  .node-table-container {
+    @apply min-h-[800px];
+  }
+
+  :deep(.n-data-table .n-data-table-base-table) {
+    @apply text-lg;
+  }
+
+  .batch-actions-bar {
+    @apply px-8 py-5;
+  }
+
+  .batch-actions-buttons {
+    @apply space-x-4;
+  }
+
+  .testing-indicator {
+    @apply px-8 py-4;
+  }
+}
+
 /* 动画效果 */
 @keyframes slideDown {
   from {

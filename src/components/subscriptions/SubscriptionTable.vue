@@ -384,4 +384,70 @@ const columns: DataTableColumns<Subscription> = [
 .dark .updating-text {
   @apply text-blue-400;
 }
+
+/* 桌面端大屏幕优化 */
+@media (min-width: 1200px) {
+  .subscription-table-container {
+    @apply min-h-[600px];
+  }
+
+  :deep(.n-data-table .n-data-table-base-table) {
+    @apply text-sm;
+  }
+
+  :deep(.n-data-table .n-data-table-th) {
+    @apply font-semibold;
+  }
+}
+
+/* 超宽屏优化 */
+@media (min-width: 1600px) {
+  .subscription-table-container {
+    @apply min-h-[700px];
+  }
+
+  :deep(.n-data-table .n-data-table-base-table) {
+    @apply text-base;
+  }
+
+  .table-toolbar {
+    @apply px-6 py-5;
+  }
+}
+
+/* 4K屏幕优化 */
+@media (min-width: 1921px) {
+  .subscription-table-container {
+    @apply min-h-[800px];
+  }
+
+  :deep(.n-data-table .n-data-table-base-table) {
+    @apply text-lg;
+  }
+
+  .table-toolbar {
+    @apply px-8 py-6;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    @apply space-x-4;
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 640px) {
+  .subscription-table-container {
+    @apply shadow-sm;
+  }
+
+  .table-toolbar {
+    @apply flex-col space-y-3 p-3;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    @apply w-full justify-center;
+  }
+}
 </style>

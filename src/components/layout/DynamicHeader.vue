@@ -13,19 +13,17 @@
       </div>
     </div>
 
-    <!-- 中间：统计信息区域 -->
-    <div class="dynamic-header__center">
-      <component
-        :is="statsComponent"
-        v-if="statsComponent && statsProps && Object.keys(statsProps).length > 0"
-        v-bind="statsProps || {}"
-        class="stats-component"
-      />
-    </div>
-
     <!-- 右侧：功能菜单区域 -->
     <div class="dynamic-header__right">
       <div class="function-menu">
+        <!-- 统计信息 -->
+        <component
+          :is="statsComponent"
+          v-if="statsComponent && statsProps && Object.keys(statsProps).length > 0"
+          v-bind="statsProps || {}"
+          class="stats-component-inline"
+        />
+
         <!-- 主要功能按钮 -->
         <n-button
           v-if="primaryAction"
@@ -264,11 +262,15 @@ defineExpose({
 }
 
 .dynamic-header__right {
-  @apply flex items-center space-x-2 flex-shrink-0;
+  @apply flex items-center space-x-3 flex-shrink-0;
 }
 
 .function-menu {
-  @apply flex items-center space-x-1;
+  @apply flex items-center space-x-2;
+}
+
+.stats-component-inline {
+  @apply mr-2;
 }
 
 .primary-action-btn {
@@ -280,11 +282,22 @@ defineExpose({
   @apply transition-all duration-200 hover:scale-[1.02] hover:shadow-md;
 }
 
-/* 响应式设计 */
+/* 响应式设计 - 更细粒度的断点控制 */
+@media (max-width: 1400px) {
+  .dynamic-header__center {
+    max-width: 500px;
+  }
+}
+
 @media (max-width: 1200px) {
+  .dynamic-header {
+    @apply px-5 py-3;
+    min-height: 64px;
+  }
+
   .dynamic-header__center {
     @apply px-4;
-    max-width: 500px;
+    max-width: 450px;
   }
 }
 
@@ -295,12 +308,68 @@ defineExpose({
   }
 
   .page-title {
-    @apply text-lg;
+    @apply text-xl;
   }
 
   .dynamic-header__center {
     @apply px-3;
-    max-width: 400px;
+    max-width: 350px;
+  }
+}
+
+@media (max-width: 900px) {
+  .dynamic-header {
+    @apply px-4 py-2;
+    min-height: 60px;
+  }
+
+  .page-title {
+    @apply text-lg;
+  }
+
+  .page-description {
+    @apply hidden;
+  }
+
+  .dynamic-header__center {
+    @apply px-3;
+    max-width: 300px;
+  }
+
+  .function-menu {
+    @apply space-x-1;
+  }
+
+  .primary-action-btn {
+    @apply px-3 py-1.5 text-sm;
+  }
+}
+
+@media (max-width: 800px) {
+  .dynamic-header {
+    @apply px-3 py-2;
+    min-height: 56px;
+  }
+
+  .page-title {
+    @apply text-base;
+  }
+
+  .dynamic-header__center {
+    @apply px-2;
+    max-width: 250px;
+  }
+
+  .function-menu {
+    @apply space-x-0.5;
+  }
+
+  .primary-action-btn {
+    @apply px-2 py-1 text-xs;
+  }
+
+  .more-menu-btn {
+    @apply w-8 h-8;
   }
 }
 
@@ -320,7 +389,7 @@ defineExpose({
 
   .dynamic-header__center {
     @apply px-2;
-    max-width: 300px;
+    max-width: 200px;
   }
 
   .function-menu {
@@ -328,7 +397,77 @@ defineExpose({
   }
 
   .primary-action-btn {
-    @apply px-3 py-1 text-sm;
+    @apply px-2 py-1 text-xs;
+  }
+
+  .more-menu-btn {
+    @apply w-7 h-7;
+  }
+}
+
+@media (max-width: 640px) {
+  .dynamic-header {
+    @apply px-2 py-1.5;
+    min-height: 52px;
+  }
+
+  .page-title {
+    @apply text-sm font-semibold;
+    margin-bottom: 0;
+  }
+
+  .dynamic-header__left {
+    @apply min-w-0 flex-1;
+  }
+
+  .dynamic-header__center {
+    @apply px-1;
+    max-width: 150px;
+    flex: 0 0 auto;
+  }
+
+  .dynamic-header__right {
+    @apply flex-shrink-0;
+  }
+
+  .function-menu {
+    @apply space-x-0;
+  }
+
+  .primary-action-btn {
+    @apply px-1.5 py-0.5 text-xs min-w-0;
+  }
+
+  .more-menu-btn {
+    @apply w-6 h-6;
+  }
+
+  /* 在极小屏幕下隐藏次要元素 */
+  .stats-component {
+    @apply hidden;
+  }
+}
+
+@media (max-width: 480px) {
+  .dynamic-header {
+    @apply px-1.5 py-1;
+    min-height: 48px;
+  }
+
+  .page-title {
+    @apply text-xs font-semibold;
+  }
+
+  .dynamic-header__center {
+    @apply hidden;
+  }
+
+  .primary-action-btn {
+    @apply px-1 py-0.5 text-xs;
+  }
+
+  .more-menu-btn {
+    @apply w-5 h-5;
   }
 }
 

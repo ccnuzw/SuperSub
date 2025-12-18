@@ -7,7 +7,7 @@
     <div class="mini-cards-container">
       <div class="mini-card total">
         <div class="card-icon">
-          <n-icon color="#18a058" size="18">
+          <n-icon color="#18a058" size="16">
             <BookOutline />
           </n-icon>
         </div>
@@ -19,7 +19,7 @@
 
       <div class="mini-card healthy">
         <div class="card-icon">
-          <n-icon color="#18a058" size="18">
+          <n-icon color="#18a058" size="16">
             <CheckmarkCircleOutline />
           </n-icon>
         </div>
@@ -29,39 +29,15 @@
         </div>
       </div>
 
-      <div class="mini-card updating">
-        <div class="card-icon">
-          <n-icon color="#2080f0" size="18">
-            <SyncOutline />
-          </n-icon>
-        </div>
-        <div class="card-content">
-          <div class="card-value">{{ updating }}</div>
-          <div class="card-label">更新中</div>
-        </div>
-      </div>
-
       <div class="mini-card failed">
         <div class="card-icon">
-          <n-icon color="#d03050" size="18">
+          <n-icon color="#d03050" size="16">
             <WarningOutline />
           </n-icon>
         </div>
         <div class="card-content">
           <div class="card-value">{{ failed }}</div>
           <div class="card-label">失败</div>
-        </div>
-      </div>
-
-      <div class="mini-card selected">
-        <div class="card-icon">
-          <n-icon color="#2080f0" size="18">
-            <CheckboxOutline />
-          </n-icon>
-        </div>
-        <div class="card-content">
-          <div class="card-value">{{ selected }}</div>
-          <div class="card-label">已选择</div>
         </div>
       </div>
     </div>
@@ -73,17 +49,13 @@ import { NIcon } from 'naive-ui'
 import {
   BookOutline,
   CheckmarkCircleOutline,
-  SyncOutline,
-  WarningOutline,
-  CheckboxOutline
+  WarningOutline
 } from '@vicons/ionicons5'
 
 interface IProps {
   total: number
   healthy: number
-  updating: number
   failed: number
-  selected: number
 }
 
 const props = defineProps<IProps>()
@@ -91,7 +63,7 @@ const props = defineProps<IProps>()
 
 <style scoped>
 .subscription-stats {
-  @apply p-4;
+  @apply py-1;
 }
 
 /* 迷你卡片容器 */
@@ -101,11 +73,11 @@ const props = defineProps<IProps>()
 
 /* 迷你卡片基础样式 */
 .mini-card {
-  @apply flex items-center gap-2 px-2.5 py-2 rounded-lg border transition-all duration-200 hover:shadow-md;
+  @apply flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-all duration-200 hover:shadow-md;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(8px);
-  min-width: 85px;
-  height: 40px;
+  min-width: 75px;
+  height: 32px;
 }
 
 /* 卡片图标 */
@@ -119,7 +91,7 @@ const props = defineProps<IProps>()
 }
 
 .card-value {
-  @apply text-base font-bold;
+  @apply text-sm font-bold;
   line-height: 1.2;
 }
 

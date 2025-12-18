@@ -100,7 +100,7 @@ defineEmits<{
 
 <style scoped>
 .subscription-group-tabs {
-  @apply w-full bg-white rounded-lg shadow-sm p-3;
+  @apply w-full bg-white rounded-lg shadow-sm p-1.5;
   border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
@@ -118,12 +118,12 @@ defineEmits<{
 }
 
 :deep(.n-tabs .n-tabs-nav) {
-  @apply px-2 py-1;
+  @apply px-2 py-0.5;
 }
 
 :deep(.n-tabs .n-tabs-tab) {
-  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
-  min-height: 40px;
+  @apply px-2.5 py-1 rounded-lg font-medium transition-all duration-200;
+  min-height: 28px;
 }
 
 :deep(.n-tabs .n-tabs-tab:hover) {
@@ -142,6 +142,64 @@ defineEmits<{
 /* 后缀按钮样式 */
 :deep(.n-tabs-suffix) {
   @apply ml-4;
+}
+
+/* 桌面端响应式设计 */
+@media (min-width: 1200px) {
+  .subscription-group-tabs {
+    @apply sticky top-4 z-10;
+    max-height: calc(100vh - 8rem);
+    overflow-y: auto;
+  }
+
+  .subscription-group-tabs::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .subscription-group-tabs::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded-full;
+  }
+
+  .subscription-group-tabs::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full hover:bg-gray-400;
+  }
+
+  /* 响应式标签页 */
+  :deep(.n-tabs .n-tabs-tab) {
+    @apply px-2.5 py-1;
+    min-width: 70px; /* 最小宽度，但会根据内容自适应 */
+  }
+
+  :deep(.n-tabs .n-tabs-nav) {
+    @apply px-2 py-1;
+  }
+
+  /* 标签内容响应式 */
+  :deep(.n-tabs .n-tabs-tab__label) {
+    @apply text-center;
+    line-height: 1.3;
+    word-wrap: break-word; /* 长单词换行 */
+  }
+}
+
+/* 更大屏幕优化 */
+@media (min-width: 1600px) {
+  :deep(.n-tabs .n-tabs-tab) {
+    @apply px-3 py-1.5;
+    min-width: 90px;
+  }
+
+  :deep(.n-tabs .n-tabs-nav) {
+    @apply px-2 py-1;
+  }
+}
+
+/* 超大屏幕优化 */
+@media (min-width: 1920px) {
+  :deep(.n-tabs .n-tabs-tab) {
+    @apply px-4 py-2;
+    min-width: 110px;
+  }
 }
 
 /* 响应式设计 */

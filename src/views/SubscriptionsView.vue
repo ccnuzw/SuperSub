@@ -5,38 +5,42 @@
 
 <template>
   <div class="page-container">
-    <!-- 中间区域：分组标签 -->
-    <div class="middle-section">
-      <SubscriptionGroupTabs
-        v-model:active-tab="activeTab"
-        :groups="groups"
-        :loading="groupLoading"
-        :total-count="subscriptions.length"
-        @group-click="handleGroupClick"
-        @group-context-menu="handleGroupContextMenu"
-        @add-group="handleCreateGroup"
-      />
-    </div>
+    <!-- 桌面端：左侧分组和右侧表格 -->
+    <!-- 移动端：上下布局 -->
+    <div class="main-content">
+      <!-- 分组选择区域 -->
+      <div class="group-section">
+        <SubscriptionGroupTabs
+          v-model:active-tab="activeTab"
+          :groups="groups"
+          :loading="groupLoading"
+          :total-count="subscriptions.length"
+          @group-click="handleGroupClick"
+          @group-context-menu="handleGroupContextMenu"
+          @add-group="handleCreateGroup"
+        />
+      </div>
 
-  <!-- 底部区域：订阅表格 -->
-    <div class="bottom-section">
-      <SubscriptionTable
-        :subscriptions="filteredSubscriptions"
-        :selected-keys="selectedKeys"
-        :updating-ids="updatingIds"
-        :loading="loading"
-        :pagination="pagination"
-        @update:selected-keys="selectedKeys = $event"
-        @retry-failed="handleRetryFailed"
-        @clear-failed="handleClearFailed"
-        @batch-delete="handleBatchDelete"
-        @batch-update="handleBatchUpdate"
-        @edit="handleEditSubscription"
-        @delete="handleDeleteSubscription"
-        @update="handleUpdateSubscription"
-        @preview="handlePreviewSubscription"
-        @copy-url="handleCopySubscriptionUrl"
-      />
+      <!-- 订阅表格区域 -->
+      <div class="table-section">
+        <SubscriptionTable
+          :subscriptions="filteredSubscriptions"
+          :selected-keys="selectedKeys"
+          :updating-ids="updatingIds"
+          :loading="loading"
+          :pagination="pagination"
+          @update:selected-keys="selectedKeys = $event"
+          @retry-failed="handleRetryFailed"
+          @clear-failed="handleClearFailed"
+          @batch-delete="handleBatchDelete"
+          @batch-update="handleBatchUpdate"
+          @edit="handleEditSubscription"
+          @delete="handleDeleteSubscription"
+          @update="handleUpdateSubscription"
+          @preview="handlePreviewSubscription"
+          @copy-url="handleCopySubscriptionUrl"
+        />
+      </div>
     </div>
 
     <!-- 添加/编辑订阅模态框 -->
@@ -269,9 +273,7 @@ watch([subscriptions, selectedKeys, updatingIds], () => {
     updateHeaderStats({
       total: subscriptions.value.length,
       healthy: healthyCount.value,
-      updating: updatingCount.value,
-      failed: failedCount.value,
-      selected: selectedCount.value
+      failed: failedCount.value
     })
   }
 }, { immediate: true })
@@ -415,16 +417,13 @@ const handleHeaderAction = async (event: CustomEvent) => {
   width: 100%;
 }
 
-/* 区域划分 - 直接使用页面空间 */
-.middle-section {
-  @apply mb-4 transition-all duration-300;
-  flex-shrink: 0;
-}
-
-.bottom-section {
+/* 主要内容区域 */
+.main-content {
   @apply transition-all duration-300;
+  display: flex;
+  flex-direction: column;
   flex: 1;
-  min-height: 0; /* 允许flexbox子项收缩 */
+  gap: 1rem;
 }
 
 /* 响应式设计 - 优化不同屏幕尺寸 */
@@ -444,9 +443,91 @@ const handleHeaderAction = async (event: CustomEvent) => {
   }
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 1025px) and (max-width: 1440px) {
   .page-container {
-    @apply px-4 py-4;
+    @apply px-6 py-6;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .middle-section {
+    @apply mb-6;
+  }
+
+  .bottom-section {
+    @apply min-h-[600px];
+  }
+}
+
+@media (min-width: 1441px) and (max-width: 1920px) {
+  .page-container {
+    @apply px-8 py-8;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  .middle-section {
+    @apply mb-8;
+  }
+
+  .bottom-section {
+    @apply min-h-[700px];
+  }
+}
+
+@media (min-width: 1921px) {
+  .page-container {
+    @apply px-12 py-10;
+    max-width: 1800px;
+    margin: 0 auto;
+  }
+
+  .middle-section {
+    @apply mb-10;
+  }
+
+  .bottom-section {
+    @apply min-h-[800px];
+  }
+}
+
+/* 响应式设计 - 真正的响应式，使用相对单位 */
+@media (min-width: 1200px) {
+  .page-container {
+    @apply flex gap-4;
+  }
+
+  .middle-section {
+    @apply flex-shrink-0 mb-0;
+    height: fit-content;
+    width: min(30%, 320px); /* 响应式宽度：容器宽度的30%，最大320px */
+  }
+
+  .bottom-section {
+    @apply flex-1;
+    min-width: 0; /* 允许flexbox收缩 */
+  }
+}
+
+/* 更大屏幕，比例调整 */
+@media (min-width: 1600px) {
+  .page-container {
+    @apply gap-6;
+  }
+
+  .middle-section {
+    width: min(28%, 384px); /* 稍微减小比例，增加最大宽度 */
+  }
+}
+
+/* 超大屏幕，进一步优化比例 */
+@media (min-width: 1920px) {
+  .page-container {
+    @apply gap-8;
+  }
+
+  .middle-section {
+    width: min(25%, 448px); /* 继续减小比例，增加最大宽度 */
   }
 }
 

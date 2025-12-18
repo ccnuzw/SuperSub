@@ -5,36 +5,40 @@
 
 <template>
   <div class="page-container">
-    <!-- 分组选择器 -->
-    <div class="middle-section">
-      <GroupSelector
-        v-model:selected-group-id="selectedGroupId"
-        :groups="groupOptions"
-        :loading="groupStore.loading"
-        @create-group="handleCreateGroup"
-      />
-    </div>
+    <!-- 桌面端：左侧分组和右侧表格 -->
+    <!-- 移动端：上下布局 -->
+    <div class="main-content">
+      <!-- 分组选择区域 -->
+      <div class="group-section">
+        <GroupSelector
+          v-model:selected-group-id="selectedGroupId"
+          :groups="groupOptions"
+          :loading="groupStore.loading"
+          @create-group="handleCreateGroup"
+        />
+      </div>
 
-    <!-- 节点表格 -->
-    <div class="bottom-section">
-      <NodeTable
-        :nodes="filteredNodes"
-        :loading="loading"
-        :selected-keys="selectedKeys"
-        :testing-ids="testingIds"
-        :pagination="pagination"
-        @update:selected-keys="handleSelectedKeysChange"
-        @test-node="handleTestNode"
-        @edit="handleEditNode"
-        @delete="handleDeleteNode"
-        @copy="handleCopyNode"
-        @move-to-group="handleMoveToGroup"
-        @batch-test="handleBatchTest"
-        @batch-delete="handleBatchDelete"
-        @batch-export="handleBatchExport"
-        @cleanup-invalid="handleCleanupInvalid"
-        @test-all-nodes="handleTestAllNodes"
-      />
+      <!-- 节点表格区域 -->
+      <div class="table-section">
+        <NodeTable
+          :nodes="filteredNodes"
+          :loading="loading"
+          :selected-keys="selectedKeys"
+          :testing-ids="testingIds"
+          :pagination="pagination"
+          @update:selected-keys="handleSelectedKeysChange"
+          @test-node="handleTestNode"
+          @edit="handleEditNode"
+          @delete="handleDeleteNode"
+          @copy="handleCopyNode"
+          @move-to-group="handleMoveToGroup"
+          @batch-test="handleBatchTest"
+          @batch-delete="handleBatchDelete"
+          @batch-export="handleBatchExport"
+          @cleanup-invalid="handleCleanupInvalid"
+          @test-all-nodes="handleTestAllNodes"
+        />
+      </div>
     </div>
 
     <!-- 添加/编辑节点模态框 -->
@@ -406,66 +410,117 @@ const handleSelectedKeysChange = (keys: string[]) => {
   width: 100%;
 }
 
-/* 区域划分 - 直接使用页面空间 */
-.middle-section {
-  @apply mb-4 transition-all duration-300;
-  flex-shrink: 0;
-}
-
-.bottom-section {
+/* 主要内容区域 */
+.main-content {
   @apply transition-all duration-300;
+  display: flex;
+  flex-direction: column;
   flex: 1;
-  min-height: 0; /* 允许flexbox子项收缩 */
+  gap: 1rem;
 }
 
 /* 响应式设计 - 优化不同屏幕尺寸 */
 @media (max-width: 640px) {
-  .content-wrapper {
-    @apply px-1;
+  .page-container {
+    @apply px-1 py-3;
   }
 
-  .content-grid {
-    @apply space-y-3 py-3;
-  }
-
-  .section-card {
-    padding: 0.5rem;
+  .main-content {
+    @apply space-y-3;
   }
 }
 
 @media (min-width: 641px) and (max-width: 1024px) {
-  .content-wrapper {
-    @apply px-2;
+  .page-container {
+    @apply px-2 py-4;
   }
 
-  .content-grid {
+  .main-content {
     @apply space-y-4;
-  }
-
-  .section-card {
-    padding: 0.75rem;
   }
 }
 
-@media (min-width: 1280px) {
-  .content-wrapper {
-    @apply px-4;
+@media (min-width: 1025px) and (max-width: 1440px) {
+  .page-container {
+    @apply px-6 py-6;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .main-content {
+    @apply space-y-6;
+  }
+}
+
+@media (min-width: 1441px) and (max-width: 1920px) {
+  .page-container {
+    @apply px-8 py-8;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  .main-content {
+    @apply space-y-8;
+  }
+}
+
+@media (min-width: 1921px) {
+  .page-container {
+    @apply px-12 py-10;
+    max-width: 1800px;
+    margin: 0 auto;
+  }
+
+  .main-content {
+    @apply space-y-10;
+  }
+}
+
+/* 桌面端响应式布局 */
+@media (min-width: 1200px) {
+  .page-container {
+    @apply block;
+  }
+
+  .main-content {
+    @apply flex-col space-x-0 space-y-4;
+  }
+
+  .group-section {
+    @apply w-full;
+    height: auto;
+  }
+
+  .table-section {
+    @apply w-full;
+  }
+}
+
+/* 更大屏幕，比例调整 */
+@media (min-width: 1600px) {
+  .page-container {
+    @apply block;
+  }
+
+  .main-content {
+    @apply space-y-6;
+  }
+}
+
+/* 超大屏幕，进一步优化比例 */
+@media (min-width: 1920px) {
+  .page-container {
+    @apply block;
+  }
+
+  .main-content {
+    @apply space-y-8;
   }
 }
 
 /* 深色模式适配 */
 .dark .page-container {
   background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-}
-
-.dark .sticky-header {
-  background: rgba(31, 41, 55, 0.8);
-  border-bottom-color: rgba(75, 85, 99, 0.3);
-}
-
-.dark .section-card {
-  @apply bg-gray-800/80 border-gray-700/20;
-  background: rgba(31, 41, 55, 0.8);
 }
 
 /* 加载动画 */

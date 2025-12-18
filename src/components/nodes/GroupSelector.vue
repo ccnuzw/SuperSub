@@ -157,7 +157,7 @@ const showCreateGroupDialog = () => {
 
 <style scoped>
 .group-selector {
-  @apply w-full bg-white rounded-lg shadow-sm p-4;
+  @apply w-full bg-white rounded-lg shadow-sm p-3;
   border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
@@ -187,8 +187,28 @@ const showCreateGroupDialog = () => {
 
 /* 选择器样式优化 */
 :deep(.n-select) {
-  min-width: 200px;
+  width: 100%; /* 默认就占满父容器 */
   transition: all 0.2s ease;
+}
+
+/* 默认布局在移动端优化 */
+@media (max-width: 1199px) {
+  .group-selector-content {
+    @apply items-center;
+  }
+
+  .left-section {
+    @apply flex-row items-center space-x-4;
+  }
+
+  .right-section {
+    @apply flex-row items-center space-x-3;
+  }
+
+  :deep(.n-select) {
+    width: 100%;
+    max-width: 300px; /* 在非桌面端限制最大宽度 */
+  }
 }
 
 :deep(.n-select:hover) {
@@ -216,6 +236,60 @@ const showCreateGroupDialog = () => {
 
 .dark .group-stats {
   @apply text-gray-400;
+}
+
+/* 桌面端响应式设计 */
+@media (min-width: 1200px) {
+  .group-selector {
+    @apply w-full;
+  }
+
+  .group-selector-content {
+    @apply flex-row items-center justify-between;
+  }
+
+  .left-section {
+    @apply flex-row items-center space-x-4;
+  }
+
+  :deep(.n-select) {
+    width: 100%;
+    max-width: 300px; /* 在桌面端限制最大宽度 */
+  }
+
+  .right-section {
+    @apply flex-row items-center space-x-3;
+  }
+}
+
+/* 更大屏幕优化 */
+@media (min-width: 1600px) {
+  .group-selector {
+    @apply px-4 py-4;
+  }
+
+  .group-selector-content {
+    @apply space-y-4;
+  }
+
+  .left-section {
+    @apply space-y-3;
+  }
+}
+
+/* 超大屏幕优化 */
+@media (min-width: 1920px) {
+  .group-selector {
+    @apply px-5 py-5;
+  }
+
+  .group-selector-content {
+    @apply space-y-5;
+  }
+
+  .left-section {
+    @apply space-y-4;
+  }
 }
 
 /* 响应式设计 */
