@@ -18,17 +18,6 @@
       </div>
     </div>
 
-    <!-- 折叠按钮 -->
-    <div class="sidebar__toggle">
-      <button
-        class="toggle-btn"
-        @click="handleToggle"
-        :title="collapsed ? '展开侧边栏' : '折叠侧边栏'"
-      >
-        <component :is="collapsed ? MenuExpandIcon : MenuCollapseIcon" />
-      </button>
-    </div>
-
     <!-- 导航菜单 -->
     <nav class="sidebar__nav">
       <div class="nav-section">
@@ -103,27 +92,73 @@
       </div>
     </nav>
 
-    <!-- 用户信息 -->
-    <div class="sidebar__user">
-      <div class="user-card">
-        <div class="user-avatar">
-          <div class="avatar-placeholder">
-            {{ userInitial }}
-          </div>
-        </div>
-        <div class="user-info">
-          <div class="user-name">{{ authStore.user?.username || 'Unknown User' }}</div>
-          <div class="user-role">{{ userRoleText }}</div>
+    <!-- 功能区域 (原顶部栏功能) -->
+    <div class="sidebar__functions">
+      <!-- 通知区域 -->
+      <div class="function-item" :title="collapsed ? '通知' : undefined">
+        <button
+          class="function-button notification-bell"
+          :class="{ 'notification-bell--has-unread': hasUnreadNotifications }"
+          @click="handleNotifications"
+        >
+          <component :is="NotificationsIcon" class="function-icon" />
+          <span class="function-text">通知</span>
+          <SsBadge
+            v-if="hasUnreadNotifications && !collapsed"
+            variant="error"
+            size="sm"
+            class="notification-badge"
+          >
+            3
+          </SsBadge>
+        </button>
+      </div>
+
+      <!-- 主题切换 -->
+      <div class="function-item" :title="collapsed ? '切换主题' : undefined">
+        <button
+          class="function-button theme-toggle"
+          @click="toggleTheme"
+        >
+          <component :is="themeIcon" class="function-icon" />
+          <span class="function-text">主题</span>
+        </button>
+      </div>
+
+      <!-- 用户菜单 -->
+      <div class="function-item" :title="collapsed ? '用户菜单' : undefined">
+        <div class="user-menu">
+          <button
+            class="function-button user-avatar-container"
+            @click="toggleUserMenu"
+          >
+            <div class="user-avatar avatar-text">
+              {{ userInitial }}
+            </div>
+            <span v-if="!collapsed" class="function-text user-name">{{ authStore.user?.username || 'Unknown User' }}</span>
+            <span v-if="!collapsed" class="function-text user-role">{{ userRoleText }}</span>
+          </button>
         </div>
       </div>
     </div>
+
+    <!-- 右侧中部折叠按钮 -->
+    <button
+      class="sidebar-collapse-btn"
+      @click="handleToggle"
+      :title="collapsed ? '展开侧边栏' : '折叠侧边栏'"
+    >
+      <component :is="collapsed ? MenuExpandIcon : MenuCollapseIcon" />
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { useThemeStore } from '@/stores/theme';
+import { useMessage } from 'naive-ui';
 import { SsBadge } from '@/components/base';
 import {
   HomeOutline as HomeIcon,
@@ -135,6 +170,10 @@ import {
   LogOutOutline as LogoutIcon,
   ChevronForwardOutline as MenuExpandIcon,
   ChevronBackOutline as MenuCollapseIcon,
+  NotificationsOutline as NotificationsIcon,
+  SunnyOutline as LightIcon,
+  MoonOutline as DarkIcon,
+  ConstructOutline as SystemIcon
 } from '@vicons/ionicons5';
 
 interface IMenuItem {
@@ -163,6 +202,12 @@ const emit = defineEmits<{
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const themeStore = useThemeStore();
+const message = useMessage();
+
+// 功能相关状态
+const hasUnreadNotifications = ref(true);
+const showUserMenu = ref(false);
 
 // 计算属性
 const userInitial = computed(() => {
@@ -172,6 +217,10 @@ const userInitial = computed(() => {
 
 const userRoleText = computed(() => {
   return authStore.isAdmin ? '管理员' : '普通用户';
+});
+
+const themeIcon = computed(() => {
+  return themeStore.theme === 'dark' ? LightIcon : DarkIcon;
 });
 
 // 菜单项定义
@@ -241,6 +290,24 @@ const handleLogout = async () => {
 const handleToggle = () => {
   emit('toggle');
 };
+
+// 新功能方法
+const handleNotifications = () => {
+  message.info('通知功能开发中...');
+  hasUnreadNotifications.value = false;
+};
+
+const toggleTheme = () => {
+  themeStore.toggleTheme();
+  message.success(`已切换到${themeStore.theme === 'dark' ? '深色' : '浅色'}主题`);
+};
+
+const toggleUserMenu = () => {
+  showUserMenu.value = !showUserMenu.value;
+  if (showUserMenu.value) {
+    message.info('用户菜单功能开发中...');
+  }
+};
 </script>
 
 <style scoped>
@@ -281,25 +348,84 @@ const handleToggle = () => {
   @apply opacity-0 sr-only;
 }
 
-/* 折叠按钮 */
-.sidebar__toggle {
-  @apply px-4 py-2 border-b border-gray-100;
+/* 功能区域 (原顶部栏功能) */
+.sidebar__functions {
+  @apply px-3 py-4 border-t border-gray-200 space-y-2 transition-all duration-300;
 }
 
-.sidebar--collapsed .sidebar__toggle {
-  @apply px-2;
+.sidebar--collapsed .sidebar__functions {
+  @apply px-2 py-3;
 }
 
-.toggle-btn {
-  @apply w-full flex items-center justify-center p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200;
+.function-item {
+  @apply relative;
 }
 
-.sidebar--collapsed .toggle-btn {
-  @apply w-auto mx-auto;
+.function-button {
+  @apply w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-200 relative;
 }
 
-.toggle-btn svg {
-  @apply w-5 h-5;
+.sidebar--collapsed .function-button {
+  @apply justify-center px-2;
+}
+
+.function-icon {
+  @apply w-5 h-5 flex-shrink-0;
+}
+
+.function-text {
+  @apply flex-1 font-medium text-left transition-all duration-300;
+}
+
+.sidebar--collapsed .function-text {
+  @apply opacity-0 sr-only;
+}
+
+/* 通知相关样式 */
+.notification-bell {
+  @apply relative;
+}
+
+.notification-bell--has-unread {
+  @apply text-primary-600 hover:text-primary-700;
+}
+
+.notification-badge {
+  @apply absolute top-2 right-3;
+}
+
+.sidebar--collapsed .notification-badge {
+  @apply top-1 right-1;
+}
+
+/* 用户菜单相关样式 */
+.user-menu {
+  @apply relative;
+}
+
+.user-avatar-container {
+  @apply space-x-3;
+}
+
+.user-avatar {
+  @apply w-8 h-8 bg-primary-500 text-white rounded-full flex items-center justify-center font-semibold text-sm flex-shrink-0;
+}
+
+.user-name {
+  @apply font-medium text-gray-900 truncate;
+}
+
+.user-role {
+  @apply text-xs text-gray-500 truncate;
+}
+
+/* 右侧中部折叠按钮 */
+.sidebar-collapse-btn {
+  @apply absolute -right-3 top-1/2 transform -translate-y-1/2 w-6 h-6 bg-white border border-gray-300 rounded-full flex items-center justify-center shadow-md hover:shadow-lg hover:bg-gray-50 transition-all duration-200 z-20 text-gray-600 hover:text-gray-900;
+}
+
+.sidebar-collapse-btn svg {
+  @apply w-4 h-4;
 }
 
 .sidebar__nav {
@@ -358,50 +484,6 @@ const handleToggle = () => {
   @apply ml-auto transition-opacity duration-300;
 }
 
-.sidebar__user {
-  @apply p-4 border-t border-gray-200 transition-all duration-300;
-}
-
-.sidebar--collapsed .sidebar__user {
-  @apply p-2;
-}
-
-.user-card {
-  @apply flex items-center space-x-3;
-}
-
-.sidebar--collapsed .user-card {
-  @apply justify-center;
-}
-
-.user-avatar {
-  @apply flex-shrink-0;
-}
-
-.avatar-placeholder {
-  @apply w-10 h-10 bg-primary-500 text-white rounded-full flex items-center justify-center font-semibold;
-}
-
-.sidebar--collapsed .avatar-placeholder {
-  @apply w-8 h-8;
-}
-
-.user-info {
-  @apply flex-1 min-w-0 transition-opacity duration-300;
-}
-
-.sidebar--collapsed .user-info {
-  @apply opacity-0 sr-only;
-}
-
-.user-name {
-  @apply font-medium text-gray-900 truncate;
-}
-
-.user-role {
-  @apply text-sm text-gray-500;
-}
-
 /* 响应式设计 */
 @media (max-width: 768px) {
   .sidebar {
@@ -415,8 +497,9 @@ const handleToggle = () => {
     @apply translate-x-0;
   }
 
-  .sidebar__user {
-    @apply border-t border-gray-200;
+  /* 移动端隐藏右侧折叠按钮 */
+  .sidebar-collapse-btn {
+    @apply hidden;
   }
 }
 
@@ -469,8 +552,7 @@ const handleToggle = () => {
 }
 
 .dark .sidebar__logo,
-.dark .sidebar__toggle,
-.dark .sidebar__user {
+.dark .sidebar__functions {
   @apply border-gray-700;
 }
 
@@ -486,8 +568,12 @@ const handleToggle = () => {
   @apply bg-primary-900 text-primary-300 hover:bg-primary-900;
 }
 
-.dark .toggle-btn {
+.dark .function-button {
   @apply text-gray-400 hover:bg-gray-700 hover:text-gray-200;
+}
+
+.dark .notification-bell--has-unread {
+  @apply text-primary-400 hover:text-primary-300;
 }
 
 .dark .user-name {
@@ -497,6 +583,12 @@ const handleToggle = () => {
 .dark .user-role {
   @apply text-gray-400;
 }
+
+.dark .sidebar-collapse-btn {
+  @apply bg-gray-700 border-gray-600 text-gray-400 hover:bg-gray-600 hover:text-gray-200;
+}
+
+/* 移动端样式更新 */
 
 @keyframes fadeIn {
   from {

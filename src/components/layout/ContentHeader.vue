@@ -1,6 +1,6 @@
 /**
  * 右侧内容区域顶部组件
- * 包含全局搜索栏和页面标题 - 单行布局
+ * 简化版：只包含页面标题
  */
 
 <template>
@@ -12,120 +12,29 @@
       </div>
     </div>
 
-    <!-- 中间：全局搜索栏 -->
-    <div v-if="showSearch" class="content-header__center">
-      <div class="search-container">
-        <SsInput
-          v-model="searchQuery"
-          placeholder="全局搜索..."
-          prefix-icon="Search"
-          clearable
-          class="search-input"
-          @input="handleSearch"
-          @keydown.enter="handleSearchSubmit"
-        />
-        <SsButton
-          variant="primary"
-          size="md"
-          @click="handleSearchSubmit"
-          class="search-button"
-        >
-          搜索
-        </SsButton>
-      </div>
+    <!-- 中间：留空（移除搜索功能） -->
+    <div class="content-header__center">
+      <!-- 全局搜索功能已移除 -->
     </div>
 
-    <!-- 右侧：操作区域 -->
+    <!-- 右侧：留空（功能已移到左侧栏） -->
     <div class="content-header__right">
-      <!-- 通知铃铛 -->
-      <div class="notification-area">
-        <NDropdown
-          :options="notificationOptions"
-          placement="bottom-end"
-          trigger="click"
-          @select="handleNotificationAction"
-        >
-          <div class="notification-bell" :class="{ 'notification-bell--has-unread': hasUnreadNotifications }">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.07 2.82L3 12l7.07 9.18L20 12 10.07 2.82z" />
-            </svg>
-            <span v-if="unreadCount > 0" class="notification-badge">{{ unreadCount }}</span>
-          </div>
-        </NDropdown>
-      </div>
-
-      <!-- 主题切换 -->
-      <div class="theme-toggle">
-        <SsButton
-          variant="ghost"
-          size="sm"
-          @click="handleThemeToggle"
-          :title="isDarkMode ? '切换到浅色模式' : '切换到深色模式'"
-        >
-          <SunIcon v-if="isDarkMode" class="w-4 h-4" />
-          <MoonIcon v-else class="w-4 h-4" />
-        </SsButton>
-      </div>
-
-      <!-- 用户菜单 -->
-      <div class="user-menu">
-        <NDropdown
-          :options="userMenuOptions"
-          placement="bottom-end"
-          trigger="click"
-          @select="handleUserMenuAction"
-        >
-          <div class="user-avatar-container">
-            <div class="user-avatar">
-              <div class="avatar-text">
-                {{ userInitial }}
-              </div>
-            </div>
-            <div class="user-info">
-              <div class="user-name">{{ authStore.user?.username || 'Unknown User' }}</div>
-              <div class="user-role">{{ userRoleText }}</div>
-            </div>
-          </div>
-        </NDropdown>
-      </div>
+      <!-- 预留空间，功能已移到左侧栏 -->
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import { NDropdown } from 'naive-ui';
-import { SsButton, SsInput } from '@/components/base';
-import { useAuthStore } from '@/stores/auth';
-import { useThemeStore } from '@/stores/theme';
-import {
-  SunnyOutline as SunIcon,
-  MoonOutline as MoonIcon,
-} from '@vicons/ionicons5';
+import { computed } from 'vue';
+import { useRoute } from 'vue-router';
 
 interface IProps {
   title?: string;
-  description?: string;
-  showSearch?: boolean;
 }
 
-const props = withDefaults(defineProps<IProps>(), {
-  showSearch: true
-});
+const props = defineProps<IProps>();
 
-const emit = defineEmits<{
-  search: [query: string];
-}>();
-
-const router = useRouter();
 const route = useRoute();
-const authStore = useAuthStore();
-const themeStore = useThemeStore();
-
-// 响应式数据
-const searchQuery = ref('');
 
 // 计算属性
 const pageTitle = computed(() => {
@@ -143,143 +52,6 @@ const pageTitle = computed(() => {
 
   return titleMap[route.name as string] || 'SuperSub';
 });
-
-const pageDescription = computed(() => {
-  if (props.description) return props.description;
-
-  const descriptionMap: Record<string, string> = {
-    home: '查看系统概览和快速操作',
-    subscriptions: '管理和监控订阅源',
-    nodes: '管理代理节点和连接状态',
-    profiles: '创建和管理配置文件',
-    'user-management': '管理用户账户和权限',
-    settings: '配置系统参数和个人偏好'
-  };
-
-  return descriptionMap[route.name as string];
-});
-
-const userInitial = computed(() => {
-  const username = authStore.user?.username || '';
-  return username.charAt(0).toUpperCase();
-});
-
-const userRoleText = computed(() => {
-  return authStore.isAdmin ? '管理员' : '普通用户';
-});
-
-const isDarkMode = computed(() => themeStore.theme === 'dark');
-
-const hasUnreadNotifications = ref(true);
-const unreadCount = ref(3);
-
-// 通知选项
-const notificationOptions = [
-  {
-    label: '查看全部通知',
-    key: 'view-all'
-  },
-  {
-    type: 'divider'
-  },
-  {
-    label: '标记全部已读',
-    key: 'mark-all-read'
-  },
-  {
-    label: '通知设置',
-    key: 'settings'
-  }
-];
-
-// 用户菜单选项
-const userMenuOptions = computed(() => [
-  {
-    label: '个人资料',
-    key: 'profile'
-  },
-  {
-    label: '账户设置',
-    key: 'account-settings'
-  },
-  {
-    type: 'divider'
-  },
-  {
-    label: '帮助中心',
-    key: 'help'
-  },
-  {
-    label: '关于',
-    key: 'about'
-  },
-  {
-    type: 'divider'
-  },
-  {
-    label: '登出',
-    key: 'logout'
-  }
-]);
-
-// 方法
-const handleSearch = (value: string) => {
-  // 实时搜索（可选）
-};
-
-const handleSearchSubmit = () => {
-  if (searchQuery.value.trim()) {
-    emit('search', searchQuery.value);
-  }
-};
-
-const handleThemeToggle = () => {
-  themeStore.toggleTheme();
-};
-
-const handleNotificationAction = (key: string) => {
-  switch (key) {
-    case 'view-all':
-      router.push({ name: 'notifications' });
-      break;
-    case 'mark-all-read':
-      hasUnreadNotifications.value = false;
-      unreadCount.value = 0;
-      break;
-    case 'settings':
-      router.push({ name: 'notification-settings' });
-      break;
-  }
-};
-
-const handleUserMenuAction = (key: string) => {
-  switch (key) {
-    case 'profile':
-      router.push({ name: 'user-profile' });
-      break;
-    case 'account-settings':
-      router.push({ name: 'account-settings' });
-      break;
-    case 'help':
-      window.open('/help', '_blank');
-      break;
-    case 'about':
-      // 显示关于对话框
-      break;
-    case 'logout':
-      handleLogout();
-      break;
-  }
-};
-
-const handleLogout = async () => {
-  try {
-    await authStore.logout();
-    router.push({ name: 'login' });
-  } catch (error) {
-    console.error('Logout failed:', error);
-  }
-};
 </script>
 
 <style scoped>
@@ -300,25 +72,8 @@ const handleLogout = async () => {
   @apply text-2xl font-bold text-gray-900 truncate;
 }
 
-/* 移除页面描述，保持单行 */
-.page-description {
-  display: none;
-}
-
 .content-header__center {
-  @apply flex-1 flex items-center justify-center px-8 max-w-2xl mx-auto;
-}
-
-.search-container {
-  @apply flex items-center space-x-3 w-full;
-}
-
-.search-input {
-  @apply flex-1 min-w-0;
-}
-
-.search-button {
-  @apply flex-shrink-0;
+  @apply flex-1;
 }
 
 .content-header__right {
@@ -374,27 +129,13 @@ const handleLogout = async () => {
 }
 
 /* 响应式设计 - 保持单行布局 */
-@media (max-width: 1200px) {
-  .content-header__center {
-    @apply px-4;
-  }
-}
-
 @media (max-width: 1024px) {
   .content-header {
     @apply px-4 py-3;
   }
 
-  .content-header__center {
-    @apply px-3;
-  }
-
   .page-title {
     @apply text-xl;
-  }
-
-  .user-info {
-    @apply hidden;
   }
 }
 
@@ -408,34 +149,12 @@ const handleLogout = async () => {
     @apply flex-1;
   }
 
-  .content-header__center {
-    @apply flex-none px-2 max-w-xs;
-  }
-
   .content-header__right {
     @apply space-x-2;
   }
 
   .page-title {
     @apply text-lg;
-  }
-
-  .search-button {
-    @apply px-3 py-2 text-sm;
-  }
-
-  .theme-toggle {
-    @apply hidden;
-  }
-}
-
-@media (max-width: 640px) {
-  .content-header__center {
-    @apply hidden; /* 在小屏幕上隐藏搜索栏以保持单行 */
-  }
-
-  .page-title {
-    @apply text-base;
   }
 }
 
@@ -491,8 +210,7 @@ const handleLogout = async () => {
 
 /* 打印时隐藏不必要的元素 */
 @media print {
-  .content-header__right,
-  .content-header__center {
+  .content-header__right {
     display: none;
   }
 

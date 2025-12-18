@@ -33,12 +33,10 @@
           'app-layout__main--sidebar-collapsed': sidebarCollapsed
         }"
       >
-        <!-- 内容区域顶部：包含全局搜索和页面信息 -->
+        <!-- 内容区域顶部：包含页面信息 -->
         <ContentHeader
           :title="title"
           :description="description"
-          :show-search="showSearch"
-          @search="handleGlobalSearch"
         />
 
         <!-- 页面内容 -->
@@ -60,33 +58,17 @@
     >
       <MenuIcon class="w-6 h-6" />
     </div>
-
-    <!-- 全局搜索结果弹窗 -->
-    <NModal
-      v-model:show="showGlobalSearch"
-      preset="card"
-      class="w-[600px] max-w-[90vw]"
-      title="全局搜索"
-    >
-      <GlobalSearchResults
-        :query="globalSearchQuery"
-        @result-click="handleSearchResultClick"
-        @close="showGlobalSearch = false"
-      />
-    </NModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { NModal } from 'naive-ui';
 import { Sidebar, ContentHeader } from './index';
 import { useAuthStore } from '@/stores/auth';
 import { useThemeStore } from '@/stores/theme';
 import { useIsMobile } from '@/composables/useMediaQuery';
 import { LAYOUT_CONSTANTS } from './index';
-import GlobalSearchResults from '@/components/common/GlobalSearchResults.vue';
 import type { IStandardProps } from '@/utils/componentApiStandards';
 import { MenuOutline as MenuIcon } from '@vicons/ionicons5';
 
@@ -95,8 +77,6 @@ interface Props extends IStandardProps {
   showSidebar?: boolean;
   // 侧边栏是否折叠
   sidebarCollapsed?: boolean;
-  // 是否显示搜索
-  showSearch?: boolean;
   // 头部标题
   title?: string;
   // 头部描述
@@ -105,8 +85,7 @@ interface Props extends IStandardProps {
 
 const props = withDefaults(defineProps<Props>(), {
   showSidebar: true,
-  sidebarCollapsed: false,
-  showSearch: true
+  sidebarCollapsed: false
 });
 
 const emit = defineEmits<{
@@ -122,8 +101,6 @@ const isMobile = useIsMobile();
 
 // 响应式数据
 const mobileSidebarOpen = ref(false);
-const globalSearchQuery = ref('');
-const showGlobalSearch = ref(false);
 
 // 计算属性 - 简化因为ContentHeader会处理标题逻辑
 // 不再需要headerTitle和headerDescription计算属性
@@ -153,35 +130,8 @@ const handleSidebarToggle = () => {
   localStorage.setItem('sidebar-collapsed', JSON.stringify(newCollapsed));
 };
 
-const handleGlobalSearch = (query: string) => {
-  if (query.trim()) {
-    globalSearchQuery.value = query;
-    showGlobalSearch.value = true;
-  }
-};
-
-const handleSearchResultClick = (result: any) => {
-  showGlobalSearch.value = false;
-  globalSearchQuery.value = '';
-
-  if (result.route) {
-    router.push(result.route);
-  }
-};
-
 // 键盘快捷键
 const handleKeydown = (event: KeyboardEvent) => {
-  // Ctrl/Cmd + K 打开全局搜索
-  if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
-    event.preventDefault();
-    showGlobalSearch.value = !showGlobalSearch.value;
-  }
-
-  // ESC 关闭搜索
-  if (event.key === 'Escape' && showGlobalSearch.value) {
-    showGlobalSearch.value = false;
-  }
-
   // ESC 关闭移动端侧边栏
   if (event.key === 'Escape' && mobileSidebarOpen.value) {
     closeMobileSidebar();
@@ -190,9 +140,8 @@ const handleKeydown = (event: KeyboardEvent) => {
 
 // 监听器
 watch(() => route.name, () => {
-  // 路由变化时关闭移动端侧边栏和搜索
+  // 路由变化时关闭移动端侧边栏
   mobileSidebarOpen.value = false;
-  showGlobalSearch.value = false;
 });
 
 watch(isMobile, (mobile) => {
