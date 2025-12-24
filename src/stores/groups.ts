@@ -57,18 +57,18 @@ export const useGroupStore = defineStore('groups', () => {
     updateLastUpdated();
   };
 
-  // 分组操作方法
+  // 分组操作方法（本地状态）
   const setGroups = (newGroups: INodeGroup[]) => {
     groups.value = newGroups;
     updateLastUpdated();
   };
 
-  const addGroup = (group: INodeGroup) => {
+  const addGroupToLocal = (group: INodeGroup) => {
     groups.value.push(group);
     updateLastUpdated();
   };
 
-  const updateGroup = (groupId: string, updates: Partial<INodeGroup>) => {
+  const updateGroupLocal = (groupId: string, updates: Partial<INodeGroup>) => {
     const index = groups.value.findIndex(g => g.id === groupId);
     if (index !== -1) {
       groups.value[index] = { ...groups.value[index], ...updates };
@@ -95,6 +95,8 @@ export const useGroupStore = defineStore('groups', () => {
     return groups.value.find(g => g.name === name);
   };
 
+  // ==================== API 方法 ====================
+
   const fetchGroups = async (): Promise<void> => {
     setLoading(true);
     clearError();
@@ -102,7 +104,6 @@ export const useGroupStore = defineStore('groups', () => {
     try {
       const response = await httpClient.get('/groups');
       if (response.success && response.data) {
-        // 确保响应数据是数组格式
         const groupsData = Array.isArray(response.data) ? response.data : [];
         setGroups(groupsData);
       }
@@ -113,6 +114,74 @@ export const useGroupStore = defineStore('groups', () => {
       throw errorObj;
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 创建分组
+  const createGroup = async (name: string): Promise<{ success: boolean; message: string; data?: INodeGroup }> => {
+    try {
+      const response = await httpClient.post('/groups', { name });
+      if (response.success) {
+        await fetchGroups();
+      }
+      return response as { success: boolean; message: string; data?: INodeGroup };
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Unknown error occurred';
+      return {
+        success: false,
+        message: errorMessage
+      };
+    }
+  };
+
+  // 重命名分组
+  const renameGroup = async (id: string, name: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response = await httpClient.put(`/groups/${id}`, { name });
+      if (response.success) {
+        await fetchGroups();
+      }
+      return response as { success: boolean; message: string };
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Unknown error occurred';
+      return {
+        success: false,
+        message: errorMessage
+      };
+    }
+  };
+
+  // 删除分组
+  const deleteGroupApi = async (id: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response = await httpClient.delete(`/groups/${id}`);
+      if (response.success) {
+        removeGroup(id);
+      }
+      return response as { success: boolean; message: string };
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Unknown error occurred';
+      return {
+        success: false,
+        message: errorMessage
+      };
+    }
+  };
+
+  // 切换分组启用状态
+  const toggleGroupEnabled = async (id: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response = await httpClient.patch(`/groups/${id}/toggle`);
+      if (response.success) {
+        await fetchGroups();
+      }
+      return response as { success: boolean; message: string };
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Unknown error occurred';
+      return {
+        success: false,
+        message: errorMessage
+      };
     }
   };
 
@@ -136,18 +205,25 @@ export const useGroupStore = defineStore('groups', () => {
     hasError,
     isIdle,
 
-    // 方法
+    // 本地状态方法
     setLoading,
     setError,
     clearError,
     setGroups,
-    fetchGroups,
-    addGroup,
-    updateGroup,
+    addGroup: addGroupToLocal,
+    updateGroup: updateGroupLocal,
     removeGroup,
     clearGroups,
     findGroupById,
     findGroupByName,
+
+    // API方法
+    fetchGroups,
+    createGroup,
+    renameGroup,
+    deleteGroupApi,
+    toggleGroupEnabled,
+
     reset
   };
 });

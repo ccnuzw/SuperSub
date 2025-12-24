@@ -30,14 +30,16 @@
         <template #tab>
           <div
             class="group-tab"
-            @click="$emit('group-click', group, $event)"
+            @click="handleTabClick(group, $event)"
             @contextmenu="$emit('group-context-menu', group, $event)"
           >
-            <n-space align="center">
+            <n-space align="center" :size="4" class="group-tab-content">
               <n-icon v-if="group.icon" :color="group.color">
                 <component :is="group.icon" />
               </n-icon>
-              <span>{{ group.name }}</span>
+              <span class="group-name" :style="{ color: group.is_enabled === false ? '#999' : '' }">
+                {{ group.name }}
+              </span>
               <n-tag
                 size="small"
                 :type="group.node_count === 0 ? 'default' : 'primary'"
@@ -45,6 +47,17 @@
               >
                 {{ group.node_count }}
               </n-tag>
+              <n-button
+                v-if="activeTab === group.id"
+                text
+                size="small"
+                class="group-actions-button"
+                @click.stop="handleMenuClick(group, $event)"
+              >
+                <template #icon>
+                  <n-icon><EllipsisVerticalOutline /></n-icon>
+                </template>
+              </n-button>
             </n-space>
           </div>
         </template>
@@ -70,7 +83,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { NTabs, NTabPane, NSpace, NTag, NButton, NIcon } from 'naive-ui'
-import { AddOutline } from '@vicons/ionicons5'
+import { AddOutline, EllipsisVerticalOutline } from '@vicons/ionicons5'
 
 interface IGroup {
   id: string
@@ -78,6 +91,7 @@ interface IGroup {
   node_count: number
   icon?: any
   color?: string
+  is_enabled?: boolean
 }
 
 interface IProps {
@@ -93,12 +107,29 @@ const props = withDefaults(defineProps<IProps>(), {
   totalCount: 0
 })
 
-defineEmits<{
+const emit = defineEmits<{
   'update:active-tab': [tab: string]
   'group-click': [group: IGroup, event: MouseEvent]
   'group-context-menu': [group: IGroup, event: MouseEvent]
+  'group-menu-click': [group: IGroup, event: MouseEvent]
   'add-group': []
 }>()
+
+const handleTabClick = (group: IGroup, event: MouseEvent) => {
+  // 检查点击的是否是操作按钮
+  const target = event.target as HTMLElement
+  if (target.closest('.group-actions-button')) {
+    // 如果点击的是操作按钮，触发菜单点击事件
+    emit('group-menu-click', group, event)
+  } else {
+    // 否则切换标签页
+    emit('group-click', group, event)
+  }
+}
+
+const handleMenuClick = (group: IGroup, event: MouseEvent) => {
+  emit('group-menu-click', group, event)
+}
 </script>
 
 <style scoped>
@@ -110,7 +141,29 @@ defineEmits<{
 }
 
 .group-tab {
-  @apply cursor-pointer px-3 py-2 rounded-lg transition-all duration-200;
+  @apply cursor-pointer px-2 py-1 rounded-lg transition-all duration-200;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.group-tab-content {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.group-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+}
+
+.group-actions-button {
+  flex-shrink: 0;
+  margin-left: 2px;
 }
 
 .group-tab:hover {

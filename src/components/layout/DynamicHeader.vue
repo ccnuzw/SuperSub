@@ -123,14 +123,19 @@ const pageConfig = computed(() => {
         action: 'add-subscription'
       },
       menuItems: [
+        { label: '更新全部', key: 'update-all', icon: SyncOutline },
         { label: '批量导入', key: 'bulk-import', icon: AddOutline },
         { label: '刷新数据', key: 'refresh', icon: RefreshOutline },
         { label: '导出订阅', key: 'export', icon: DownloadOutline },
-        { label: '重试失败', key: 'retry-failed', icon: RefreshOutline, show: false },
-        { label: '清除失败', key: 'clear-failed', icon: TrashOutline, show: false },
         { label: '---', key: 'divider-1', type: 'divider' as const },
         { label: '新建分组', key: 'create-group', icon: SettingsOutline },
-        { label: '分组管理', key: 'group-management', icon: SettingsOutline }
+        { label: '调整顺序', key: 'sort-groups', icon: SettingsOutline },
+        { label: '---', key: 'divider-2', type: 'divider' as const },
+        { label: '移动到分组', key: 'move-to-group', icon: SettingsOutline, show: false },
+        { label: '批量删除', key: 'batch-delete', icon: TrashOutline, show: false },
+        { label: '重试失败', key: 'retry-failed', icon: RefreshOutline, show: false },
+        { label: '清除失败项', key: 'clear-failed', icon: TrashOutline, show: false },
+        { label: '一键清除当前分组', key: 'clear-current-group', icon: TrashOutline }
       ]
     },
     nodes: {
@@ -243,8 +248,14 @@ const handleMenuAction = (key: string) => {
 
 // 暴露方法供父组件调用（用于更新动态状态，如重试失败按钮的显示）
 const updateMenuState = (state: Record<string, boolean>) => {
-  // 这里可以实现菜单项状态的动态更新
-  // 例如根据是否有失败的订阅来显示重试失败按钮
+  // 更新menuItems的show属性
+  if (pageConfig.value.menuItems) {
+    pageConfig.value.menuItems.forEach((item: any) => {
+      if (item.key && state[item.key] !== undefined) {
+        item.show = state[item.key]
+      }
+    })
+  }
 }
 
 defineExpose({

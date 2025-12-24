@@ -348,7 +348,7 @@ const handleBatchMenuAction = (key: string) => {
       break
     case 'select-all-page':
       // 选择当前页所有节点
-      const currentPageNodeIds = nodes.value.map(node => node.id)
+      const currentPageNodeIds = props.nodes.map(node => node.id)
       emit('update:selected-keys', currentPageNodeIds)
       break
     case 'deselect-all':

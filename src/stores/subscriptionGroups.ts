@@ -103,6 +103,31 @@ export const useSubscriptionGroupStore = defineStore('subscriptionGroups', () =>
     return groups.value.filter(group => (group.subscription_count || 0) > 0);
   };
 
+  const toggleGroup = async (groupId: string): Promise<void> => {
+    const group = findGroupById(groupId);
+    if (!group) {
+      throw new Error('Group not found');
+    }
+
+    const newEnabledStatus = !group.is_enabled;
+
+    try {
+      const { httpClient } = await import('@/services/http/HttpClient');
+      const response = await httpClient.put(`/subscription-groups/${groupId}`, {
+        is_enabled: newEnabledStatus ? 1 : 0
+      });
+
+      if (response.success && response.data) {
+        updateGroup(groupId, { is_enabled: newEnabledStatus });
+      } else {
+        throw new Error(response.message || 'Failed to toggle group');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      throw new Error(errorMessage);
+    }
+  };
+
   const fetchGroups = async (): Promise<void> => {
     setLoading(true);
     clearError();
@@ -158,6 +183,7 @@ export const useSubscriptionGroupStore = defineStore('subscriptionGroups', () =>
     updateGroup,
     removeGroup,
     clearGroups,
+    toggleGroup,
     findGroupById,
     findGroupByName,
     getGroupsWithSubscriptions,

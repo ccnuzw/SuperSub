@@ -37,48 +37,81 @@ SuperSub is a full-stack application built on the Cloudflare ecosystem that prov
 # Install dependencies
 npm install
 
-# Initialize local D1 database
+# Initialize local D1 database (run on first setup or after schema changes)
 npm run db:init
 
-# Start backend (Cloudflare Workers)
-npm run dev:backend
+# Start both services simultaneously
+npm run dev
 
-# Start frontend (Vite)
-npm run dev:frontend
-
-# Both services need to be running simultaneously in separate terminals
-```
-
-### Build and Deployment
-```bash
-# Build for production
-npm run build
-
-# Deploy to Cloudflare Pages
-npm run deploy
+# Start services individually (recommended - use two separate terminals)
+npm run start:backend   # Runs wrangler pages dev on port 8789
+npm run start:frontend  # Runs vite on port 5173
 ```
 
 ### Database
 ```bash
-# Initialize local database
+# Initialize local database (creates tables from schema.sql)
 npm run db:init
+
+# Hard reset database (if you encounter "no such table" errors)
+rm -rf .wrangler
+npm run db:init
+
+# Apply migrations to production database
+npx wrangler d1 execute [production-db-name] --file=./db/schema.sql
+npx wrangler d1 execute [production-db-name] --file=./migrations/[migration-file].sql
+```
+
+### Build and Deployment
+```bash
+# Build for production (type-check + vite build)
+npm run build
+
+# Preview production build locally
+npm run preview
 ```
 
 ## Key Files and Directories
 
 ### Backend API
-- `functions/api/[[path]].ts` - Main API implementation with all routes and business logic
+- `functions/api/[[path]].ts` - Main Hono app with all route definitions
+- `functions/api/routes/` - Individual route modules (auth, nodes, subscriptions, profiles, etc.)
+- `functions/api/middleware/` - Custom middleware (auth, methodOverride)
+- `functions/api/utils/` - Utility functions and types (Env, JWT, node parsing, etc.)
+- `functions/api/lib/` - Node parsers for different protocols (ss, vmess, trojan, etc.)
 
 ### Frontend
-- `src/views/` - Page components for each major feature
+- `src/views/` - Page components for each major feature (LoginView, HomeView, NodesView, etc.)
 - `src/components/` - Reusable UI components
-- `src/stores/` - Pinia stores for state management
+- `src/stores/` - Pinia stores (auth, groups, theme, nodeStatus)
 - `src/router/` - Vue Router configuration
+- `src/composables/` - Vue composition functions for shared logic
 
 ### Database
-- `db/schema.sql` - Database schema definition
-- `migrations/` - Database migration files
+- `db/schema.sql` - Complete database schema with seeded data
+- `migrations/` - Incremental database migration files
 
 ### Configuration
-- `wrangler.toml` - Cloudflare deployment configuration
-- `vite.config.ts` - Frontend build configuration
+- `wrangler.toml` - Cloudflare deployment configuration (D1 bindings, env vars, compatibility flags)
+- `vite.config.ts` - Vite build configuration with API proxy to backend
+
+## Architecture Notes
+
+### API Structure
+The backend uses Hono with a centralized route pattern. All routes are prefixed with `/api`. Public routes (auth, system, public) don't require authentication. Protected routes (nodes, subscriptions, profiles) use `manualAuthMiddleware` to verify JWT tokens.
+
+### Profile Generation Pipeline
+Profiles are the core feature that combines:
+1. **Data sources**: Manual nodes (via `profile_nodes`) and subscriptions (via `profile_subscriptions`)
+2. **Processing rules**: Filter/rename operations from `profile_rules` table
+3. **Output modes**: Local generation or external subconverter integration
+
+### User Authentication
+- JWT-based with `manualAuthMiddleware` middleware
+- User data includes role-based access (user, admin, system)
+- System user (`_system_`) owns global assets like default subconverter configurations
+
+### Subscription Processing
+- Supports multiple source formats (Base64, Clash, V2RayN, etc.)
+- UA-based client detection via `ua_mappings` table for adaptive responses
+- Subscription info parsing extracts traffic/expiration data from source URLs

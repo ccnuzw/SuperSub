@@ -137,37 +137,18 @@ provide('updateHeaderStats', updateHeaderStats);
 // 顶部栏事件处理
 const handleHeaderPrimaryAction = (action: string) => {
   // 向当前路由组件发送事件
-  const currentComponent = router.currentRoute.value.matched[0]?.components?.default;
-
-  // 这里可以通过事件总线或者其他方式通知当前页面组件
   console.log('Primary action:', action);
 
-  // 暂时通过路由参数传递简单动作
-  switch (action) {
-    case 'add-subscription':
-      // 触发订阅管理的添加订阅功能
-      window.dispatchEvent(new CustomEvent('header-action', { detail: { type: 'primary', action } }));
-      break;
-  }
+  // 统一通过 CustomEvent 分发所有主要操作
+  window.dispatchEvent(new CustomEvent('header-action', { detail: { type: 'primary', action } }));
 };
 
 const handleHeaderMenuAction = (action: string) => {
   // 向当前路由组件发送菜单动作
   console.log('Menu action:', action);
 
-  switch (action) {
-    case 'bulk-import':
-      window.dispatchEvent(new CustomEvent('header-action', { detail: { type: 'menu', action } }));
-      break;
-    case 'refresh':
-      window.dispatchEvent(new CustomEvent('header-action', { detail: { type: 'menu', action } }));
-      break;
-    case 'export':
-      window.dispatchEvent(new CustomEvent('header-action', { detail: { type: 'menu', action } }));
-      break;
-    default:
-      window.dispatchEvent(new CustomEvent('header-action', { detail: { type: 'menu', action } }));
-  }
+  // 统一通过 CustomEvent 分发所有菜单操作
+  window.dispatchEvent(new CustomEvent('header-action', { detail: { type: 'menu', action } }));
 };
 
 const handleSidebarToggle = () => {

@@ -7,6 +7,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { createApiError } from '@/utils/errorHandler';
 import type { IHealthStatus } from '@/types';
+import httpClient from '@/services/http/HttpClient';
 
 /**
  * 节点状态接口
@@ -105,15 +106,91 @@ export const useNodeStatusStore = defineStore('nodeStatus', () => {
     clearError();
 
     try {
-      // 这里应该调用API获取状态
-      // const response = await api.fetchNodeStatuses(nodeIds);
-      // updateMultipleStatuses(response.data);
+      // 调用API获取状态
+      const response = await httpClient.post('/nodes/health-check', { nodeIds });
+      if (response.success && response.data) {
+        updateMultipleStatuses(response.data);
+      }
       lastHealthCheck.value = new Date().toISOString();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       const errorObj = createApiError(errorMessage);
       setError(errorObj.message);
       throw errorObj;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 检查节点健康状态
+  const checkNodesHealth = async (nodeIds: string[]): Promise<{ success: boolean; message: string }> => {
+    setLoading(true);
+    clearError();
+
+    // 标记节点为测试中状态
+    const testingStatuses: Record<string, IHealthStatus> = {};
+    nodeIds.forEach(id => {
+      testingStatuses[id] = {
+        node_id: id,
+        status: 'testing',
+        latency: null,
+        last_checked: new Date().toISOString(),
+        error: null
+      };
+    });
+    updateMultipleStatuses(testingStatuses);
+
+    try {
+      const response = await httpClient.post('/nodes/health-check', { nodeIds });
+      if (response.success && response.data) {
+        // 更新节点状态
+        const newStatuses: Record<string, IHealthStatus> = {};
+        Object.entries(response.data).forEach(([nodeId, status]: [string, any]) => {
+          newStatuses[nodeId] = {
+            node_id: nodeId,
+            status: status.healthy ? 'healthy' : 'unhealthy',
+            latency: status.latency,
+            last_checked: new Date().toISOString(),
+            error: status.error || null
+          };
+        });
+        updateMultipleStatuses(newStatuses);
+        lastHealthCheck.value = new Date().toISOString();
+
+        const healthyCount = Object.values(newStatuses).filter(s => s.status === 'healthy').length;
+        return {
+          success: true,
+          message: `测试完成：${healthyCount}/${nodeIds.length} 个节点正常`
+        };
+      } else {
+        setError(response.message || '健康检查失败');
+        return {
+          success: false,
+          message: response.message || '健康检查失败'
+        };
+      }
+    } catch (err: any) {
+      const errorMessage = err?.message || 'Unknown error occurred';
+      const errorObj = createApiError(errorMessage);
+      setError(errorObj.message);
+
+      // 标记检查失败的节点为异常
+      const errorStatuses: Record<string, IHealthStatus> = {};
+      nodeIds.forEach(id => {
+        errorStatuses[id] = {
+          node_id: id,
+          status: 'unhealthy',
+          latency: null,
+          last_checked: new Date().toISOString(),
+          error: errorMessage
+        };
+      });
+      updateMultipleStatuses(errorStatuses);
+
+      return {
+        success: false,
+        message: errorMessage
+      };
     } finally {
       setLoading(false);
     }
@@ -156,6 +233,7 @@ export const useNodeStatusStore = defineStore('nodeStatus', () => {
     getStatusByNodeId,
     isNodeHealthy,
     fetchStatuses,
+    checkNodesHealth,
     reset
   };
 });

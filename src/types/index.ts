@@ -172,6 +172,14 @@ export interface ISubscriptionRule {
   updated_at: string
 }
 
+/**
+ * 规则上下文接口
+ */
+export interface IRuleContext {
+  type: 'subscription' | 'subscription-group'
+  entity: ISubscription | ISubscriptionGroup
+}
+
 // 向后兼容的类型别名
 export type SubscriptionRule = ISubscriptionRule
 
@@ -282,6 +290,7 @@ export interface ISubscriptionGroup {
   color?: string
   icon?: any
   subscription_count: number
+  is_enabled?: boolean
   created_at: string
   updated_at: string
   user_id: string
@@ -522,6 +531,23 @@ export type ISelect<T, K extends keyof T> = {
  */
 export type IOmit<T, K extends keyof T> = {
   [P in Exclude<keyof T, K>]: T[P]
+}
+
+// ========================================
+// UI组件类型
+// ========================================
+
+/**
+ * 下拉菜单选项接口
+ */
+export interface IDropdownOption {
+  label?: string
+  key: string
+  type?: 'divider' | 'group'
+  icon?: any
+  disabled?: boolean
+  props?: Record<string, any>
+  children?: IDropdownOption[]
 }
 
 // ========================================

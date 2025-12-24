@@ -5,7 +5,7 @@
 
 <template>
   <n-modal
-    v-model:visible="visible"
+    v-model:show="showModal"
     :mask-closable="false"
     preset="dialog"
     title="批量导入节点"
@@ -194,7 +194,7 @@ const previewData = ref<{
 } | null>(null)
 
 // 计算属性
-const visible = computed({
+const showModal = computed({
   get: () => props.visible,
   set: (value) => {
     emit('update:visible', value)
@@ -346,7 +346,7 @@ const handleImport = async () => {
 }
 
 const handleClose = () => {
-  visible.value = false
+  showModal.value = false
 }
 
 const handleReset = () => {

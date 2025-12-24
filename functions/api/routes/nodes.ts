@@ -67,14 +67,18 @@ nodes.post('/', manualAuthMiddleware, async (c) => {
 
 nodes.post('/batch-import', manualAuthMiddleware, async (c) => {
     const user = c.get('jwtPayload');
-    const body = await c.req.json<{ links?: string; nodes?: ParsedNode[]; groupId?: string }>();
+    const body = await c.req.json<{ links?: string | string[]; nodes?: ParsedNode[]; groupId?: string }>();
 
     let nodesToImport: ParsedNode[] = [];
 
     if (body.nodes && Array.isArray(body.nodes)) {
         nodesToImport = body.nodes;
     } else if (body.links) {
-        nodesToImport = parseNodeLinks(body.links);
+        // Handle both string (newline-separated) and array formats
+        const linksText = Array.isArray(body.links)
+            ? body.links.join('\n')  // Convert array to newline-separated string
+            : body.links;             // Already a string
+        nodesToImport = parseNodeLinks(linksText);
     }
 
     if (nodesToImport.length === 0) {
@@ -103,7 +107,7 @@ nodes.post('/batch-import', manualAuthMiddleware, async (c) => {
         await c.env.DB.batch(stmts);
     }
 
-    return c.json({ success: true, message: `Successfully imported ${stmts.length} nodes.` });
+    return c.json({ success: true, message: `Successfully imported ${stmts.length} nodes.`, data: { nodes: nodesToImport } });
 });
 
 nodes.post('/health-check', manualAuthMiddleware, async (c) => {

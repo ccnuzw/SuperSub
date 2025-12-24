@@ -83,7 +83,8 @@ import {
   TrashOutline,
   EllipsisVerticalOutline,
   RefreshOutline,
-  CopyOutline
+  CopyOutline,
+  FilterOutline
 } from '@vicons/ionicons5'
 import type { Subscription } from '@/types'
 import { businessUtils } from '@/components/business'
@@ -115,6 +116,7 @@ interface IEmits extends IListComponentEmits<Subscription> {
   'update': [subscription: Subscription]
   'preview': [subscription: Subscription]
   'copy-url': [subscription: Subscription]
+  'manage-rules': [subscription: Subscription]
 }
 
 const emit = defineEmits<IEmits>()
@@ -223,55 +225,92 @@ const renderStatus = (status: string) => {
   })
 }
 
-// 协议标签渲染
-const renderProtocols = (subscription: Subscription) => {
-  if (!subscription.protocol_distribution) return '-'
+/**
+ * 格式化字节数
+ */
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
 
-  const protocols = Object.keys(subscription.protocol_distribution).map(protocol => {
-    const count = subscription.protocol_distribution![protocol]
-    const color = businessUtils.getProtocolVariant(protocol)
+/**
+ * 渲染剩余流量
+ */
+const renderRemainingTraffic = (subscription: Subscription) => {
+  const remaining = subscription.remaining_traffic
+  if (remaining === null || remaining === undefined || remaining < 0) {
+    return h(NTag, { size: 'small', round: true }, { default: () => 'N/A' })
+  }
 
-    return h(NTag, {
-      key: protocol,
-      type: color as any,
-      size: 'small',
-      style: {
-        marginRight: '2px',
-        marginBottom: '2px',
-        fontSize: '11px',
-        padding: '2px 6px',
-        lineHeight: '1.2'
-      }
-    }, {
-      default: () => `${protocol.toUpperCase()}(${count})`
-    })
+  let tagType: 'success' | 'warning' | 'error' = 'success'
+  const GB = 1024 * 1024 * 1024
+  if (remaining < 1 * GB) tagType = 'error'
+  else if (remaining < 5 * GB) tagType = 'warning'
+
+  return h(NTag, { type: tagType, size: 'small', round: true }, {
+    default: () => formatBytes(remaining)
   })
+}
 
-  return h('div', {
-    style: {
-      display: 'flex',
-      flexWrap: 'wrap',
-      gap: '2px',
-      maxWidth: '160px',
-      lineHeight: '1.2'
-    }
-  }, protocols)
+/**
+ * 渲染剩余天数
+ */
+const renderRemainingDays = (subscription: Subscription) => {
+  const diffDays = subscription.remaining_days
+  if (diffDays === null || diffDays === undefined) {
+    return h(NTag, { size: 'small', round: true }, { default: () => 'N/A' })
+  }
+  if (diffDays < 0) {
+    return h(NTag, { type: 'error', size: 'small', round: true }, { default: () => '已过期' })
+  }
+
+  let tagType: 'success' | 'warning' | 'error' = 'success'
+  if (diffDays <= 3) tagType = 'error'
+  else if (diffDays <= 7) tagType = 'warning'
+
+  const tooltipContent = subscription.expires_at
+    ? `到期时间: ${new Date(subscription.expires_at).toLocaleString('zh-CN')}`
+    : '无到期时间信息'
+
+  return h(NTooltip, null, {
+    trigger: () => h(NTag, { type: tagType, size: 'small', round: true }, {
+      default: () => `${diffDays} 天`
+    }),
+    default: () => tooltipContent
+  })
 }
 
 // 操作按钮渲染
 const renderActions = (subscription: Subscription) => {
   const isUpdating = props.updatingIds.has(subscription.id)
 
+  /**
+   * 创建带tooltip的图标按钮
+   */
+  const createTooltipButton = (tooltip: string, icon: any, onClick: () => void, options: { type?: string; loading?: boolean } = {}) => {
+    return h(NTooltip, null, {
+      trigger: () => h(NButton, {
+        circle: true,
+        tertiary: true,
+        size: 'small',
+        onClick,
+        type: options.type as any,
+        loading: options.loading
+      }, {
+        icon: () => h(NIcon, { component: icon })
+      }),
+      default: () => tooltip
+    })
+  }
+
   const options: DropdownOption[] = [
-    {
-      label: '预览节点',
-      key: 'preview',
-      icon: () => h(NIcon, null, () => h(EyeOutline))
-    },
     {
       label: '复制链接',
       key: 'copy-url',
-      icon: () => h(NIcon, null, () => h(CreateOutline))
+      icon: () => h(NIcon, null, () => h(CopyOutline))
     },
     {
       type: 'divider'
@@ -302,22 +341,18 @@ const renderActions = (subscription: Subscription) => {
 
   return h(NSpace, { size: 'small' }, {
     default: () => [
-      h(NButton, {
-        size: 'small',
+      // 预览节点按钮
+      createTooltipButton('预览节点', EyeOutline, () => emit('preview', subscription)),
+      // 规则按钮
+      createTooltipButton('规则', FilterOutline, () => emit('manage-rules', subscription), { type: 'info' }),
+      // 编辑按钮
+      createTooltipButton('编辑', CreateOutline, () => emit('edit', subscription)),
+      // 更新按钮
+      createTooltipButton('更新', SyncOutline, () => emit('update', subscription), {
         type: 'primary',
-        loading: isUpdating,
-        onClick: () => emit('update', subscription)
-      }, {
-        default: () => '更新'
+        loading: isUpdating
       }),
-
-      h(NButton, {
-        size: 'small',
-        onClick: () => emit('edit', subscription)
-      }, {
-        default: () => '编辑'
-      }),
-
+      // 更多操作下拉菜单
       h(NDropdown, {
         options,
         onSelect: handleSelect,
@@ -325,7 +360,8 @@ const renderActions = (subscription: Subscription) => {
       }, {
         default: () => h(NButton, {
           size: 'small',
-          circle: true
+          circle: true,
+          tertiary: true
         }, {
           default: () => h(NIcon, null, {
             default: () => h(EllipsisVerticalOutline)
@@ -365,56 +401,84 @@ const columns: DataTableColumns<Subscription> = [
   {
     title: '名称',
     key: 'name',
-    width: 200,  /* 设置固定宽度，保证名称列不会太宽 */
+    width: 160,
     ellipsis: {
       tooltip: true
     }
   },
   {
+    title: '订阅链接',
+    key: 'url',
+    width: 150,
+    ellipsis: {
+      tooltip: true
+    },
+    render: (row) => {
+      return h('div', {
+        style: {
+          fontSize: '12px',
+          color: 'var(--n-text-color-2)',
+          maxWidth: '100%',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }
+      }, row.url)
+    }
+  },
+  {
     title: '状态',
     key: 'status',
-    width: 80,  /* 减小状态列宽度 */
-    render: (row) => renderStatus(row.status)
+    width: 80,
+    render: (row) => {
+      // 显示错误信息的tooltip
+      if (row.error) {
+        return h(NTooltip, null, {
+          trigger: () => h(NTag, { type: 'error' }, { default: () => '失败' }),
+          default: () => row.error
+        })
+      }
+      return renderStatus(row.status)
+    }
   },
   {
     title: '节点数',
     key: 'node_count',
-    width: 80,  /* 减小节点数列宽度 */
-    render: (row) => row.node_count || 0
+    width: 80,
+    render: (row) => h(NTag, {
+      type: (row.node_count ?? 0) > 0 ? 'info' : 'default',
+      round: true,
+      size: 'small'
+    }, { default: () => row.node_count || 0 })
   },
   {
-    title: '可用节点',
-    key: 'healthy_node_count',
-    width: 90,  /* 减小可用节点列宽度 */
-    render: (row) => row.healthy_node_count || 0
+    title: '剩余流量',
+    key: 'remaining_traffic',
+    width: 120,
+    render: (row) => renderRemainingTraffic(row)
   },
   {
-    title: '协议',
-    key: 'protocols',
-    width: 180,  /* 设置协议列固定宽度，避免过宽 */
-    ellipsis: {
-      tooltip: true
-    },
-    render: (row) => renderProtocols(row)
+    title: '剩余天数',
+    key: 'remaining_days',
+    width: 120,
+    render: (row) => renderRemainingDays(row)
   },
   {
     title: '最后更新',
     key: 'last_update',
-    width: 120,  /* 减小最后更新列宽度 */
-    render: (row) => businessUtils.formatRelativeTime(row.last_update || '')
-  },
-  {
-    title: '自动更新',
-    key: 'is_auto_update',
-    width: 100,  /* 增加自动更新列宽度，避免标题换行 */
-    align: 'center',  /* 居中对齐 */
-    render: (row) => row.is_auto_update ? '是' : '否'
+    width: 160,
+    render: (row) => {
+      if (row.last_updated) {
+        return new Date(row.last_updated).toLocaleString('zh-CN')
+      }
+      return 'N/A'
+    }
   },
   {
     title: '操作',
     key: 'actions',
-    width: 240,  /* 增加操作列宽度以适应所有按钮 */
-    minWidth: 220,  /* 添加最小宽度保证 */
+    width: 280,
+    minWidth: 260,
     fixed: 'right',
     render: (row) => renderActions(row)
   }
