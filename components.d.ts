@@ -9,10 +9,15 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AssetManager: typeof import('./src/components/AssetManager.vue')['default']
+    BatchReplaceModal: typeof import('./src/components/subscriptions/modals/BatchReplaceModal.vue')['default']
     CodeEditor: typeof import('./src/components/CodeEditor.vue')['default']
     ConversionSettings: typeof import('./src/components/settings/ConversionSettings.vue')['default']
+    ExportModal: typeof import('./src/components/subscriptions/modals/ExportModal.vue')['default']
     GeneralSettings: typeof import('./src/components/settings/GeneralSettings.vue')['default']
+    GroupFormModal: typeof import('./src/components/subscriptions/modals/GroupFormModal.vue')['default']
+    ImportModal: typeof import('./src/components/subscriptions/modals/ImportModal.vue')['default']
     Layout: typeof import('./src/components/Layout.vue')['default']
+    MoveToGroupModal: typeof import('./src/components/subscriptions/modals/MoveToGroupModal.vue')['default']
     NEmpty: typeof import('naive-ui')['NEmpty']
     NSpin: typeof import('naive-ui')['NSpin']
     NText: typeof import('naive-ui')['NText']
@@ -20,7 +25,12 @@ declare module 'vue' {
     ProfileRulesManager: typeof import('./src/components/settings/ProfileRulesManager.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    RuleFormModal: typeof import('./src/components/subscriptions/modals/RuleFormModal.vue')['default']
+    RuleManagerModal: typeof import('./src/components/subscriptions/modals/RuleManagerModal.vue')['default']
+    SortGroupsModal: typeof import('./src/components/subscriptions/modals/SortGroupsModal.vue')['default']
     SubscriptionLogModal: typeof import('./src/components/SubscriptionLogModal.vue')['default']
     SubscriptionNodesPreview: typeof import('./src/components/SubscriptionNodesPreview.vue')['default']
+    SubscriptionTable: typeof import('./src/components/subscriptions/SubscriptionTable.vue')['default']
+    UpdateLogModal: typeof import('./src/components/subscriptions/modals/UpdateLogModal.vue')['default']
   }
 }

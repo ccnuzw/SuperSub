@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { Env } from '../utils/types';
 import { manualAuthMiddleware } from '../middleware/auth';
 import { createErrorResponse } from '../utils/errors';
+import { SubscriptionGroupService } from '../services/subscriptionGroupService';
 
 const subscriptionGroups = new Hono<{ Bindings: Env }>();
 
@@ -9,9 +10,8 @@ const subscriptionGroups = new Hono<{ Bindings: Env }>();
 subscriptionGroups.get('/', manualAuthMiddleware, async (c) => {
     try {
         const user = c.get('jwtPayload');
-        const { results } = await c.env.DB.prepare(
-            'SELECT * FROM subscription_groups WHERE user_id = ? ORDER BY sort_order ASC'
-        ).bind(user.id).all();
+        const service = new SubscriptionGroupService(c.env);
+        const results = await service.getGroups(user.id);
         return c.json({ success: true, data: results });
     } catch (e: any) {
         return createErrorResponse(e.message, 500);
@@ -27,16 +27,9 @@ subscriptionGroups.post('/', manualAuthMiddleware, async (c) => {
         return createErrorResponse('分组名称不能为空', 400);
     }
 
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
-
     try {
-        await c.env.DB.prepare(
-            `INSERT INTO subscription_groups (id, user_id, name, description, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?)`
-        ).bind(id, user.id, name.trim(), description || null, now, now).run();
-
-        const newGroup = await c.env.DB.prepare('SELECT * FROM subscription_groups WHERE id = ?').bind(id).first();
+        const service = new SubscriptionGroupService(c.env);
+        const newGroup = await service.createGroup(user.id, name, description);
         return c.json({ success: true, data: newGroup }, 201);
     } catch (e: any) {
         if (e.message?.includes('UNIQUE constraint failed')) {
@@ -51,33 +44,12 @@ subscriptionGroups.put('/:id', manualAuthMiddleware, async (c) => {
     const user = c.get('jwtPayload');
     const { id } = c.req.param();
     const { name, description } = await c.req.json<{ name?: string, description?: string }>();
-    const now = new Date().toISOString();
-    const updates: string[] = [];
-    const bindings: (string | null)[] = [];
-
-    if (name && name.trim().length > 0) {
-        updates.push('name = ?');
-        bindings.push(name.trim());
-    }
-
-    if (description !== undefined) {
-        updates.push('description = ?');
-        bindings.push(description);
-    }
-
-    if (updates.length === 0) {
-        return createErrorResponse('没有要更新的字段', 400);
-    }
-
-    updates.push('updated_at = ?');
-    bindings.push(now, id, user.id);
 
     try {
-        const result = await c.env.DB.prepare(
-            `UPDATE subscription_groups SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`
-        ).bind(...bindings).run();
+        const service = new SubscriptionGroupService(c.env);
+        const success = await service.updateGroup(user.id, id, { name, description });
 
-        if (result.meta.changes === 0) {
+        if (!success) {
             return createErrorResponse('分组不存在或无权修改', 404);
         }
         return c.json({ success: true });
@@ -96,9 +68,8 @@ subscriptionGroups.get('/:id/rules', manualAuthMiddleware, async (c) => {
     try {
         const user = c.get('jwtPayload');
         const { id } = c.req.param();
-        const { results } = await c.env.DB.prepare(
-            'SELECT * FROM subscription_group_rules WHERE group_id = ? AND user_id = ? ORDER BY sort_order ASC'
-        ).bind(id, user.id).all();
+        const service = new SubscriptionGroupService(c.env);
+        const results = await service.getGroupRules(user.id, id);
         return c.json({ success: true, data: results });
     } catch (e: any) {
         return createErrorResponse(e.message, 500);
@@ -115,12 +86,9 @@ subscriptionGroups.post('/:id/rules', manualAuthMiddleware, async (c) => {
         return createErrorResponse('缺少必要参数', 400);
     }
 
-    const now = new Date().toISOString();
     try {
-        await c.env.DB.prepare(
-            `INSERT INTO subscription_group_rules (user_id, group_id, name, type, value, enabled, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(user.id, group_id, name, type, value, enabled === false ? 0 : 1, now, now).run();
+        const service = new SubscriptionGroupService(c.env);
+        await service.createGroupRule(user.id, group_id, { name, type, value, enabled });
         return c.json({ success: true }, 201);
     } catch (e) {
         return createErrorResponse('创建失败', 500);
@@ -132,32 +100,12 @@ subscriptionGroups.put('/:id/rules/:ruleId', manualAuthMiddleware, async (c) => 
     const user = c.get('jwtPayload');
     const { ruleId } = c.req.param();
     const body = await c.req.json<any>();
-    const now = new Date().toISOString();
-
-    const fields = ['name', 'type', 'value', 'enabled', 'sort_order'];
-    const updates = [];
-    const bindings = [];
-
-    for (const field of fields) {
-        if (body[field] !== undefined) {
-            updates.push(`${field} = ?`);
-            bindings.push(field === 'enabled' ? (body[field] ? 1 : 0) : body[field]);
-        }
-    }
-
-    if (updates.length === 0) {
-        return createErrorResponse('没有要更新的字段', 400);
-    }
-
-    updates.push('updated_at = ?');
-    bindings.push(now, ruleId, user.id);
 
     try {
-        const result = await c.env.DB.prepare(
-            `UPDATE subscription_group_rules SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`
-        ).bind(...bindings).run();
+        const service = new SubscriptionGroupService(c.env);
+        const success = await service.updateGroupRule(user.id, ruleId, body);
 
-        if (result.meta.changes === 0) {
+        if (!success) {
             return createErrorResponse('规则不存在或无权修改', 404);
         }
         return c.json({ success: true });
@@ -171,11 +119,10 @@ subscriptionGroups.delete('/:id/rules/:ruleId', manualAuthMiddleware, async (c) 
     const user = c.get('jwtPayload');
     const { ruleId } = c.req.param();
     try {
-        const result = await c.env.DB.prepare(
-            'DELETE FROM subscription_group_rules WHERE id = ? AND user_id = ?'
-        ).bind(ruleId, user.id).run();
+        const service = new SubscriptionGroupService(c.env);
+        const success = await service.deleteGroupRule(user.id, ruleId);
 
-        if (result.meta.changes === 0) {
+        if (!success) {
             return createErrorResponse('规则不存在或无权删除', 404);
         }
         return c.json({ success: true });
@@ -190,13 +137,10 @@ subscriptionGroups.patch('/:id/toggle', manualAuthMiddleware, async (c) => {
     try {
         const user = c.get('jwtPayload');
         const { id } = c.req.param();
-        const now = new Date().toISOString();
+        const service = new SubscriptionGroupService(c.env);
+        const success = await service.toggleGroup(user.id, id);
 
-        const result = await c.env.DB.prepare(
-            'UPDATE subscription_groups SET is_enabled = NOT is_enabled, updated_at = ? WHERE id = ? AND user_id = ?'
-        ).bind(now, id, user.id).run();
-
-        if (result.meta.changes === 0) {
+        if (!success) {
             return createErrorResponse('分组不存在或无权修改', 404);
         }
         return c.json({ success: true });
@@ -215,13 +159,8 @@ subscriptionGroups.post('/update-order', manualAuthMiddleware, async (c) => {
             return createErrorResponse('无效的排序数据', 400);
         }
 
-        const stmts = groupIds.map((id, index) =>
-            c.env.DB.prepare('UPDATE subscription_groups SET sort_order = ? WHERE id = ? AND user_id = ?').bind(index, id, user.id)
-        );
-
-        if (stmts.length > 0) {
-            await c.env.DB.batch(stmts);
-        }
+        const service = new SubscriptionGroupService(c.env);
+        await service.updateSortOrder(user.id, groupIds);
 
         return c.json({ success: true, message: '分组顺序已更新' });
     } catch (e: any) {
@@ -235,12 +174,10 @@ subscriptionGroups.delete('/:id', manualAuthMiddleware, async (c) => {
     const { id } = c.req.param();
 
     try {
-        // The ON DELETE SET NULL constraint will handle un-grouping subscriptions automatically.
-        const result = await c.env.DB.prepare(
-            'DELETE FROM subscription_groups WHERE id = ? AND user_id = ?'
-        ).bind(id, user.id).run();
+        const service = new SubscriptionGroupService(c.env);
+        const success = await service.deleteGroup(user.id, id);
 
-        if (result.meta.changes === 0) {
+        if (!success) {
             return createErrorResponse('分组不存在或无权删除', 404);
         }
 

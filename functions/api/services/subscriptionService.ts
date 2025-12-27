@@ -167,6 +167,15 @@ export class SubscriptionService {
                 subscriptions: grouped[groupName],
             }));
     }
+    
+    async getSubscriptionSelectors(userId: string) {
+        const { results } = await this.db.prepare('SELECT id, name FROM subscriptions WHERE user_id = ?').bind(userId).all();
+        return results;
+    }
+
+    async getSubscriptionById(id: string, userId: string): Promise<{ id: string; url: string } | null> {
+        return this.db.prepare('SELECT id, url FROM subscriptions WHERE id = ? AND user_id = ?').bind(id, userId).first<{ id: string, url: string }>();
+    }
 
     async createSubscription(userId: string, body: { name: string; url: string }) {
         const id = crypto.randomUUID();

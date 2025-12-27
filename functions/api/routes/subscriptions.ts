@@ -22,7 +22,8 @@ subscriptions.get('/', async (c) => {
 subscriptions.get('/for-select', async (c) => {
     try {
         const user = c.get('jwtPayload');
-        const { results } = await c.env.DB.prepare('SELECT id, name FROM subscriptions WHERE user_id = ?').bind(user.id).all();
+        const service = new SubscriptionService(c.env);
+        const results = await service.getSubscriptionSelectors(user.id);
         return c.json({ success: true, data: results });
     } catch (e: any) {
         return createErrorResponse(e.message, 500);
@@ -102,7 +103,7 @@ subscriptions.post('/:id/update', async (c) => {
         const { id } = c.req.param();
         const service = new SubscriptionService(c.env);
 
-        const subscription = await c.env.DB.prepare('SELECT id, url FROM subscriptions WHERE id = ? AND user_id = ?').bind(id, user.id).first<{ id: string, url: string }>();
+        const subscription = await service.getSubscriptionById(id, user.id);
         if (!subscription) {
             return createErrorResponse('Subscription not found', 404);
         }
