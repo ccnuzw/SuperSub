@@ -21,7 +21,7 @@ export const groupsApi = {
     },
 
     toggleGroup: (id: string) => {
-        return client.put<ApiResponse<NodeGroup>>(`/groups/${id}/toggle`, {});
+        return client.patch<ApiResponse<NodeGroup>>(`/groups/${id}/toggle`, {});
     },
 
     updateGroupOrder: (groupIds: string[]) => {

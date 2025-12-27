@@ -276,6 +276,97 @@ const dropdownX = ref(0);
 const dropdownY = ref(0);
 const activeDropdownGroup = ref<NodeGroup | null>(null);
 
+// Group Sorting
+const showSortModal = ref(false);
+const sortableGroups = ref<NodeGroup[]>([]);
+const sortLoading = ref(false);
+
+const openSortModal = () => {
+  sortableGroups.value = [...groupStore.groups];
+  showSortModal.value = true;
+};
+
+const handleSortSave = async () => {
+  sortLoading.value = true;
+  try {
+    const groupIds = sortableGroups.value.map(g => g.id);
+    await groupStore.updateGroupOrder(groupIds);
+    message.success('分组顺序已更新');
+    showSortModal.value = false;
+  } catch (error: any) {
+    message.error(error.message || '更新分组顺序失败');
+  } finally {
+    sortLoading.value = false;
+  }
+};
+
+// Group Export
+const showExportModal = ref(false);
+const exportData = reactive({
+  urls: '',
+  count: 0,
+  groupName: ''
+});
+
+const handleExportGroup = (groupId: string) => {
+  const group = groupStore.groups.find(g => g.id === groupId);
+  const nodesInGroup = nodes.value.filter(n => n.group_id === groupId);
+  
+  if (nodesInGroup.length === 0) {
+    message.warning('该分组下没有节点可导出。');
+    return;
+  }
+
+  // Generate export content (using 'link' field or constructing from details if missing)
+  // Assuming 'link' or constructing a standard share link
+  const urls = nodesInGroup.map(n => n.link || n.raw || `vmess://${n.id}`).join('\n'); // Fallback might be needed if link is missing
+
+  exportData.urls = urls;
+  exportData.count = nodesInGroup.length;
+  exportData.groupName = group?.name || '该分组';
+  showExportModal.value = true;
+};
+
+const handleCopyExportUrls = () => {
+  if (!exportData.urls) {
+    message.warning('没有内容可复制。');
+    return;
+  }
+  navigator.clipboard.writeText(exportData.urls).then(() => {
+    message.success('已成功复制到剪贴板！');
+  }).catch(err => {
+    message.error('复制失败，您的浏览器可能不支持或未授权。');
+  });
+};
+
+// Group Deduplicate Wrapper
+const handleDeduplicateGroup = (groupId: string) => {
+    // We can reuse the existing batchAction but specific to the group passed
+    // But check if activeTab needs to be set or if we can pass groupId directly to a new function
+    // The API batchAction takes a groupId.
+    
+    const groupName = groupStore.groups.find(g => g.id === groupId)?.name || '未知';
+    dialog.warning({
+        title: '确认去重',
+        content: `确定要对【${groupName}】分组下的节点执行去重操作吗？`,
+        positiveText: '确定',
+        negativeText: '取消',
+        onPositiveClick: async () => {
+            try {
+                const response = await nodesApi.batchAction('deduplicate', groupId);
+                if (response.data.success) {
+                    message.success(response.data.message || '操作成功');
+                    fetchData();
+                } else {
+                    message.error(response.data.message || '操作失败');
+                }
+            } catch (error: any) {
+                message.error(error.message || '请求失败');
+            }
+        },
+    });
+};
+
 const previewColumns: DataTableColumns<ParsedNode> = [
     {
         type: 'expand',
@@ -485,6 +576,9 @@ const handleSaveGroup = async () => {
 
 const getDropdownOptions = (group: NodeGroup) => {
   return [
+    { label: '导出节点', key: 'export-group' },
+    { label: '一键去重', key: 'deduplicate-group' },
+    { type: 'divider', key: 'd1' },
     { label: '重命名', key: 'rename' },
     { label: group.is_enabled ? '禁用' : '启用', key: 'toggle' },
     { label: '删除', key: 'delete', props: { style: 'color: red;' } }
@@ -497,6 +591,12 @@ const handleGroupAction = (key: string) => {
   if (!group) return;
 
   switch (key) {
+    case 'export-group':
+      handleExportGroup(group.id);
+      break;
+    case 'deduplicate-group':
+      handleDeduplicateGroup(group.id);
+      break;
     case 'rename':
       editingGroup.value = group;
       editingGroupName.value = group.name;
@@ -624,6 +724,7 @@ onBeforeUnmount(() => {
             :options="[
               { label: '手动排序', key: 'manual-sort', disabled: isSorting },
               { label: '一键排序', key: 'auto-sort' },
+              { label: '调整顺序', key: 'sort-groups' },
               { label: '一键去重', key: 'deduplicate' },
               { label: '新增分组', key: 'add-group' },
               { label: '一键清空', key: 'clear-all' },
@@ -635,6 +736,7 @@ onBeforeUnmount(() => {
             @select="key => {
               if (key === 'manual-sort') isSorting = true;
               if (key === 'auto-sort') handleBatchAction('sort');
+              if (key === 'sort-groups') openSortModal();
               if (key === 'deduplicate') handleBatchAction('deduplicate');
               if (key === 'add-group') showAddGroupModal = true;
               if (key === 'clear-all') handleBatchAction('clear');
@@ -860,18 +962,20 @@ onBeforeUnmount(() => {
     </n-modal>
 
     <n-modal v-model:show="showMoveToGroupModal" preset="card" title="移动到分组" style="width: 400px;">
-      <n-select
-        v-model:value="moveToGroupId"
-        :options="groupStore.groups.map(g => ({ label: g.name, value: g.id }))"
-        placeholder="选择目标分组"
-        clearable
-      />
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showMoveToGroupModal = false">取消</n-button>
-          <n-button type="primary" @click="handleMoveToGroup" :loading="moveToGroupLoading">确定</n-button>
+        <n-space vertical>
+            <p>将选中的节点移动到：</p>
+            <n-select
+                v-model:value="moveToGroupId"
+                :options="[{ label: '未分组', value: null }, ...groupStore.groups.map(g => ({ label: g.name, value: g.id }))] as any"
+                placeholder="选择目标分组"
+            />
         </n-space>
-      </template>
+        <template #footer>
+            <n-space justify="end">
+                <n-button @click="showMoveToGroupModal = false">取消</n-button>
+                <n-button type="primary" @click="handleMoveToGroup" :loading="moveToGroupLoading">确认移动</n-button>
+            </n-space>
+        </template>
     </n-modal>
 
     <n-modal v-model:show="showAddGroupModal" preset="card" title="新增分组" style="width: 400px;">
@@ -890,6 +994,61 @@ onBeforeUnmount(() => {
         <n-space justify="end">
           <n-button @click="showEditGroupModal = false">取消</n-button>
           <n-button type="primary" @click="handleUpdateGroup" :loading="editGroupLoading">确定</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-modal
+      v-model:show="showSortModal"
+      preset="card"
+      title="调整分组顺序"
+      :style="{ width: isMobile ? '90vw' : '500px' }"
+      :mask-closable="false"
+    >
+      <p class="text-gray-500 mb-4">拖动下方的分组名称来调整它们的显示顺序。</p>
+      <n-list bordered>
+        <draggable
+          v-model="sortableGroups"
+          item-key="id"
+          handle=".drag-handle"
+        >
+          <template #item="{ element: group }">
+            <n-list-item>
+              <div class="flex items-center">
+                <n-icon class="drag-handle mr-2 cursor-move" :component="DragHandleIcon" size="20" />
+                <span>{{ group.name }}</span>
+              </div>
+            </n-list-item>
+          </template>
+        </draggable>
+      </n-list>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showSortModal = false">取消</n-button>
+          <n-button type="primary" @click="handleSortSave" :loading="sortLoading">保存顺序</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-modal
+      v-model:show="showExportModal"
+      preset="card"
+      :title="`导出分组 '${exportData.groupName}' 的节点`"
+      style="width: 600px;"
+      :mask-closable="false"
+    >
+      <p class="mb-2">共 {{ exportData.count }} 个节点：</p>
+      <n-input
+        v-model:value="exportData.urls"
+        type="textarea"
+        readonly
+        :autosize="{ minRows: 10, maxRows: 20 }"
+        placeholder="没有节点链接"
+      />
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showExportModal = false">关闭</n-button>
+          <n-button type="primary" @click="handleCopyExportUrls">复制</n-button>
         </n-space>
       </template>
     </n-modal>

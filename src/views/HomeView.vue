@@ -32,7 +32,7 @@ onMounted(async () => {
   try {
     const [statsResponse, logSummaryResponse] = await Promise.all([
       statsApi.fetchUserStats(),
-      adminApi.fetchLogSummary() // This might fail if user is not admin, logic should handle permissions ideally
+      authStore.isAdmin ? adminApi.fetchLogSummary() : Promise.resolve({ data: { success: true, data: { todayAccess: 0, weeklyUniqueIps: 0 } } })
     ]);
 
     if (statsResponse.data.success && statsResponse.data.data) {
