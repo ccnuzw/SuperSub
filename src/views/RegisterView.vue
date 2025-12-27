@@ -1,37 +1,11 @@
-<template>
-  <div class="flex items-center justify-center min-h-screen bg-gray-100">
-    <n-card class="w-full max-w-md" title="Register" :bordered="false" size="huge">
-      <n-form @submit.prevent="handleRegister">
-        <n-form-item-row label="Username">
-          <n-input v-model:value="username" placeholder="Choose a username" />
-        </n-form-item-row>
-        <n-form-item-row label="Password">
-          <n-input
-            v-model:value="password"
-            type="password"
-            show-password-on="mousedown"
-            placeholder="Choose a password"
-          />
-        </n-form-item-row>
-        <n-button type="primary" attr-type="submit" block :loading="loading">
-          Register
-        </n-button>
-      </n-form>
-      <template #footer>
-        <p class="text-sm text-center text-gray-600">
-          Already have an account?
-          <router-link to="/login" class="font-medium text-indigo-600 hover:underline">Login</router-link>
-        </p>
-      </template>
-    </n-card>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import { NCard, NForm, NFormItemRow, NInput, NButton, useMessage } from 'naive-ui';
+import { useMessage } from 'naive-ui';
+import Card from '@/components/ui/Card.vue';
+import Button from '@/components/ui/Button.vue';
+import Input from '@/components/ui/Input.vue';
 
 const username = ref('');
 const password = ref('');
@@ -43,7 +17,7 @@ const message = useMessage();
 onMounted(async () => {
   await authStore.checkRegistrationStatus();
   if (!authStore.isRegistrationAllowed) {
-    message.warning('User registration is currently disabled.');
+    message.warning('用户注册当前已禁用。');
     router.push('/login');
   }
 });
@@ -51,7 +25,7 @@ onMounted(async () => {
 // Watch for changes in case the status is fetched after the initial mount check
 watch(() => authStore.isRegistrationAllowed, (isAllowed) => {
   if (!isAllowed) {
-    message.warning('User registration is currently disabled.');
+    message.warning('用户注册当前已禁用。');
     router.push('/login');
   }
 });
@@ -60,14 +34,14 @@ const handleRegister = async () => {
   loading.value = true;
   try {
     await authStore.register({ username: username.value, password: password.value });
-    message.success('Registration successful! Please login.');
+    message.success('注册成功！请登录。');
     router.push('/login');
   } catch (error: any) {
     console.error('Registration failed:', error);
     if (error.response && error.response.status === 409) {
-      message.error('Username already exists. Please choose another one or login.');
+      message.error('用户名已存在。请选择其他用户名或登录。');
     } else {
-      const errorMessage = error.response?.data?.message || 'Registration failed. Please try again.';
+      const errorMessage = error.response?.data?.message || '注册失败。请重试。';
       message.error(errorMessage);
     }
   } finally {
@@ -75,3 +49,51 @@ const handleRegister = async () => {
   }
 };
 </script>
+
+<template>
+  <div class="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-dark-bg p-4 transition-colors duration-300">
+     <!-- Abstract Background Decoration -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary-500/20 blur-[120px] animate-pulse-slow"></div>
+        <div class="absolute -bottom-[20%] right-[10%] w-[40%] h-[40%] rounded-full bg-indigo-500/10 blur-[100px] animate-pulse-slow font-delay-1000"></div>
+    </div>
+
+    <Card class="w-full max-w-md relative z-10" variant="glass" padding="lg">
+      <div class="mb-8 text-center">
+        <!-- Logo Placeholder -->
+        <div class="w-12 h-12 bg-gradient-to-br from-primary-500 to-indigo-600 rounded-xl mx-auto flex items-center justify-center text-white font-bold text-xl shadow-glow mb-4">
+            S
+        </div>
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">创建账号</h1>
+        <p class="text-slate-500 dark:text-slate-400 mt-2">加入 SuperSub 以管理您的节点</p>
+      </div>
+
+      <form @submit.prevent="handleRegister" class="space-y-6">
+        <div class="space-y-2">
+            <label class="text-sm font-medium text-slate-700 dark:text-slate-300">用户名</label>
+            <Input v-model="username" placeholder="请输入用户名" />
+        </div>
+        
+        <div class="space-y-2">
+            <label class="text-sm font-medium text-slate-700 dark:text-slate-300">密码</label>
+            <Input 
+                v-model="password" 
+                type="password" 
+                placeholder="请输入密码" 
+            />
+        </div>
+
+        <Button variant="glow" block size="lg" :loading="loading" @click="handleRegister" class="mt-8">
+            注册
+        </Button>
+      </form>
+      
+      <div class="mt-8 text-center pt-6 border-t border-slate-200 dark:border-white/10">
+        <p class="text-sm text-slate-600 dark:text-slate-400">
+          已经有账号?
+          <router-link to="/login" class="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 transition-colors">登录</router-link>
+        </p>
+      </div>
+    </Card>
+  </div>
+</template>

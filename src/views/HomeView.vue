@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { NStatistic, NGrid, NGi, NCard, NSkeleton, NAlert, NPageHeader } from 'naive-ui';
 import { useAuthStore } from '@/stores/auth';
 import { useNodeStatusStore } from '@/stores/nodeStatus';
 import { statsApi } from '@/api/stats';
 import { adminApi } from '@/api/admin';
+import StatsCard from '@/components/ui/StatsCard.vue';
+import {
+  StatsChartOutline as TrendIcon,
+  PeopleOutline as VisitorIcon,
+  CloudDownloadOutline as SubIcon,
+  DocumentTextOutline as FileIcon,
+  ServerOutline as NodeIcon,
+  WifiOutline as OnlineIcon,
+  AlertCircleOutline as OfflineIcon
+} from '@vicons/ionicons5'
 
 const authStore = useAuthStore();
 const nodeStatusStore = useNodeStatusStore();
@@ -36,36 +45,26 @@ onMounted(async () => {
     ]);
 
     if (statsResponse.data.success && statsResponse.data.data) {
-      // Map API response to local state structure
       const data = statsResponse.data.data;
       stats.value = {
         subscriptions: data.total_subscriptions || 0,
         nodes: data.total_nodes || 0,
-        profiles: 0 // API doesn't seem to return profiles count yet?
+        profiles: 0 
       };
     } else {
-      throw new Error('Failed to fetch stats');
+      throw new Error('无法获取统计数据');
     }
 
-    // Admin endpoint might fail for non-admins, or return empty/error.
-    // Assuming backend returns success=false or throws 403.
-    // Client interceptor throws on 401, but maybe not 403.
     if (logSummaryResponse.data.success && logSummaryResponse.data.data) {
       logSummary.value = logSummaryResponse.data.data;
     }
   } catch (err: any) {
-    // If it's a 403 for the log summary, we might want to ignore it if the user isn't admin
-    // But since we catch all, we just set error. 
-    // Ideally we differentiate.
     console.error('Dashboard load error:', err);
-    // error.value = err.message; // Don't block the whole dashboard for partial failure logic (if designed so)
-    // But for now, let's keep original behavior: any error displays alert.
-    error.value = err.message || 'Failed to load dashboard data';
+    error.value = err.message || '无法加载仪表盘数据';
   } finally {
     loading.value = false;
   }
 
-  // Fetch node statuses if not already fetched
   if (Object.keys(nodeStatusStore.statuses).length === 0) {
     await nodeStatusStore.fetchStatuses();
   }
@@ -73,61 +72,77 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>
-    <n-page-header>
-        <template #title>仪表盘</template>
-        <template #subtitle>欢迎回来, {{ authStore.user?.username }}</template>
-    </n-page-header>
-
-    <div v-if="error" class="mt-4">
-      <n-alert title="错误" type="error">
+  <div class="space-y-8">
+    <!-- Header Section -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div>
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">仪表盘</h1>
+        <p class="text-slate-500 dark:text-slate-400 mt-1">欢迎回来, {{ authStore.user?.username }}</p>
+      </div>
+      <div v-if="error" class="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm border border-red-100 dark:bg-red-900/10 dark:text-red-400 dark:border-red-900/20">
         {{ error }}
-      </n-alert>
+      </div>
     </div>
 
-    <n-grid cols="1 s:2 m:4" responsive="screen" :x-gap="16" :y-gap="16" class="mt-4">
-      <n-gi>
-        <n-card>
-          <n-skeleton v-if="loading" text :repeat="2" />
-          <n-statistic v-else label="今日总访问" :value="logSummary.todayAccess" />
-        </n-card>
-      </n-gi>
-      <n-gi>
-        <n-card>
-          <n-skeleton v-if="loading" text :repeat="2" />
-          <n-statistic v-else label="7日独立访客" :value="logSummary.weeklyUniqueIps" />
-        </n-card>
-      </n-gi>
-      <n-gi>
-        <n-card>
-          <n-skeleton v-if="loading" text :repeat="2" />
-          <n-statistic v-else label="订阅数" :value="stats.subscriptions" />
-        </n-card>
-      </n-gi>
-      <n-gi>
-        <n-card>
-          <n-skeleton v-if="loading" text :repeat="2" />
-          <n-statistic v-else label="配置文件" :value="stats.profiles" />
-        </n-card>
-      </n-gi>
-      <n-gi>
-        <n-card>
-          <n-skeleton v-if="loading" text :repeat="2" />
-          <n-statistic v-else label="节点总数" :value="stats.nodes" />
-        </n-card>
-      </n-gi>
-       <n-gi>
-        <n-card>
-          <n-skeleton v-if="loading" text :repeat="2" />
-          <n-statistic v-else label="在线节点" :value="onlineNodes" />
-        </n-card>
-      </n-gi>
-       <n-gi>
-        <n-card>
-          <n-skeleton v-if="loading" text :repeat="2" />
-          <n-statistic v-else label="离线节点" :value="offlineNodes" />
-        </n-card>
-      </n-gi>
-    </n-grid>
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      
+      <!-- Visitor Stats (Admin Only or General) -->
+      <StatsCard
+        title="今日访问"
+        :value="logSummary.todayAccess"
+        :icon="TrendIcon"
+        :loading="loading"
+      />
+      
+      <StatsCard
+        title="7日独立访客"
+        :value="logSummary.weeklyUniqueIps"
+        :icon="VisitorIcon"
+        :loading="loading"
+      />
+
+      <!-- Resource Stats -->
+      <StatsCard
+        title="总订阅数"
+        :value="stats.subscriptions"
+        :icon="SubIcon"
+        :loading="loading"
+      />
+
+      <StatsCard
+        title="配置档案"
+        :value="stats.profiles"
+        :icon="FileIcon"
+        :loading="loading"
+      />
+
+      <StatsCard
+        title="总节点数"
+        :value="stats.nodes"
+        :icon="NodeIcon"
+        :loading="loading"
+      />
+
+      <!-- Node Health -->
+      <StatsCard
+        title="在线节点"
+        :value="onlineNodes"
+        :icon="OnlineIcon"
+        class="border-green-100 dark:border-green-900/30"
+        :class="{'text-green-600': !loading}"
+        :loading="loading"
+      />
+
+      <StatsCard
+        title="离线节点"
+        :value="offlineNodes"
+        :icon="OfflineIcon"
+        class="border-red-100 dark:border-red-900/30"
+        :class="{'text-red-600': !loading}"
+        :loading="loading"
+      />
+
+    </div>
   </div>
 </template>

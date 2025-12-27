@@ -1,79 +1,112 @@
 <template>
-  <div class="p-4">
-    <n-form ref="formRef" :model="formState" label-placement="top">
-      <n-divider title-placement="left">Telegram 通知设置</n-divider>
-      <n-grid cols="1" md:cols="2" :x-gap="24">
-        <n-form-item-gi label="Bot Token" path="telegram_bot_token">
-          <n-input
-            v-model:value="formState.telegram_bot_token"
-            placeholder="输入您的 Telegram Bot Token"
-          />
-        </n-form-item-gi>
-        <n-form-item-gi label="Chat ID" path="telegram_chat_id">
-          <n-input
-            v-model:value="formState.telegram_chat_id"
-            placeholder="输入接收通知的频道或用户 Chat ID"
-          />
-        </n-form-item-gi>
-      </n-grid>
+  <div class="space-y-10">
+    
+    <!-- Telegram Settings -->
+    <section>
+      <div class="mb-6">
+        <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Telegram 通知</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400">配置您的 Telegram 机器人以接收系统通知。</p>
+      </div>
       
-      <n-form-item>
-        <n-space>
-          <n-button type="primary" @click="handleSave" :loading="saveLoading">
-            保存设置
-          </n-button>
-          <n-button @click="handleTestTelegram" :loading="testLoading">
-            发送测试通知
-          </n-button>
-        </n-space>
-      </n-form-item>
-    </n-form>
-
-    <n-divider title-placement="left">订阅令牌设置</n-divider>
-    <n-card>
-      <n-space vertical>
-        <n-text>您的私人订阅令牌，用于构建订阅链接。</n-text>
-        <div class="flex flex-wrap items-center gap-2">
-          <n-input class="flex-grow" v-model:value="subToken" placeholder="正在加载..." />
-          <n-button @click="copyToken" type="primary" ghost>
-            复制
-          </n-button>
-          <n-button @click="saveToken" type="primary" :loading="saveTokenLoading">
-            保存
-          </n-button>
+      <n-form ref="formRef" :model="formState" label-placement="top">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <n-form-item label="机器人 Token" path="telegram_bot_token">
+            <n-input
+              v-model:value="formState.telegram_bot_token"
+              placeholder="请输入 Telegram Bot Token"
+              size="large"
+            />
+          </n-form-item>
+          <n-form-item label="会话 ID (Chat ID)" path="telegram_chat_id">
+            <n-input
+              v-model:value="formState.telegram_chat_id"
+              placeholder="请输入 Chat ID"
+              size="large"
+            />
+          </n-form-item>
         </div>
-        <n-button @click="resetToken" type="error" ghost :loading="resetLoading" class="mt-2">
-          重置令牌
-        </n-button>
-      </n-space>
-    </n-card>
-  </div>
+        
+        <div class="mt-4 flex gap-3">
+          <Button variant="primary" @click="handleSave" :loading="saveLoading">
+            保存更改
+          </Button>
+          <Button variant="secondary" @click="handleTestTelegram" :loading="testLoading">
+            发送测试消息
+          </Button>
+        </div>
+      </n-form>
+    </section>
 
-  <n-divider title-placement="left">修改密码</n-divider>
-  <n-form ref="passwordFormRef" :model="passwordFormState" :rules="passwordRules" label-placement="top">
-    <n-grid cols="1" md:cols="2" :x-gap="24">
-      <n-form-item-gi label="新密码" path="password">
-        <n-input
-          v-model:value="passwordFormState.password"
-          type="password"
-          placeholder="输入新密码"
-          show-password-on="click"
-        />
-      </n-form-item-gi>
-    </n-grid>
-    <n-form-item>
-      <n-button type="primary" @click="handlePasswordChange" :loading="passwordChangeLoading">
-        修改密码
-      </n-button>
-    </n-form-item>
-  </n-form>
+    <!-- Subscription Token -->
+    <section>
+      <div class="mb-6">
+        <h3 class="text-lg font-semibold text-slate-900 dark:text-white">订阅 Token</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400">用于生成订阅链接的私有 Token。</p>
+      </div>
+
+      <Card variant="elevated">
+        <div class="flex flex-col sm:flex-row gap-4 items-center">
+          <n-input 
+            class="flex-1 font-mono text-sm" 
+            v-model:value="subToken" 
+            placeholder="加载中..." 
+            readonly 
+            size="large"
+          />
+          <div class="flex gap-2 w-full sm:w-auto">
+            <Button variant="secondary" @click="copyToken" class="flex-1 sm:flex-none">
+              复制
+            </Button>
+            <Button variant="primary" @click="saveToken" :loading="saveTokenLoading" class="flex-1 sm:flex-none">
+              保存
+            </Button>
+          </div>
+        </div>
+        <div class="mt-4 border-t border-gray-100 dark:border-dark-border pt-4">
+          <Button variant="danger" size="sm" @click="resetToken" :loading="resetLoading">
+            重置 Token
+          </Button>
+        </div>
+      </Card>
+    </section>
+
+    <!-- Change Password -->
+    <section>
+      <div class="mb-6">
+        <h3 class="text-lg font-semibold text-slate-900 dark:text-white">修改密码</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400">更新您的账户密码。</p>
+      </div>
+
+      <n-form ref="passwordFormRef" :model="passwordFormState" :rules="passwordRules" label-placement="top">
+        <div class="max-w-md">
+          <n-form-item label="新密码" path="password">
+             <n-input
+              v-model:value="passwordFormState.password"
+              type="password"
+              placeholder="请输入新密码"
+              show-password-on="click"
+              size="large"
+            />
+          </n-form-item>
+          <div class="mt-2">
+             <Button variant="primary" @click="handlePasswordChange" :loading="passwordChangeLoading">
+              更新密码
+            </Button>
+          </div>
+        </div>
+      </n-form>
+    </section>
+
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import {
-  NForm, NFormItem, NInput, NButton, useMessage, NDivider, NSpace, NGrid, NFormItemGi, NCard, NInputGroup, NText, type FormInst, type FormRules
+  NForm, NFormItem, NInput, useMessage, type FormInst, type FormRules
 } from 'naive-ui';
+import Button from '@/components/ui/Button.vue';
+import Card from '@/components/ui/Card.vue';
 import { usersApi } from '@/api/users';
 import { settingsApi } from '@/api/settings';
 import { adminApi } from '@/api/admin';
@@ -120,7 +153,7 @@ const fetchSubToken = async () => {
       console.log('Logout in progress, skipping sub token fetch.');
       return;
     }
-    message.error('获取订阅令牌失败');
+    message.error('获取订阅 Token 失败');
   }
 };
 
@@ -138,10 +171,10 @@ const resetToken = async () => {
     if (response.data.success && response.data.data) {
       subToken.value = response.data.data.token;
       authStore.updateTokenAndUser(response.data.data);
-      message.success('订阅令牌已重置');
+      message.success('Token 重置成功');
     }
   } catch (error) {
-    message.error('重置订阅令牌失败');
+    message.error('重置 Token 失败');
   } finally {
     resetLoading.value = false;
   }
@@ -153,10 +186,10 @@ const saveToken = async () => {
     const response = await usersApi.updateSubscriptionToken(subToken.value);
     if (response.data.success && response.data.data) {
       authStore.updateTokenAndUser(response.data.data);
-      message.success('订阅令牌已保存');
+      message.success('Token 保存成功');
     }
   } catch (error: any) {
-    message.error(error.response?.data?.message || '保存订阅令牌失败');
+    message.error(error.response?.data?.message || '保存 Token 失败');
   } finally {
     saveTokenLoading.value = false;
   }
@@ -204,7 +237,7 @@ const handleSave = async () => {
     await settingsApi.updateSettings(userSettingsPayload);
     message.success('设置已保存');
   } catch (error) {
-    message.error('保存设置失败，请检查后端服务');
+    message.error('保存设置失败');
     console.error('Failed to save settings:', error);
   } finally {
     saveLoading.value = false;
@@ -230,10 +263,10 @@ const handlePasswordChange = async () => {
       passwordChangeLoading.value = true;
       try {
         await usersApi.updatePassword(passwordFormState.value.password);
-        message.success('密码修改成功');
+        message.success('密码更新成功');
         passwordFormState.value.password = ''; // Clear password field
       } catch (error: any) {
-        message.error(error.response?.data?.message || '修改密码失败');
+        message.error(error.response?.data?.message || '更新密码失败');
       } finally {
         passwordChangeLoading.value = false;
       }

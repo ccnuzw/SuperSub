@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { h, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NSpace, NIcon, NDataTable } from 'naive-ui'
+import { NIcon, NDataTable } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { Pencil as EditIcon, TrashBinOutline as DeleteIcon, CopyOutline as CopyIcon, EyeOutline as PreviewIcon, DocumentTextOutline as LogIcon } from '@vicons/ionicons5'
 import type { Profile } from '@/types'
 import { useAuthStore } from '@/stores/auth'
+import Button from '@/components/ui/Button.vue'
 
 const props = defineProps<{
     profiles: Profile[]
@@ -32,16 +33,20 @@ const createColumns = ({ onCopy, onPreview, onLogs, onEdit, onDelete }: {
     onDelete: (row: Profile) => void,
 }): DataTableColumns<Profile> => {
   return [
-    { title: '名称', key: 'name', sorter: 'default', width: 200 },
+    { title: '名称', key: 'name', sorter: 'default', width: 200, className: 'font-medium' },
     {
       title: '订阅链接',
       key: 'alias',
       render(row) {
         if (!subToken.value || !row.alias) {
-          return h('span', '请设置链接别名');
+          return h('span', { class: 'text-slate-400 italic' }, '未设置别名');
         }
         const url = `${window.location.origin}/api/public/${subToken.value}/${row.alias}`;
-        return h(NButton, { text: true, tag: 'a', href: url, target: '_blank', type: 'primary' }, { default: () => url });
+        return h('a', { 
+            href: url, 
+            target: '_blank',
+            class: 'text-primary-600 hover:text-primary-700 hover:underline'
+        }, url);
       }
     },
     {
@@ -49,15 +54,13 @@ const createColumns = ({ onCopy, onPreview, onLogs, onEdit, onDelete }: {
       key: 'actions',
       width: 240,
       render(row) {
-        return h(NSpace, null, {
-          default: () => [
-            h(NButton, { size: 'small', circle: true, title: '复制链接', onClick: () => onCopy(row) }, { icon: () => h(NIcon, null, { default: () => h(CopyIcon) }) }),
-            h(NButton, { size: 'small', circle: true, title: '预览', onClick: () => onPreview(row) }, { icon: () => h(NIcon, null, { default: () => h(PreviewIcon) }) }),
-            h(NButton, { size: 'small', circle: true, title: '日志', onClick: () => onLogs(row) }, { icon: () => h(NIcon, null, { default: () => h(LogIcon) }) }),
-            h(NButton, { size: 'small', circle: true, type: 'primary', title: '编辑', onClick: () => onEdit(row) }, { icon: () => h(NIcon, null, { default: () => h(EditIcon) }) }),
-            h(NButton, { size: 'small', circle: true, type: 'error', title: '删除', onClick: () => onDelete(row) }, { icon: () => h(NIcon, null, { default: () => h(DeleteIcon) }) }),
-          ]
-        });
+        return h('div', { class: 'flex gap-1' }, [
+            h(Button, { size: 'sm', variant: 'secondary', icon: true, onClick: () => onCopy(row), title: '复制链接' }, { default: () => h(NIcon, { component: CopyIcon }) }),
+            h(Button, { size: 'sm', variant: 'secondary', icon: true, onClick: () => onPreview(row), title: '预览' }, { default: () => h(NIcon, { component: PreviewIcon }) }),
+            h(Button, { size: 'sm', variant: 'secondary', icon: true, onClick: () => onLogs(row), title: '访问日志' }, { default: () => h(NIcon, { component: LogIcon }) }),
+            h(Button, { size: 'sm', variant: 'primary', icon: true, onClick: () => onEdit(row), title: '编辑' }, { default: () => h(NIcon, { component: EditIcon }) }),
+            h(Button, { size: 'sm', variant: 'danger', icon: true, onClick: () => onDelete(row), title: '删除' }, { default: () => h(NIcon, { component: DeleteIcon }) }),
+        ]);
       }
     }
   ];
@@ -73,6 +76,7 @@ const columns = createColumns({
 </script>
 
 <template>
+  <div class="rounded-xl border border-gray-100 dark:border-dark-border overflow-hidden bg-white dark:bg-dark-surface">
     <n-data-table
         :columns="columns"
         :data="profiles"
@@ -80,4 +84,5 @@ const columns = createColumns({
         :pagination="{ pageSize: 10 }"
         :bordered="false"
     />
+  </div>
 </template>

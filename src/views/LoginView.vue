@@ -1,37 +1,11 @@
-<template>
-  <div class="flex items-center justify-center min-h-screen bg-gray-100">
-    <n-card class="w-full max-w-md" title="Login" :bordered="false" size="huge">
-      <n-form @submit.prevent="handleLogin">
-        <n-form-item-row label="Username">
-          <n-input v-model:value="username" placeholder="Enter your username" />
-        </n-form-item-row>
-        <n-form-item-row label="Password">
-          <n-input
-            v-model:value="password"
-            type="password"
-            show-password-on="mousedown"
-            placeholder="Enter your password"
-          />
-        </n-form-item-row>
-        <n-button type="primary" attr-type="submit" block :loading="loading">
-          Login
-        </n-button>
-      </n-form>
-      <template #footer>
-        <p v-if="authStore.isRegistrationAllowed" class="text-sm text-center text-gray-600">
-          Don't have an account?
-          <router-link to="/register" class="font-medium text-indigo-600 hover:underline">Register</router-link>
-        </p>
-      </template>
-    </n-card>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import { NCard, NForm, NFormItemRow, NInput, NButton, useMessage } from 'naive-ui';
+import { useMessage } from 'naive-ui';
+import Card from '@/components/ui/Card.vue';
+import Button from '@/components/ui/Button.vue';
+import Input from '@/components/ui/Input.vue';
 
 const username = ref('');
 const password = ref('');
@@ -51,9 +25,57 @@ const handleLogin = async () => {
     router.push('/'); // Redirect to dashboard after login
   } catch (error: any) {
     console.error('Login failed:', error);
-    message.error(error.response?.data?.message || 'Login failed. Please check your credentials.');
+    message.error(error.response?.data?.message || '登录失败。请检查您的凭据。');
   } finally {
     loading.value = false;
   }
 };
 </script>
+
+<template>
+  <div class="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-dark-bg p-4 transition-colors duration-300">
+     <!-- Abstract Background Decoration -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute -top-[20%] -right-[10%] w-[50%] h-[50%] rounded-full bg-primary-500/20 blur-[120px] animate-pulse-slow"></div>
+        <div class="absolute top-[40%] -left-[10%] w-[40%] h-[40%] rounded-full bg-indigo-500/10 blur-[100px] animate-pulse-slow font-delay-1000"></div>
+    </div>
+
+    <Card class="w-full max-w-md relative z-10" variant="glass" padding="lg">
+      <div class="mb-8 text-center">
+        <!-- Logo Placeholder -->
+        <div class="w-12 h-12 bg-gradient-to-br from-primary-500 to-indigo-600 rounded-xl mx-auto flex items-center justify-center text-white font-bold text-xl shadow-glow mb-4">
+            S
+        </div>
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">欢迎回来</h1>
+        <p class="text-slate-500 dark:text-slate-400 mt-2">登录以管理您的订阅</p>
+      </div>
+
+      <form @submit.prevent="handleLogin" class="space-y-6">
+        <div class="space-y-2">
+            <label class="text-sm font-medium text-slate-700 dark:text-slate-300">用户名</label>
+            <Input v-model="username" placeholder="请输入用户名" />
+        </div>
+        
+        <div class="space-y-2">
+            <label class="text-sm font-medium text-slate-700 dark:text-slate-300">密码</label>
+            <Input 
+                v-model="password" 
+                type="password" 
+                placeholder="请输入密码" 
+            />
+        </div>
+
+        <Button variant="glow" block size="lg" :loading="loading" @click="handleLogin" class="mt-8">
+            登录
+        </Button>
+      </form>
+      
+      <div v-if="authStore.isRegistrationAllowed" class="mt-8 text-center pt-6 border-t border-slate-200 dark:border-white/10">
+        <p class="text-sm text-slate-600 dark:text-slate-400">
+          还没有账号?
+          <router-link to="/register" class="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 transition-colors">创建账号</router-link>
+        </p>
+      </div>
+    </Card>
+  </div>
+</template>

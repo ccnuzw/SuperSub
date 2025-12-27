@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { h } from 'vue'
-import { NButton, NDataTable, NIcon } from 'naive-ui'
+import { NDataTable } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import type { User } from '@/types'
+import Button from '@/components/ui/Button.vue'
 
 defineProps<{
     users: User[]
@@ -16,8 +17,8 @@ const emit = defineEmits<{
 
 const createColumns = ({ onUpdateRole, onDeleteUser }: { onUpdateRole: (user: User) => void, onDeleteUser: (user: User) => void }): DataTableColumns<User> => {
   return [
-    { title: 'ID', key: 'id', ellipsis: { tooltip: true } },
-    { title: '用户名', key: 'username' },
+    { title: 'ID', key: 'id', ellipsis: { tooltip: true }, width: 100 },
+    { title: '用户名', key: 'username', className: 'font-medium' },
     { title: '角色', key: 'role' },
     { 
       title: '创建时间', 
@@ -33,21 +34,21 @@ const createColumns = ({ onUpdateRole, onDeleteUser }: { onUpdateRole: (user: Us
       title: '操作',
       key: 'actions',
       render(row) {
-        return h('div', { class: 'space-x-2' }, [
+        return h('div', { class: 'flex gap-2' }, [
           h(
-            NButton,
+            Button,
             {
-              size: 'small',
-              type: row.role === 'admin' ? 'warning' : 'primary',
+              size: 'sm',
+              variant: row.role === 'admin' ? 'secondary' : 'primary',
               onClick: () => onUpdateRole(row)
             },
-            { default: () => row.role === 'admin' ? '降为普通用户' : '提升为管理员' }
+            { default: () => row.role === 'admin' ? '降级' : '设为管理员' }
           ),
           h(
-            NButton,
+            Button,
             {
-              size: 'small',
-              type: 'error',
+              size: 'sm',
+              variant: 'danger',
               onClick: () => onDeleteUser(row)
             },
             { default: () => '删除' }
@@ -65,10 +66,13 @@ const columns = createColumns({
 </script>
 
 <template>
+  <div class="rounded-xl border border-gray-100 dark:border-dark-border overflow-hidden bg-white dark:bg-dark-surface">
     <n-data-table
         :columns="columns"
         :data="users"
         :loading="loading"
         :pagination="{ pageSize: 10 }"
+        :bordered="false"
     />
+  </div>
 </template>

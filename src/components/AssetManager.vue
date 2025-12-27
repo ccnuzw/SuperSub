@@ -1,53 +1,63 @@
 <template>
   <div>
-    <n-space justify="space-between" align="center" class="mb-4">
-      <h3 class="text-lg font-semibold">{{ title }}</h3>
-      <n-button type="primary" @click="openModal(null)">添加新{{ assetName }}</n-button>
-    </n-space>
+    <div class="flex items-center justify-between mb-6">
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ title }}</h3>
+      <Button variant="primary" size="sm" @click="openModal(null)">
+        添加{{ assetName }}
+      </Button>
+    </div>
 
-    <n-data-table
-      v-if="!isMobile"
-      :columns="columns"
-      :data="assets"
-      :loading="loading"
-      :row-key="row => row.id"
-    />
+    <div v-if="!isMobile" class="bg-white dark:bg-dark-surface rounded-xl border border-gray-100 dark:border-dark-border overflow-hidden">
+      <n-data-table
+        :columns="columns"
+        :data="assets"
+        :loading="loading"
+        :row-key="row => row.id"
+        :bordered="false"
+      />
+    </div>
 
-    <n-list v-else bordered :show-divider="false">
-      <n-list-item v-for="asset in assets" :key="asset.id">
-        <template #prefix>
-          <n-button quaternary circle @click="() => handleSetDefault(asset.id)" :disabled="isDefault(asset)">
-            <template #icon>
-              <n-icon :component="isDefault(asset) ? StarIcon : StarOutlineIcon" :color="isDefault(asset) ? '#fdd835' : undefined" />
-            </template>
-          </n-button>
-        </template>
-        <n-thing :title="asset.name" :description="asset.url" />
-        <template #suffix>
-          <n-space>
-            <n-button size="small" @click="() => openModal(asset)">编辑</n-button>
-            <n-popconfirm @positive-click="() => handleDelete(asset.id)">
+    <div v-else class="space-y-4">
+      <Card v-for="asset in assets" :key="asset.id" padding="sm" class="flex flex-col gap-3">
+        <div class="flex items-start justify-between">
+            <div class="flex-1 min-w-0 mr-2">
+                <div class="font-medium text-slate-900 dark:text-white truncate">{{ asset.name }}</div>
+                <div class="text-xs text-slate-500 dark:text-slate-400 truncate">{{ asset.url }}</div>
+            </div>
+            <Button 
+                variant="ghost" 
+                size="sm" 
+                icon 
+                @click="handleSetDefault(asset.id)" 
+                :disabled="isDefault(asset)"
+                :class="isDefault(asset) ? 'text-yellow-400' : 'text-slate-300'"
+            >
+                <n-icon :component="isDefault(asset) ? StarIcon : StarOutlineIcon" size="20" />
+            </Button>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-dark-border px-1">
+             <Button variant="secondary" size="sm" @click="openModal(asset)">编辑</Button>
+             <n-popconfirm @positive-click="handleDelete(asset.id)">
               <template #trigger>
-                <n-button size="small" type="error" ghost>删除</n-button>
+                <Button variant="danger" size="sm">删除</Button>
               </template>
-              确定要删除这个资源吗？
+              您确定要删除此{{ assetName }}吗？
             </n-popconfirm>
-          </n-space>
-        </template>
-      </n-list-item>
-    </n-list>
+        </div>
+      </Card>
+    </div>
 
     <n-modal v-model:show="showModal" preset="card" :style="{ width: isMobile ? '90vw' : '600px' }" :title="modalTitle">
       <n-form ref="formRef" :model="currentAsset" :rules="rules" label-placement="top">
         <n-form-item label="名称" path="name">
-          <n-input v-model:value="currentAsset.name" placeholder="为此资源指定一个易于识别的名称" />
+          <n-input v-model:value="currentAsset.name" placeholder="请输入名称" />
         </n-form-item>
         <n-form-item label="URL" path="url">
-          <n-input v-model:value="currentAsset.url" placeholder="输入完整的 URL 地址" />
+          <n-input v-model:value="currentAsset.url" placeholder="请输入完整 URL" />
         </n-form-item>
-        <n-form-item>
-          <n-button type="primary" @click="handleSave" :loading="saveLoading">保存</n-button>
-        </n-form-item>
+        <div class="flex justify-end pt-4">
+             <Button variant="primary" @click="handleSave" :loading="saveLoading">保存</Button>
+        </div>
       </n-form>
     </n-modal>
   </div>
@@ -56,8 +66,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, h } from 'vue';
 import {
-  NButton, NDataTable, NSpace, NModal, NForm, NFormItem, NInput, useMessage, NPopconfirm, NIcon, NTooltip, NList, NListItem, NThing
+  NDataTable, NModal, NForm, NFormItem, NInput, useMessage, NPopconfirm, NIcon, NTooltip
 } from 'naive-ui';
+import Button from '@/components/ui/Button.vue';
+import Card from '@/components/ui/Card.vue';
 import { Star as StarIcon, StarOutline as StarOutlineIcon } from '@vicons/ionicons5';
 import { useIsMobile } from '@/composables/useMediaQuery';
 import type { DataTableColumns } from 'naive-ui';
@@ -68,7 +80,7 @@ import type { SubconverterAsset } from '@/types';
 
 
 type UserDefaults = {
-  default_backend_id?: number; // Changed to number to match ID type
+  default_backend_id?: number; 
   default_config_id?: number;
 };
 
@@ -112,7 +124,6 @@ const fetchUserDefaults = async () => {
   try {
     const response = await usersApi.fetchDefaults();
     if (response.data.success && response.data.data) {
-      // Cast the response data to handle potential string/number mismatch if API returns strings
       userDefaults.value = {
           default_backend_id: response.data.data.default_backend_id ? Number(response.data.data.default_backend_id) : undefined,
           default_config_id: response.data.data.default_config_id ? Number(response.data.data.default_config_id) : undefined
@@ -133,7 +144,7 @@ const fetchAssets = async () => {
       emit('assets-updated', assets.value);
     }
   } catch (error) {
-    message.error('加载资源列表失败');
+    message.error('加载列表失败');
   } finally {
     loading.value = false;
   }
@@ -157,7 +168,7 @@ const handleSave = async () => {
       message.success('更新成功');
     } else {
       await assetsApi.createAsset(currentAsset.value as any);
-      message.success('添加成功');
+      message.success('创建成功');
     }
     showModal.value = false;
     await fetchAssets();
@@ -206,30 +217,30 @@ const createColumns = (): DataTableColumns<SubconverterAsset> => [
   {
     title: '默认',
     key: 'is_default',
-    width: 60,
+    width: 80,
     align: 'center',
     render(row) {
       const isRowDefault = isDefault(row);
-      return h(NTooltip, null, {
-        trigger: () => h(NButton, {
-          quaternary: true,
-          circle: true,
-          onClick: () => handleSetDefault(row.id),
-          disabled: isRowDefault,
-        }, {
-          icon: () => h(NIcon, {
+      // Using custom Button component in render function
+      return h(Button, {
+        variant: 'ghost',
+        size: 'sm',
+        icon: true,
+        onClick: () => handleSetDefault(row.id),
+        disabled: isRowDefault,
+        class: isRowDefault ? 'text-yellow-400' : 'text-slate-300'
+      }, {
+        default: () => h(NIcon, {
             component: isRowDefault ? StarIcon : StarOutlineIcon,
-            color: isRowDefault ? '#fdd835' : undefined,
             size: 20
-          })
-        }),
-        default: () => isRowDefault ? '当前默认项' : '设为默认'
+        })
       });
     }
   },
   {
     title: '名称',
     key: 'name',
+    className: 'font-medium'
   },
   {
     title: 'URL',
@@ -237,26 +248,32 @@ const createColumns = (): DataTableColumns<SubconverterAsset> => [
     ellipsis: {
       tooltip: true,
     },
+    className: 'text-slate-500'
   },
   {
     title: '操作',
     key: 'actions',
-    width: 150,
+    width: 180,
     render(row) {
       if (!isAdmin.value) return null;
 
-      return h(NSpace, null, {
-        default: () => [
-          h(NButton, { size: 'small', onClick: () => openModal(row) }, { default: () => '编辑' }),
+      return h('div', { class: 'flex gap-2' }, [
+          h(Button, { 
+              size: 'sm', 
+              variant: 'secondary', 
+              onClick: () => openModal(row) 
+          }, { default: () => '编辑' }),
           h(NPopconfirm,
             { onPositiveClick: () => handleDelete(row.id) },
             {
-              trigger: () => h(NButton, { size: 'small', type: 'error', ghost: true }, { default: () => '删除' }),
-              default: () => '确定要删除这个资源吗？'
+              trigger: () => h(Button, { 
+                  size: 'sm', 
+                  variant: 'danger', 
+              }, { default: () => '删除' }),
+              default: () => `您确定要删除此${props.assetName}吗？`
             }
           ),
-        ]
-      });
+      ]);
     },
   },
 ];

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { NCard, NFlex, NSwitch } from 'naive-ui'
+import { NSwitch } from 'naive-ui'
+import Card from '@/components/ui/Card.vue'
 
 defineProps<{
     allowRegistration: boolean
@@ -12,15 +13,15 @@ const emit = defineEmits<{
 </script>
 
 <template>
-    <n-card title="系统设置" class="mb-6">
-      <n-flex align="center">
-        <label for="allow-registration-switch">允许新用户注册</label>
+    <Card title="系统设置" class="mb-6">
+      <div class="flex items-center gap-4">
+        <label for="allow-registration-switch" class="text-slate-700 dark:text-slate-300 font-medium">允许新用户注册</label>
         <n-switch
           id="allow-registration-switch"
           :value="allowRegistration"
           :loading="loading"
           @update:value="(val) => emit('update:allowRegistration', val)"
         />
-      </n-flex>
-    </n-card>
+      </div>
+    </Card>
 </template>

@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { h, watch } from 'vue';
 import { ref, onMounted, computed } from 'vue';
-import { NCard, NButton, NDataTable, NSpace, NSwitch, useMessage, NModal, NForm, NFormItem, NInput, NSelect, NInputNumber, NAlert, NP, NUl, NLi, NText } from 'naive-ui';
+import { NCard, NDataTable, NSpace, NSwitch, useMessage, NModal, NForm, NFormItem, NInput, NSelect, NInputNumber, NAlert, NP, NUl, NLi, NText, NIcon } from 'naive-ui';
 import type { DataTableColumns, FormInst, FormRules } from 'naive-ui';
 import { profileRulesApi } from '@/api/profileRules';
+import Button from '@/components/ui/Button.vue';
+import { AddOutline } from '@vicons/ionicons5';
 
 const props = defineProps<{
   profileId?: string | null;
@@ -230,10 +232,10 @@ const columns = computed<DataTableColumns<any>>(() => [
     key: 'actions',
     width: 150,
     align: 'center',
-    render: (row, index) => h(NSpace, null, {
+    render: (row, index) => h(NSpace, { justify: 'center' }, {
       default: () => [
-        h(NButton, { size: 'small', onClick: () => handleEdit(row, index) }, { default: () => '编辑' }),
-        h(NButton, { size: 'small', type: 'error', onClick: () => handleDelete(row, index) }, { default: () => '删除' }),
+        h(Button, { size: 'sm', variant: 'secondary', onClick: () => handleEdit(row, index) }, { default: () => '编辑' }),
+        h(Button, { size: 'sm', variant: 'danger', onClick: () => handleDelete(row, index) }, { default: () => '删除' }),
       ],
     }),
   },
@@ -247,12 +249,17 @@ onMounted(() => {
 </script>
 
 <template>
-  <n-card title="Profile 最终处理规则" :bordered="false" size="small">
-    <template #header-extra>
-      <n-button @click="handleAdd">添加规则</n-button>
-    </template>
-    <n-data-table :columns="columns" :data="rules" :loading="loading" :pagination="false" :bordered="false" />
-  </n-card>
+  <div class="rounded-lg border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg p-4">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-base font-medium text-slate-800 dark:text-gray-200">Profile Rules</h3>
+      <Button @click="handleAdd" size="sm" icon>
+        <n-icon :component="AddOutline" class="mr-1" /> Add Rule
+      </Button>
+    </div>
+    <div class="rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface overflow-hidden">
+        <n-data-table :columns="columns" :data="rules" :loading="loading" :pagination="false" :bordered="false" />
+    </div>
+  </div>
 
   <n-modal v-model:show="showModal" preset="card" :title="isEditing ? '编辑规则' : '添加规则'" style="width: 600px;">
     <n-form ref="formRef" :model="currentRule" :rules="formRules">
@@ -281,10 +288,10 @@ onMounted(() => {
       <n-form-item label="排序" path="sort_order">
         <n-input-number v-model:value="currentRule.sort_order" />
       </n-form-item>
-      <n-space justify="end">
-        <n-button @click="showModal = false">取消</n-button>
-        <n-button type="primary" @click="handleSave">保存</n-button>
-      </n-space>
+      <div class="flex justify-end gap-2">
+        <Button variant="secondary" @click="showModal = false">取消</Button>
+        <Button variant="primary" @click="handleSave">保存</Button>
+      </div>
     </n-form>
   </n-modal>
 </template>

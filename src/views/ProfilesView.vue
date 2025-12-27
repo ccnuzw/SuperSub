@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, h } from 'vue';
 import { useRouter } from 'vue-router';
-import { NButton, NSpace, NPageHeader, NIcon, NList, NListItem, NThing, NDropdown } from 'naive-ui';
-import { EllipsisVertical as MoreIcon } from '@vicons/ionicons5';
+import { NIcon, NDropdown } from 'naive-ui';
+import { EllipsisVertical as MoreIcon, AddOutline as AddIcon, CopyOutline as CopyIcon, EyeOutline as PreviewIcon, DocumentTextOutline as LogIcon, Pencil as EditIcon, TrashBinOutline as DeleteIcon } from '@vicons/ionicons5';
 import { useIsMobile } from '@/composables/useMediaQuery';
 import type { Profile } from '@/types';
 import SubscriptionLogModal from '@/components/SubscriptionLogModal.vue';
@@ -11,6 +11,8 @@ import ProfileNodesPreviewModal from '@/components/profiles/modals/ProfileNodesP
 import ProfileDebugLogModal from '@/components/profiles/modals/ProfileDebugLogModal.vue';
 import { useProfiles } from '@/composables/profiles/useProfiles';
 import { useProfilePreview } from '@/composables/profiles/useProfilePreview';
+import Button from '@/components/ui/Button.vue';
+import Card from '@/components/ui/Card.vue';
 
 const router = useRouter();
 
@@ -44,6 +46,22 @@ const onLogs = (row: Profile) => {
   showSubLogsModal.value = true;
 };
 
+const getDropdownOptions = (profile: Profile) => [
+  { label: '复制链接', key: 'copy', icon: () => h(NIcon, null, { default: () => h(CopyIcon) }) },
+  { label: '预览', key: 'preview', icon: () => h(NIcon, null, { default: () => h(PreviewIcon) }) },
+  { label: '日志', key: 'logs', icon: () => h(NIcon, null, { default: () => h(LogIcon) }) },
+  { label: '编辑', key: 'edit', icon: () => h(NIcon, null, { default: () => h(EditIcon) }) },
+  { label: '删除', key: 'delete', icon: () => h(NIcon, { color: 'red' }, { default: () => h(DeleteIcon) }) },
+];
+
+const handleDropdownSelect = (key: string, profile: Profile) => {
+  if (key === 'copy') copyProfileLink(profile);
+  if (key === 'preview') openPreview(profile);
+  if (key === 'logs') onLogs(profile);
+  if (key === 'edit') editProfile(profile);
+  if (key === 'delete') deleteProfile(profile);
+};
+
 onMounted(() => {
   fetchProfiles();
 });
@@ -51,15 +69,17 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
-    <n-page-header>
-      <template #title>配置管理</template>
-      <template #extra>
-        <n-space>
-          <n-button type="primary" @click="createProfile">新增配置</n-button>
-        </n-space>
-      </template>
-    </n-page-header>
+  <div class="space-y-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div>
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">配置档案</h1>
+        <p class="text-slate-500 dark:text-slate-400 mt-1">管理您的订阅转换配置和规则。</p>
+      </div>
+      <Button variant="primary" icon @click="createProfile">
+        <n-icon :component="AddIcon" class="mr-2" />
+        新建档案
+      </Button>
+    </div>
 
     <ProfileTable
       v-if="!isMobile"
@@ -70,37 +90,27 @@ onMounted(() => {
       @logs="onLogs"
       @edit="editProfile"
       @delete="deleteProfile"
-      class="mt-4"
     />
 
-    <n-list v-else bordered class="mt-4">
-      <n-list-item v-for="profile in profiles" :key="profile.id">
-        <n-thing :title="profile.name" />
-        <template #suffix>
-            <n-dropdown
+    <div v-else class="space-y-4">
+      <Card v-for="profile in profiles" :key="profile.id" padding="sm" class="flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+           <div class="font-medium text-slate-900 dark:text-white">{{ profile.name }}</div>
+           <n-dropdown
             trigger="click"
-            :options="[
-              { label: '复制链接', key: 'copy' },
-              { label: '预览', key: 'preview' },
-              { label: '日志', key: 'logs' },
-              { label: '编辑', key: 'edit' },
-              { label: '删除', key: 'delete' },
-            ]"
-            @select="key => {
-              if (key === 'copy') copyProfileLink(profile);
-              if (key === 'preview') openPreview(profile);
-              if (key === 'logs') onLogs(profile);
-              if (key === 'edit') editProfile(profile);
-              if (key === 'delete') deleteProfile(profile);
-            }"
+            :options="getDropdownOptions(profile)"
+            @select="(key) => handleDropdownSelect(key, profile)"
           >
-            <n-button text>
-              <n-icon :component="MoreIcon" size="24" />
-            </n-button>
+            <Button variant="ghost" size="sm" icon>
+              <n-icon :component="MoreIcon" size="20" />
+            </Button>
           </n-dropdown>
-        </template>
-      </n-list-item>
-    </n-list>
+        </div>
+        <div v-if="profile.alias" class="text-xs text-slate-500 truncate bg-gray-50 dark:bg-dark-bg p-2 rounded">
+             {{ profile.alias }}
+        </div>
+      </Card>
+    </div>
 
     <!-- Nodes Preview Modal -->
     <ProfileNodesPreviewModal
@@ -117,9 +127,9 @@ onMounted(() => {
         :logs="nodesPreviewData?.logs || []"
     />
     <subscription-log-modal
-      v-model:show="showSubLogsModal"
-      :profile-id="currentProfileForLogs?.id || null"
-      :profile-name="currentProfileForLogs?.name || null"
+        v-model:show="showSubLogsModal"
+        :profile-id="currentProfileForLogs?.id || null"
+        :profile-name="currentProfileForLogs?.name || null"
     />
   </div>
 </template>

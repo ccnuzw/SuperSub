@@ -3,7 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { useThemeStore } from './stores/theme'
-import Layout from './components/Layout.vue'
+import Layout from './components/layout/ModernLayout.vue'
 import { NConfigProvider, NMessageProvider, NDialogProvider, NLoadingBarProvider, darkTheme } from 'naive-ui'
 import hljs from 'highlight.js/lib/core'
 import yaml from 'highlight.js/lib/languages/yaml'
@@ -28,7 +28,9 @@ onMounted(() => {
     <n-loading-bar-provider>
       <n-dialog-provider>
         <n-message-provider>
-          <Layout v-if="isAuthenticated && !isAuthRoute" />
+          <Layout v-if="isAuthenticated && !isAuthRoute">
+            <RouterView />
+          </Layout>
           <RouterView v-else />
         </n-message-provider>
       </n-dialog-provider>
