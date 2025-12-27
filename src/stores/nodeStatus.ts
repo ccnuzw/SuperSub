@@ -2,13 +2,12 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAuthStore } from './auth'
 import { HealthStatus } from '@/types'
-import { api } from '@/utils/api'
+import { nodeStatusApi } from '@/api/nodeStatus'
 
 export const useNodeStatusStore = defineStore('nodeStatus', () => {
   const statuses = ref<Record<string, HealthStatus>>({})
   const loading = ref(false)
   const authStore = useAuthStore()
-  // const message = useMessage() // This cannot be called at the top level of a store.
 
   const getStatusByNodeId = computed(() => {
     return (nodeId: string) => statuses.value[nodeId]
@@ -19,7 +18,7 @@ export const useNodeStatusStore = defineStore('nodeStatus', () => {
 
     loading.value = true
     try {
-      const response = await api.get('/node-statuses');
+      const response = await nodeStatusApi.fetchStatuses();
       const result = response.data;
       if (result.success && result.data) {
         const newStatuses: Record<string, HealthStatus> = {}
@@ -28,7 +27,6 @@ export const useNodeStatusStore = defineStore('nodeStatus', () => {
         }
         statuses.value = newStatuses
       } else {
-        // Do not show error message on every fetch, as it can be annoying during polling
         console.error('Failed to fetch node statuses:', result.message)
       }
     } catch (err) {
@@ -44,7 +42,7 @@ export const useNodeStatusStore = defineStore('nodeStatus', () => {
     }
 
     try {
-      const response = await api.post('/nodes/health-check', { nodeIds });
+      const response = await nodeStatusApi.checkHealth(nodeIds);
       const result = response.data;
       if (response.status === 200 && result.success) {
         // Immediately fetch statuses to show 'testing' state

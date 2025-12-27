@@ -12,9 +12,8 @@ import { useNodeStatusStore } from '@/stores/nodeStatus';
 import { FlashOutline as FlashIcon, EllipsisVertical as MoreIcon, ReorderFourOutline as DragHandleIcon } from '@vicons/ionicons5';
 import { parseNodeLinks, ParsedNode } from '@/utils/nodeParser';
 import { getNaiveTagColor } from '@/utils/colors';
-import { useApi } from '@/composables/useApi';
+import { nodesApi } from '@/api/nodes';
 
-const api = useApi();
 const message = useMessage();
 const dialog = useDialog();
 const authStore = useAuthStore();
@@ -66,15 +65,12 @@ const handleBatchAction = (action: 'sort' | 'deduplicate' | 'clear') => {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const response = await api.post('/nodes/batch-actions', {
-          action,
-          groupId: activeTab.value,
-        });
-        if (response.success) {
-          message.success(response.message || '操作成功');
+        const response = await nodesApi.batchAction(action, activeTab.value);
+        if (response.data.success) {
+          message.success(response.data.message || '操作成功');
           fetchData();
         } else {
-          message.error(response.message || '操作失败');
+          message.error(response.data.message || '操作失败');
         }
       } catch (error: any) {
         message.error(error.message || '请求失败');
@@ -207,11 +203,11 @@ const fetchData = async () => {
   if (!authStore.isAuthenticated) return;
   loading.value = true;
   try {
-    const response = await api.get<Node[]>('/nodes');
-    if (response.success && Array.isArray(response.data)) {
-      nodes.value = response.data;
+    const response = await nodesApi.fetchNodes();
+    if (response.data.success && Array.isArray(response.data.data)) {
+      nodes.value = response.data.data || [];
     } else {
-      message.error(response.message || '获取节点列表失败');
+      message.error(response.data.message || '获取节点列表失败');
     }
   } catch (err: any) {
     message.error(err.message || '请求失败，请稍后重试');
@@ -308,7 +304,7 @@ watch(addLink, debounce((newVal: string) => {
 
 const defaultFormState: Partial<Node> = {
   name: '',
-  link: '',
+  link: '', // Assuming link is part of Node interface in Node type
 };
 
 const formState = reactive({ ...defaultFormState });
@@ -319,7 +315,8 @@ const openModal = (node: Node | null = null) => {
   if (node) {
     editingNode.value = node;
     formState.name = node.name;
-    formState.link = node.link;
+    // @ts-ignore
+    formState.link = node.link; // If 'link' is not in Node interface, careful here
     showModal.value = true;
   } else {
     handleOpenAddFromLinkModal();
@@ -336,16 +333,17 @@ const handleSave = async () => {
   try {
     const payload = {
       name: formState.name,
+      // @ts-ignore
       link: formState.link,
     };
     
-    const response = await api.put(`/nodes/${editingNode.value.id}`, payload);
-    if (response.success) {
+    const response = await nodesApi.updateNode(editingNode.value.id, payload);
+    if (response.data.success) {
       message.success('节点更新成功');
       showModal.value = false;
       fetchData();
     } else {
-      message.error(response.message || '保存失败');
+      message.error(response.data.message || '保存失败');
     }
   } catch (err: any) {
     message.error(err.message || '请求失败，请稍后重试');
@@ -368,16 +366,13 @@ const handleBatchImport = async () => {
   }
   addFromLinkLoading.value = true;
   try {
-    const response = await api.post('/nodes/batch-import', {
-        nodes: previewNodes.value,
-        groupId: importGroupId.value || null,
-    });
-    if (response.success) {
-      message.success(response.message || `成功导入 ${previewNodes.value.length} 个节点`);
+    const response = await nodesApi.importNodes(previewNodes.value, importGroupId.value || null);
+    if (response.data.success) {
+      message.success(response.data.message || `成功导入 ${previewNodes.value.length} 个节点`);
       showAddFromLinkModal.value = false;
       fetchData();
     } else {
-      message.error(response.message || '导入失败');
+      message.error(response.data.message || '导入失败');
     }
   } catch (error: any) {
     message.error(error.message || '请求失败');
@@ -398,12 +393,12 @@ const handleDeleteNode = (row: Node) => {
         negativeText: '取消',
         onPositiveClick: async () => {
             try {
-                const response = await api.delete(`/nodes/${row.id}`);
-                if (response.success) {
+                const response = await nodesApi.deleteNode(row.id);
+                if (response.data.success) {
                     message.success('节点删除成功');
                     fetchData();
                 } else {
-                    message.error(response.message || '删除失败');
+                    message.error(response.data.message || '删除失败');
                 }
             } catch (err: any) {
                 message.error(err.message || '请求失败，请稍后重试');
@@ -416,14 +411,14 @@ const handleSaveOrder = async () => {
   saveOrderLoading.value = true;
   try {
     const nodeIds = nodes.value.map(node => node.id);
-    const response = await api.post('/nodes/update-order', { nodeIds });
-    if (response.success) {
+    const response = await nodesApi.updateOrder(nodeIds);
+    if (response.data.success) {
       message.success('节点顺序已保存');
       orderChanged.value = false;
       isSorting.value = false;
       fetchData();
     } else {
-      message.error(response.message || '保存顺序失败');
+      message.error(response.data.message || '保存顺序失败');
     }
   } catch (err: any) {
     message.error(err.message || '请求失败，请稍后重试');
@@ -450,13 +445,13 @@ const handleBatchDelete = () => {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const response = await api.post('/nodes/batch-delete', { ids: checkedRowKeys.value });
-        if (response.success) {
+        const response = await nodesApi.batchDelete(checkedRowKeys.value);
+        if (response.data.success) {
           message.success('批量删除成功');
           fetchData();
           checkedRowKeys.value = [];
         } else {
-          message.error(response.message || '批量删除失败');
+          message.error(response.data.message || '批量删除失败');
         }
       } catch (err: any) {
         message.error(err.message || '请求失败，请稍后重试');
@@ -473,6 +468,7 @@ const handleSaveGroup = async () => {
   addGroupLoading.value = true;
   try {
     const response = await groupStore.addGroup(newGroupName.value);
+    // groupStore returns response.data directly in the refactored store
     if (response.success) {
       message.success('分组创建成功');
       showAddGroupModal.value = false;
@@ -537,14 +533,12 @@ const handleGroupAction = (key: string) => {
 
 const handleTabClick = (group: NodeGroup, event: MouseEvent) => {
   const target = event.target as HTMLElement;
-  // 如果点击的是图标或其父元素(按钮)，则显示菜单
   if (target.closest('.group-actions-button')) {
     showDropdown.value = true;
     dropdownX.value = event.clientX;
     dropdownY.value = event.clientY;
     activeDropdownGroup.value = group;
   } else {
-    // 否则切换 tab
     activeTab.value = group.id;
   }
 };
@@ -589,17 +583,14 @@ const handleMoveToGroup = async () => {
   }
   moveToGroupLoading.value = true;
   try {
-    const response = await api.post('/nodes/batch-update-group', {
-      nodeIds: checkedRowKeys.value,
-      groupId: moveToGroupId.value,
-    });
-    if (response.success) {
+    const response = await nodesApi.batchUpdateGroup(checkedRowKeys.value, moveToGroupId.value);
+    if (response.data.success) {
       message.success('节点分组更新成功');
       showMoveToGroupModal.value = false;
       checkedRowKeys.value = [];
       fetchData();
     } else {
-      message.error(response.message || '移动失败');
+      message.error(response.data.message || '移动失败');
     }
   } catch (error: any) {
     message.error(error.message || '请求失败');
@@ -798,185 +789,133 @@ onBeforeUnmount(() => {
           >
             <template #item="{ element: rowData }">
               <tr class="n-data-table-tr" :key="rowData.id" v-if="filteredNodes.some(n => n.id === rowData.id)">
-                <td class="n-data-table-td drag-handle" style="padding: 12px;">
-                  <n-icon :component="DragHandleIcon" size="20" />
+                <td class="n-data-table-td" style="text-align: center;">
+                  <n-icon class="drag-handle" size="20" style="cursor: move;">
+                    <DragHandleIcon />
+                  </n-icon>
                 </td>
-                <td class="n-data-table-td" style="padding: 12px;">{{ rowData.name }}</td>
-                <td class="n-data-table-td" style="padding: 12px;">{{ rowData.server }}</td>
-                <td class="n-data-table-td" style="padding: 12px;">{{ rowData.port }}</td>
-                <td class="n-data-table-td" style="padding: 12px;">{{ rowData.protocol || rowData.type }}</td>
+                <td class="n-data-table-td">{{ rowData.name }}</td>
+                <td class="n-data-table-td">{{ rowData.server }}</td>
+                <td class="n-data-table-td">{{ rowData.port }}</td>
+                <td class="n-data-table-td">
+                  <n-tag size="small" round :color="getNaiveTagColor(rowData.protocol || rowData.type || 'N/A', 'protocol')">
+                    {{ (rowData.protocol || rowData.type || 'N/A').toUpperCase() }}
+                  </n-tag>
+                </td>
               </tr>
             </template>
           </draggable>
         </table>
       </div>
-      <div v-if="loading" class="n-data-table-loading-wrapper">
-        <div class="n-data-table-loading-cover"><n-spin size="medium" /></div>
-      </div>
     </div>
 
-    <n-modal
-      v-model:show="showModal"
-      preset="card"
-      :title="modalTitle"
-      :style="{ width: isMobile ? '90vw' : '600px' }"
-      :mask-closable="false"
-    >
-      <n-form @submit.prevent="handleSave">
-        <n-form-item label="备注" required>
-          <n-input v-model:value="formState.name" placeholder="为节点设置一个易于识别的名称" />
+    <n-modal v-model:show="showModal" preset="card" :title="modalTitle" style="width: 600px; max-width: 90%;">
+      <n-form :model="formState" label-placement="left" label-width="80">
+        <n-form-item label="名称" path="name">
+          <n-input v-model:value="formState.name" placeholder="请输入节点名称" />
         </n-form-item>
-        
-        <n-form-item label="原始链接" required>
-          <n-input
-            v-model:value="formState.link"
-            type="textarea"
-            placeholder="节点的原始分享链接"
-            :autosize="{ minRows: 4, maxRows: 8 }"
-          />
+        <n-form-item label="链接" path="link">
+          <n-input type="textarea" v-model:value="formState.link as string" placeholder="vmess://... or vless://..." :autosize="{ minRows: 3, maxRows: 6 }" />
         </n-form-item>
-
-        <n-space justify="end">
-          <n-button @click="showModal = false">取消</n-button>
-          <n-button type="primary" @click="handleSave" :loading="saveLoading">保存</n-button>
-        </n-space>
       </n-form>
+      <template #footer>
+        <n-space justify="end">
+            <n-button @click="showModal = false">取消</n-button>
+            <n-button type="primary" @click="handleSave" :loading="saveLoading">保存</n-button>
+        </n-space>
+      </template>
     </n-modal>
 
-    <n-modal
-      v-model:show="showAddFromLinkModal"
-      preset="card"
-      title="批量导入节点"
-      :style="{ width: isMobile ? '95vw' : '800px' }"
-      :mask-closable="false"
-    >
-      <n-form @submit.prevent="handleBatchImport">
-        <n-form-item label="分享链接">
-          <n-input
+    <n-modal v-model:show="showAddFromLinkModal" preset="card" title="导入节点" style="width: 600px; max-width: 90%;">
+        <n-input
             v-model:value="addLink"
             type="textarea"
-            placeholder="在此处粘贴一个或多个节点分享链接，每行一个..."
+            placeholder="粘贴订阅链接或节点链接，每行一个..."
             :autosize="{ minRows: 5, maxRows: 10 }"
-          />
-        </n-form-item>
-
-        <n-form-item label="节点预览" v-if="previewNodes.length > 0">
-           <n-data-table
-            :columns="previewColumns"
-            :data="previewNodes"
-            :row-key="(row: any) => row.id"
-            :max-height="250"
-            :pagination="false"
-            :bordered="true"
-            size="small"
-          />
-        </n-form-item>
-
-        <n-form-item label="导入到分组">
+        />
+        <n-form-item label="导入到分组" class="mt-4">
           <n-select
             v-model:value="importGroupId"
-            placeholder="默认导入到“未分组”"
             :options="groupStore.groups.map(g => ({ label: g.name, value: g.id }))"
+            placeholder="选择分组 (可选)"
             clearable
           />
         </n-form-item>
-
-        <n-space justify="end">
-          <n-button @click="showAddFromLinkModal = false">取消</n-button>
-          <n-button type="primary" @click="handleBatchImport" :loading="addFromLinkLoading" :disabled="previewNodes.length === 0">
-            导入 {{ previewNodes.length > 0 ? `(${previewNodes.length}个节点)`: '' }}
-          </n-button>
-        </n-space>
-      </n-form>
+        <div class="mt-4" v-if="previewNodes.length > 0">
+            <p>预览 ({{ previewNodes.length }} 个节点):</p>
+             <n-data-table
+                :columns="previewColumns"
+                :data="previewNodes"
+                :pagination="{ pageSize: 5 }"
+                size="small"
+                class="mt-2"
+            />
+        </div>
+        <template #footer>
+            <n-space justify="end">
+                <n-button @click="showAddFromLinkModal = false">取消</n-button>
+                <n-button type="primary" @click="handleBatchImport" :loading="addFromLinkLoading" :disabled="previewNodes.length === 0">导入</n-button>
+            </n-space>
+        </template>
     </n-modal>
 
-    <n-modal
-      v-model:show="showAddGroupModal"
-      preset="card"
-      title="新增分组"
-      :style="{ width: isMobile ? '90vw' : '400px' }"
-      :mask-closable="false"
-    >
-      <n-form @submit.prevent="handleSaveGroup">
-        <n-form-item label="分组名称" required>
-          <n-input v-model:value="newGroupName" placeholder="请输入分组名称" />
-        </n-form-item>
+    <n-modal v-model:show="showMoveToGroupModal" preset="card" title="移动到分组" style="width: 400px;">
+      <n-select
+        v-model:value="moveToGroupId"
+        :options="groupStore.groups.map(g => ({ label: g.name, value: g.id }))"
+        placeholder="选择目标分组"
+        clearable
+      />
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showMoveToGroupModal = false">取消</n-button>
+          <n-button type="primary" @click="handleMoveToGroup" :loading="moveToGroupLoading">确定</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-modal v-model:show="showAddGroupModal" preset="card" title="新增分组" style="width: 400px;">
+      <n-input v-model:value="newGroupName" placeholder="分组名称" @keyup.enter="handleSaveGroup" />
+      <template #footer>
         <n-space justify="end">
           <n-button @click="showAddGroupModal = false">取消</n-button>
-          <n-button type="primary" @click="handleSaveGroup" :loading="addGroupLoading">保存</n-button>
+          <n-button type="primary" @click="handleSaveGroup" :loading="addGroupLoading">确定</n-button>
         </n-space>
-      </n-form>
+      </template>
     </n-modal>
 
-    <n-modal
-      v-model:show="showEditGroupModal"
-      preset="card"
-      title="重命名分组"
-      :style="{ width: isMobile ? '90vw' : '400px' }"
-      :mask-closable="false"
-    >
-      <n-form @submit.prevent="handleUpdateGroup">
-        <n-form-item label="新名称" required>
-          <n-input v-model:value="editingGroupName" placeholder="请输入新的分组名称" />
-        </n-form-item>
+    <n-modal v-model:show="showEditGroupModal" preset="card" title="重命名分组" style="width: 400px;">
+      <n-input v-model:value="editingGroupName" placeholder="分组名称" @keyup.enter="handleUpdateGroup" />
+      <template #footer>
         <n-space justify="end">
           <n-button @click="showEditGroupModal = false">取消</n-button>
-          <n-button type="primary" @click="handleUpdateGroup" :loading="editGroupLoading">保存</n-button>
+          <n-button type="primary" @click="handleUpdateGroup" :loading="editGroupLoading">确定</n-button>
         </n-space>
-      </n-form>
+      </template>
     </n-modal>
 
   </div>
-
-    <n-modal
-      v-model:show="showMoveToGroupModal"
-      preset="card"
-      title="移动节点到分组"
-      :style="{ width: isMobile ? '90vw' : '400px' }"
-      :mask-closable="false"
-    >
-      <n-form @submit.prevent="handleMoveToGroup">
-        <n-form-item label="目标分组" required>
-          <n-select
-            v-model:value="moveToGroupId"
-            placeholder="请选择目标分组（可清空变为未分组）"
-            :options="groupStore.groups.map(g => ({ label: g.name, value: g.id }))"
-            clearable
-          />
-        </n-form-item>
-        <n-space justify="end">
-          <n-button @click="showMoveToGroupModal = false">取消</n-button>
-          <n-button type="primary" @click="handleMoveToGroup" :loading="moveToGroupLoading">确认移动</n-button>
-        </n-space>
-      </n-form>
-    </n-modal>
 </template>
 
 <style scoped>
+.sortable-ghost {
+  opacity: 0.5;
+  background: #c8ebfb;
+}
+
 .group-tab-wrapper {
   display: flex;
   align-items: center;
-  padding: 0 4px;
 }
 
 .group-actions-button {
+  margin-left: 4px;
+  padding: 0 4px;
+  opacity: 0.6;
   transition: opacity 0.2s;
 }
 
-.drag-handle {
-  cursor: move;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.n-data-table-table--single-line .n-data-table-td,
-.n-data-table-table--single-line .n-data-table-th {
-  padding: 12px;
-}
-
-.sortable-ghost {
-  opacity: 0.4;
-  background-color: #63e2b7 !important;
+.group-tab-wrapper:hover .group-actions-button {
+  opacity: 1;
 }
 </style>

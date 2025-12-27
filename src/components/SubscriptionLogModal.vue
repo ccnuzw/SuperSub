@@ -2,7 +2,7 @@
 import { ref, watch, computed } from 'vue';
 import { useMessage, NModal, NSpin, NGrid, NGi, NCard, NStatistic, NDataTable, NTag, NPagination } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
-import { api } from '@/utils/api';
+import { adminApi, type ProfileLogsResponse } from '@/api/admin';
 import type { ApiResponse } from '@/types';
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -30,7 +30,7 @@ const emit = defineEmits(['update:show']);
 
 const message = useMessage();
 const loading = ref(false);
-const logData = ref<any>(null);
+const logData = ref<ProfileLogsResponse | null>(null);
 
 const showModal = computed({
   get: () => props.show,
@@ -63,16 +63,29 @@ const fetchLogs = async (profileId: string, page = 1, limit = 10) => {
   if (!profileId) return;
   loading.value = true;
   try {
-    const response = await api.get<ApiResponse<any>>(`/admin/logs/profile/${profileId}?page=${page}&limit=${limit}`);
-    if (response.data.success) {
+    const response = await adminApi.fetchProfileLogs(profileId, page, limit);
+    if (response.data.success && response.data.data) {
       logData.value = response.data.data;
-      pagination.value.total = response.data.data.logs.total;
-      pagination.value.page = response.data.data.logs.page;
+      // Add safe checks for response.data.data.logs before accessing properties
+      if (response.data.data.logs) {
+        pagination.value.total = response.data.data.logs.total;
+        pagination.value.page = response.data.data.logs.page;
+      } else {
+        // If logs property is missing, reset pagination or handle as an error
+        pagination.value.total = 0;
+        pagination.value.page = 1;
+      }
     } else {
-      message.error(response.data.message || '获取日志失败');
+      message.error(response.data.message || '获取日志失败'); // Assuming message might be on top level if data null
+      logData.value = null; // Clear data if fetch failed
+      pagination.value.total = 0;
+      pagination.value.page = 1;
     }
   } catch (err: any) {
     message.error(err.message || '请求日志失败');
+    logData.value = null; // Clear data on error
+    pagination.value.total = 0;
+    pagination.value.page = 1;
   } finally {
     loading.value = false;
   }

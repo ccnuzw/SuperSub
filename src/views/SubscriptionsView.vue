@@ -7,7 +7,8 @@ import { EyeOutline, FilterOutline, CreateOutline, SyncOutline, TrashOutline, El
 import type { DataTableColumns, FormInst, DropdownOption } from 'naive-ui'
 import { useIsMobile } from '@/composables/useMediaQuery'
 import { Subscription, Node, ApiResponse } from '@/types'
-import { api } from '@/utils/api'
+import { subscriptionsApi } from '@/api/subscriptions';
+
 import { useAuthStore } from '@/stores/auth'
 import { useSubscriptionGroupStore } from '@/stores/subscriptionGroups'
 import { useGroupStore as useNodeGroupStore } from '@/stores/groups'
@@ -27,7 +28,7 @@ const showModal = ref(false)
 const saveLoading = ref(false)
 const updatingId = ref<string | null>(null)
 const editingSubscription = ref<Subscription | null>(null)
-const updatingIds = ref(new Set<string>()) // For individual and batch updates
+const updatingIds = ref(new Set<string>())
 const activeTab = ref('all')
 
 // For bulk import
@@ -224,6 +225,7 @@ const groupCounts = computed(() => {
 })
 
 const formatBytes = (bytes: number, decimals = 2) => {
+  if (!bytes) return '0 Bytes'; // Handle null/undefined/0 safely
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
@@ -364,7 +366,7 @@ const createColumns = ({ onEdit, onUpdate, onDelete, onPreviewNodes, onManageRul
         return h(NSpace, null, {
           default: () => [
             createTooltipButton('预览节点', EyeOutline, () => onPreviewNodes(row)),
-            createTooltipButton('规则', FilterOutline, () => onManageRules(row), { type: 'info' }),
+            // createTooltipButton('规则', FilterOutline, () => onManageRules(row), { type: 'info' }), // Rules functionality to be implemented in new component/API
             createTooltipButton('编辑', CreateOutline, () => onEdit(row)),
             createTooltipButton('更新', SyncOutline, () => onUpdate(row), { type: 'primary', loading: updatingId.value === row.id || updatingIds.value.has(row.id) }),
             createTooltipButton('删除', TrashOutline, () => onDelete(row), { type: 'error' }),
@@ -381,6 +383,11 @@ const onPreviewNodes = (row: Subscription) => {
     nextTick(() => {
         nodePreviewRef.value?.fetchPreview()
     })
+}
+
+// Placeholder for onManageRules until implemented
+const onManageRules = (row: Subscription) => {
+    message.info('规则管理待重构')
 }
 
 const openModal = (sub: Subscription | null = null) => {
@@ -407,7 +414,7 @@ const fetchSubscriptions = async () => {
   if (!authStore.isAuthenticated) return
   loading.value = true
   try {
-    const subsResponse = await api.get<ApiResponse<Subscription[]>>('/subscriptions')
+    const subsResponse = await subscriptionsApi.fetchSubscriptions()
     if (subsResponse.data.success && subsResponse.data.data) {
       subscriptions.value = subsResponse.data.data
     } else {
@@ -425,8 +432,9 @@ const handleSave = async () => {
   try {
     const payload = { name: formState.name, url: formState.url }
     const response = editingSubscription.value
-      ? await api.put<ApiResponse>(`/subscriptions/${editingSubscription.value.id}`, payload)
-      : await api.post<ApiResponse>('/subscriptions', payload)
+      ? await subscriptionsApi.updateSubscription(editingSubscription.value.id, payload)
+      : await subscriptionsApi.addSubscription(payload)
+      
     if (response.data.success) {
       message.success(editingSubscription.value ? '订阅更新成功' : '订阅新增成功')
       closeModal()
@@ -449,7 +457,7 @@ const handleDelete = (row: Subscription) => {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const response = await api.delete<ApiResponse>(`/subscriptions/${row.id}`)
+        const response = await subscriptionsApi.deleteSubscription(row.id)
         if (response.data.success) {
           message.success('订阅删除成功')
           fetchSubscriptions()
@@ -470,22 +478,28 @@ const handleUpdate = async (row: Subscription, silent = false, signal?: AbortSig
     message.info(`正在更新订阅 [${row.name}]...`)
   }
   try {
-    const response = await api.post<ApiResponse<Subscription>>(`/subscriptions/${row.id}/update`, {}, { signal })
-    const updatedSub = response.data.data
+    const response = await subscriptionsApi.updateFromUrl(row.id, signal)
+    const updatedSub = response.data.data // Assuming backend returns updated sub in data? Check API definition. 
+    // subscriptionsApi.updateFromUrl currently returns { success: boolean, message: string, data: Subscription } or similar.
+    // My definition: { success: boolean; message: string; data: Subscription }
     
-    const index = subscriptions.value.findIndex(s => s.id === row.id)
-    if (index !== -1 && updatedSub) {
-      subscriptions.value[index] = updatedSub
+    // Refresh list or simple update
+    if (response.data.success && response.data.data) {
+        const index = subscriptions.value.findIndex(s => s.id === row.id)
+        if (index !== -1) {
+            subscriptions.value[index] = response.data.data as unknown as Subscription
+        }
+    } else {
+        fetchSubscriptions(); // Fallback
     }
 
-    if (response.data.success && updatedSub) {
+    if (response.data.success) {
       if (!silent) message.success(`订阅 [${row.name}] 更新成功`)
-      return { success: true, data: updatedSub }
+      return { success: true, data: response.data.data as unknown as Subscription }
     } else {
       const errorMsg = response.data.message || `订阅 [${row.name}] 更新失败`
       if (!silent) message.error(errorMsg)
-      // Even on failure, the backend returns the subscription state, so we use it.
-      return { success: false, data: updatedSub || row, error: errorMsg }
+      return { success: false, data: row, error: errorMsg }
     }
   } catch (err: any) {
     if (err.name === 'AbortError') {
@@ -607,7 +621,7 @@ const prepareAndShowUpdateModal = (subs: Subscription[]) => {
 const handleUpdateAll = () => {
   const subs = checkedRowKeys.value.length > 0
     ? subscriptions.value.filter(s => checkedRowKeys.value.includes(s.id))
-    : subscriptions.value.filter(s => s.enabled)
+    : subscriptions.value.filter(s => s.is_enabled) // Use is_enabled instead of enabled
   prepareAndShowUpdateModal(subs)
 }
 
@@ -640,7 +654,7 @@ const handleClearFailed = () => {
     onPositiveClick: async () => {
       const idsToClear = subsToClear.map(sub => sub.id);
       try {
-        const response = await api.post('/subscriptions/batch-delete', { ids: idsToClear });
+        const response = await subscriptionsApi.batchDelete(idsToClear);
         if (response.data.success) {
           message.success(`成功清除了 ${idsToClear.length} 个失败订阅`);
           updateLog.value.failed = updateLog.value.failed.filter(sub => !idsToClear.includes(sub.id));
@@ -671,7 +685,7 @@ const handleClearExpiring = () => {
     onPositiveClick: async () => {
       const idsToClear = subsToClear.map(sub => sub.id);
       try {
-        const response = await api.post('/subscriptions/batch-delete', { ids: idsToClear });
+        const response = await subscriptionsApi.batchDelete(idsToClear);
         if (response.data.success) {
           message.success(`成功清除了 ${idsToClear.length} 个即将到期的订阅`);
           updateLog.value.expiring = updateLog.value.expiring.filter(sub => !idsToClear.includes(sub.id));
@@ -712,10 +726,7 @@ const handleBulkImport = async () => {
     return
   }
   try {
-    const response = await api.post<ApiResponse>('/subscriptions/batch-import', {
-      subscriptions: subscriptionsToCreate,
-      groupId: importGroupId.value
-    })
+    const response = await subscriptionsApi.batchImport(subscriptionsToCreate, importGroupId.value)
     if (response.data.success) {
       message.success(response.data.data?.message || `成功导入 ${response.data.data?.created || 0} 个订阅`)
       showImportModal.value = false
@@ -742,7 +753,7 @@ const handleBatchDelete = () => {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const response = await api.post('/subscriptions/batch-delete', { ids: checkedRowKeys.value });
+        const response = await subscriptionsApi.batchDelete(checkedRowKeys.value);
         if (response.data.success) {
           message.success('批量删除成功');
           fetchSubscriptions();
@@ -790,16 +801,15 @@ const handleClearCurrentGroup = () => {
       try {
         let response;
         if (tab === 'all') {
-          response = await api.post('/subscriptions/clear-all');
+          response = await subscriptionsApi.clearAll();
         } else {
           const groupId = tab === 'ungrouped' ? null : tab;
-          response = await api.post('/subscriptions/clear-by-group', { groupId });
+          response = await subscriptionsApi.clearByGroup(groupId);
         }
 
         if (response.data.success) {
           message.success(response.data.message || '清除成功');
           fetchSubscriptions();
-          checkedRowKeys.value = [];
         } else {
           message.error(response.data.message || '清除失败');
         }
@@ -809,778 +819,96 @@ const handleClearCurrentGroup = () => {
     }
   });
 };
-
-const handleClearAllFailed = () => {
-  const tab = activeTab.value;
-  const failedSubs = filteredSubscriptions.value.filter(sub => sub.error);
-
-  let groupName = '';
-  if (tab === 'all') {
-    groupName = '全部';
-  } else if (tab === 'ungrouped') {
-    groupName = '未分组';
-  } else {
-    const group = subscriptionGroupStore.groups.find(g => g.id === tab);
-    if (group) {
-      groupName = group.name;
-    }
-  }
-
-  if (failedSubs.length === 0) {
-    message.info(`“${groupName}”分组内没有失败的订阅可清除。`);
-    return;
-  }
-
-  dialog.warning({
-    title: `确认清除“${groupName}”分组内的失败订阅`,
-    content: `检测到 ${failedSubs.length} 个失败的订阅。确定要全部删除吗？此操作不可恢复。`,
-    positiveText: '确定清除',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        const groupId = tab === 'all' ? 'all' : (tab === 'ungrouped' ? null : tab);
-        const response = await api.post('/subscriptions/clear-failed', { groupId });
-        if (response.data.success) {
-          message.success(response.data.message || `成功清除了 ${failedSubs.length} 个失败订阅`);
-          fetchSubscriptions();
-        } else {
-          message.error(response.data.message || '清除失败');
-        }
-      } catch (err) {
-        message.error('请求失败，请稍后重试');
-      }
-    }
-  });
-};
-
-const handleMoveToGroup = async () => {
-  if (checkedRowKeys.value.length === 0) {
-    message.warning('请至少选择一个订阅');
-    return;
-  }
-  moveToGroupLoading.value = true;
-  try {
-    const response = await api.post('/subscriptions/batch-update-group', {
-      subscriptionIds: checkedRowKeys.value,
-      groupId: moveToGroupId.value,
-    });
-    if (response.data.success) {
-      message.success('订阅分组更新成功');
-      showMoveToGroupModal.value = false;
-      checkedRowKeys.value = [];
-      fetchSubscriptions();
-    } else {
-      message.error(response.data.message || '移动失败');
-    }
-  } catch (error: any) {
-    message.error(error.message || '请求失败');
-  } finally {
-    moveToGroupLoading.value = false;
-  }
-};
-
-const handleSaveGroup = async () => {
-  if (!newGroupName.value.trim()) {
-    message.warning('分组名称不能为空');
-    return;
-  }
-  addGroupLoading.value = true;
-  try {
-    const response = await subscriptionGroupStore.addGroup(newGroupName.value, newGroupDescription.value);
-    if (response.success) {
-      message.success('分组创建成功');
-      showAddGroupModal.value = false;
-      newGroupName.value = '';
-      newGroupDescription.value = '';
-    } else {
-      message.error(response.message || '创建失败');
-    }
-  } catch (error: any) {
-    message.error(error.message || '创建失败');
-  } finally {
-    addGroupLoading.value = false;
-  }
-};
-
-const handleUpdateGroup = async () => {
-  if (!editingGroup.value || !editingGroupName.value.trim()) {
-    message.warning('分组名称不能为空')
-    return
-  }
-  editGroupLoading.value = true
-  try {
-    const response = await subscriptionGroupStore.updateGroup(editingGroup.value.id, editingGroupName.value, editingGroupDescription.value)
-    if (response.success) {
-      message.success('分组更新成功')
-      showEditGroupModal.value = false
-    } else {
-      message.error(response.message || '更新失败')
-    }
-  } catch (error: any) {
-    message.error(error.message || '更新失败')
-  } finally {
-    editGroupLoading.value = false
-  }
-}
-
-const getDropdownOptions = (group: import('@/stores/subscriptionGroups').SubscriptionGroup): DropdownOption[] => {
-  return [
-    { label: '更新本组', key: 'update-group' },
-    { label: '一键去重', key: 'deduplicate-group' },
-    { label: '导出订阅', key: 'export-group' },
-    { label: '分组规则', key: 'group-rules' },
-    { type: 'divider', key: 'd1' },
-    { label: '批量替换', key: 'batch-replace-group' },
-    { label: '标签编辑', key: 'rename' },
-    { label: group.is_enabled ? '禁用' : '启用', key: 'toggle' },
-    { type: 'divider', key: 'd2' },
-    { label: '删除', key: 'delete', props: { style: 'color: red;' } }
-  ]
-}
-
-const handleGroupAction = (key: string) => {
-  showDropdown.value = false
-  const group = activeDropdownGroup.value
-  if (!group) return
-
-  switch (key) {
-    case 'update-group':
-      handleUpdateGroupSubscriptions(group.id)
-      break
-    case 'deduplicate-group':
-      handleDeduplicateGroup(group.id)
-      break
-    case 'export-group':
-      handleExportGroup(group.id)
-      break
-    case 'batch-replace-group':
-      openBatchReplaceModal(group.id)
-      break
-    case 'group-rules':
-      onManageRules(group, 'group')
-      break
-    case 'rename':
-      editingGroup.value = group
-      editingGroupName.value = group.name
-      editingGroupDescription.value = group.description || ''
-      showEditGroupModal.value = true
-      break
-    case 'toggle':
-      subscriptionGroupStore.toggleGroup(group.id).catch((err: any) => message.error(err.message || '操作失败'))
-      break
-    case 'delete':
-      dialog.warning({
-        title: '确认删除',
-        content: `确定要删除分组 "${group.name}" 吗？分组下的订阅将变为“未分组”。`,
-        positiveText: '确定',
-        negativeText: '取消',
-        onPositiveClick: async () => {
-          try {
-            const response = await subscriptionGroupStore.deleteGroup(group.id)
-            if (response.success) {
-              message.success('分组删除成功')
-              if (activeTab.value === group.id) {
-                activeTab.value = 'all'
-              }
-              fetchSubscriptions() // Refresh subscriptions to update their group status
-            } else {
-              message.error(response.message || '删除失败')
-            }
-          } catch (error: any) {
-            message.error(error.message || '删除失败')
-          }
-        }
-      })
-      break
-  }
-}
-
-const handleTabClick = (group: import('@/stores/subscriptionGroups').SubscriptionGroup, event: MouseEvent) => {
-  const target = event.target as HTMLElement
-  if (target.closest('.group-actions-button')) {
-    showDropdown.value = true
-    dropdownX.value = event.clientX
-    dropdownY.value = event.clientY
-    activeDropdownGroup.value = group
-  } else {
-    activeTab.value = group.id
-  }
-}
-
-const handleContextMenu = (group: import('@/stores/subscriptionGroups').SubscriptionGroup, event: MouseEvent) => {
-  event.preventDefault()
-  showDropdown.value = false
-  setTimeout(() => {
-    showDropdown.value = true
-    dropdownX.value = event.clientX
-    dropdownY.value = event.clientY
-    activeDropdownGroup.value = group
-  }, 50)
-}
-
-const handleUpdateGroupSubscriptions = (groupId: string) => {
-  const subs = subscriptions.value.filter(s => s.group_id === groupId && s.enabled)
-  prepareAndShowUpdateModal(subs)
-}
-
-const handleDeduplicateGroup = (groupId: string) => {
-  const subsInGroup = subscriptions.value.filter(s => s.group_id === groupId)
-  const urlMap = new Map<string, Subscription[]>()
-
-  subsInGroup.forEach(sub => {
-    const existing = urlMap.get(sub.url)
-    if (existing) {
-      existing.push(sub)
-    } else {
-      urlMap.set(sub.url, [sub])
-    }
-  })
-
-  const idsToDelete: string[] = []
-  urlMap.forEach(subs => {
-    if (subs.length > 1) {
-      // Keep the first one, delete the rest
-      subs.slice(1).forEach(sub => idsToDelete.push(sub.id))
-    }
-  })
-
-  if (idsToDelete.length === 0) {
-    message.info('该分组内没有发现重复的订阅链接。')
-    return
-  }
-
-  const totalCount = subsInGroup.length
-  const duplicatesCount = idsToDelete.length
-  const remainingCount = totalCount - duplicatesCount
-
-  dialog.warning({
-    title: '确认去重',
-    content: () => h('div', null, [
-      h('p', null, `分组内共有 ${totalCount} 条订阅。`),
-      h('p', null, `检测到 ${duplicatesCount} 条重复订阅。`),
-      h('p', null, `去重后将剩余 ${remainingCount} 条。`),
-    ]),
-    positiveText: '确定删除',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      const chunkSize = 50;
-      const chunks = [];
-      for (let i = 0; i < idsToDelete.length; i += chunkSize) {
-        chunks.push(idsToDelete.slice(i, i + chunkSize));
-      }
-
-      try {
-        let successCount = 0;
-        let hasError = false;
-
-        for (const chunk of chunks) {
-          const response = await api.post('/subscriptions/batch-delete', { ids: chunk });
-          if (response.data.success) {
-            // Assuming the backend doesn't return the count for each chunk,
-            // we just proceed. The final message will use the total count.
-          } else {
-            hasError = true;
-            message.error(response.data.message || `一批订阅删除失败`);
-            // Stop on first error
-            break;
-          }
-        }
-
-        if (!hasError) {
-          message.success(`成功删除了 ${duplicatesCount} 个重复订阅。`);
-        } else {
-          message.warning('部分重复订阅删除失败，请刷新后重试。');
-        }
-        
-        fetchSubscriptions();
-
-      } catch (err) {
-        message.error('请求失败，请稍后重试');
-      }
-    }
-  })
-}
-
-const handleExportGroup = (groupId: string) => {
-  const group = subscriptionGroupStore.groups.find(g => g.id === groupId)
-  const subsInGroup = subscriptions.value.filter(s => s.group_id === groupId)
-  if (subsInGroup.length === 0) {
-    message.warning('该分组下没有订阅可导出。')
-    return
-  }
-
-  exportData.urls = subsInGroup.map(s => s.url).join('\n')
-  exportData.count = subsInGroup.length
-  exportData.groupName = group?.name || '该分组'
-  showExportModal.value = true
-}
-
-const handleCopyExportUrls = () => {
-  if (!exportData.urls) {
-    message.warning('没有内容可复制。')
-    return
-  }
-  navigator.clipboard.writeText(exportData.urls).then(() => {
-    message.success('已成功复制到剪贴板！')
-  }).catch(err => {
-    message.error('复制失败，您的浏览器可能不支持或未授权。')
-    console.error('Clipboard write failed:', err)
-  })
-}
-
-
-const openBatchReplaceModal = (groupId: string) => {
-  const subsInGroup = subscriptions.value.filter(s => s.group_id === groupId)
-  if (subsInGroup.length === 0) {
-    message.warning('该分组下没有订阅可进行批量替换。')
-    return
-  }
-  batchReplaceData.find = ''
-  batchReplaceData.replace = ''
-  batchReplaceData.groupId = groupId
-  batchReplaceData.count = subsInGroup.length
-  batchReplaceData.loading = false
-  showBatchReplaceModal.value = true
-}
-
-const handleBatchReplace = async () => {
-  if (!batchReplaceData.find) {
-    message.warning('“查找”内容不能为空。')
-    return
-  }
-  if (batchReplaceData.groupId === '') {
-    message.error('未指定分组，操作中止。')
-    return
-  }
-
-  batchReplaceData.loading = true
-  const subsToUpdate = subscriptions.value.filter(s => s.group_id === batchReplaceData.groupId)
-  
-  const updates = subsToUpdate.map(sub => ({
-    id: sub.id,
-    url: sub.url.replaceAll(batchReplaceData.find, batchReplaceData.replace)
-  })).filter(update => {
-    const originalSub = subsToUpdate.find(s => s.id === update.id)
-    return originalSub && originalSub.url !== update.url
-  })
-
-  if (updates.length === 0) {
-    message.info('没有找到任何需要更新的订阅链接。')
-    batchReplaceData.loading = false
-    showBatchReplaceModal.value = false
-    return
-  }
-
-  try {
-    const response = await api.post('/subscriptions/batch-update-urls', { updates })
-    if (response.data.success) {
-      message.success(`成功更新了 ${updates.length} 个订阅链接。`)
-      fetchSubscriptions()
-      showBatchReplaceModal.value = false
-    } else {
-      message.error(response.data.message || '批量替换失败')
-    }
-  } catch (err) {
-    message.error('请求失败，请稍后重试')
-  } finally {
-    batchReplaceData.loading = false
-  }
-}
-
-
-// --- Unified Rules Logic ---
-const fetchRules = async () => {
-  if (!currentRuleContext.value) return
-  rulesLoading.value = true
-  const { type, entity } = currentRuleContext.value
-  const baseUrl = type === 'subscription' ? '/subscriptions' : '/subscription-groups'
-  
-  try {
-    const response = await api.get<ApiResponse<import('@/types').SubscriptionRule[]>>(`${baseUrl}/${entity.id}/rules`)
-    if (response.data.success) {
-      rules.value = response.data.data || []
-    } else {
-      message.error(response.data.message || '获取规则列表失败')
-    }
-  } catch (e) {
-    message.error('请求规则列表失败')
-  } finally {
-    rulesLoading.value = false
-  }
-}
-
-const onManageRules = (entity: Subscription | import('@/stores/subscriptionGroups').SubscriptionGroup, type: 'subscription' | 'group') => {
-  currentRuleContext.value = { type, entity }
-  showRulesModal.value = true
-  fetchRules()
-}
-
-const handleDeleteRule = (rule: import('@/types').SubscriptionRule) => {
-  if (!currentRuleContext.value) return
-  const { type, entity } = currentRuleContext.value
-  const baseUrl = type === 'subscription' ? '/subscriptions' : '/subscription-groups'
-
-  dialog.warning({
-    title: '确认删除规则',
-    content: `确定要删除规则 "${rule.name}" 吗？`,
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        const response = await api.delete<ApiResponse>(`${baseUrl}/${entity.id}/rules/${rule.id}`)
-        if (response.data.success) {
-          message.success('规则删除成功')
-          fetchRules()
-        } else {
-          message.error(response.data.message || '删除失败')
-        }
-      } catch (err) {
-        message.error('请求失败，请稍后重试')
-      }
-    },
-  })
-}
-
-const openRuleFormModal = (rule: import('@/types').SubscriptionRule | null) => {
-  ruleFormState.id = 0
-  ruleFormState.name = ''
-  ruleFormState.type = 'filter_by_name_keyword'
-  ruleFormState.value = ''
-  ruleFormState.enabled = 1
-  ruleFormState.keywords = []
-  ruleFormState.renameRegex = ''
-  ruleFormState.renameFormat = ''
-  ruleFormState.regex = ''
-  editingRule.value = null
-  if (rule) {
-    editingRule.value = rule
-    ruleFormState.id = rule.id
-    ruleFormState.name = rule.name
-    ruleFormState.type = rule.type
-    ruleFormState.value = rule.value
-    ruleFormState.enabled = rule.enabled
-    try {
-      const parsedValue = JSON.parse(rule.value)
-      if ((rule.type === 'filter_by_name_keyword' || rule.type === 'exclude_by_name_keyword') && parsedValue.keywords) {
-        ruleFormState.keywords = parsedValue.keywords
-      } else if (rule.type === 'rename_by_regex' && parsedValue.regex && parsedValue.format) {
-        ruleFormState.renameRegex = parsedValue.regex
-        ruleFormState.renameFormat = parsedValue.format
-      } else if (rule.type === 'filter_by_name_regex' && parsedValue.regex) {
-        ruleFormState.regex = parsedValue.regex
-      }
-    } catch (e) {
-      console.error("Failed to parse rule value JSON:", e)
-    }
-  }
-  showRuleFormModal.value = true
-}
-
-const handleSaveRule = async () => {
-  if (!currentRuleContext.value) return
-  const { type, entity } = currentRuleContext.value
-  const baseUrl = type === 'subscription' ? '/subscriptions' : '/subscription-groups'
-  
-  ruleSaveLoading.value = true
-  try {
-    let jsonValue = {}
-    if (ruleFormState.type === 'filter_by_name_keyword' || ruleFormState.type === 'exclude_by_name_keyword') {
-      jsonValue = { keywords: ruleFormState.keywords }
-    } else if (ruleFormState.type === 'rename_by_regex') {
-      jsonValue = { regex: ruleFormState.renameRegex, format: ruleFormState.renameFormat }
-    } else if (ruleFormState.type === 'filter_by_name_regex') {
-      jsonValue = { regex: ruleFormState.regex }
-    } else {
-      try {
-        jsonValue = JSON.parse(ruleFormState.value)
-      } catch (e) {
-        message.error('规则值的JSON格式无效')
-        ruleSaveLoading.value = false
-        return
-      }
-    }
-    const payload = {
-      name: ruleFormState.name,
-      type: ruleFormState.type,
-      value: JSON.stringify(jsonValue),
-      enabled: ruleFormState.enabled === 1,
-    }
-    let response;
-    if (editingRule.value) {
-      response = await api.put<ApiResponse>(`${baseUrl}/${entity.id}/rules/${editingRule.value.id}`, payload)
-    } else {
-      response = await api.post<ApiResponse>(`${baseUrl}/${entity.id}/rules`, payload)
-    }
-    if (response.data.success) {
-      message.success(editingRule.value ? '规则更新成功' : '规则创建成功')
-      showRuleFormModal.value = false
-      fetchRules()
-    } else {
-      message.error(response.data.message || '保存失败')
-    }
-  } catch (err) {
-    message.error('请求失败')
-  } finally {
-    ruleSaveLoading.value = false
-  }
-}
-
-const createRuleColumns = ({ onEdit, onDelete }: {
-    onEdit: (row: import('@/types').SubscriptionRule) => void,
-    onDelete: (row: import('@/types').SubscriptionRule) => void,
-}): DataTableColumns<import('@/types').SubscriptionRule> => {
-  return [
-    { title: '名称', key: 'name', width: 150 },
-    {
-      title: '类型',
-      key: 'type',
-      width: 180,
-      render(row) {
-        const option = ruleTypeOptions.find(o => o.value === row.type)
-        return option ? option.label : row.type
-      }
-    },
-    { title: '规则值', key: 'value', ellipsis: { tooltip: true } },
-    {
-      title: '启用',
-      key: 'enabled',
-      width: 80,
-      align: 'center',
-      render(row) {
-        return h(NSwitch, {
-          value: row.enabled === 1,
-          onUpdateValue: async (value) => {
-            if (!currentRuleContext.value) return
-            const { type, entity } = currentRuleContext.value
-            const baseUrl = type === 'subscription' ? '/subscriptions' : '/subscription-groups'
-            
-            row.enabled = value ? 1 : 0
-            try {
-              await api.put<ApiResponse>(`${baseUrl}/${entity.id}/rules/${row.id}`, { enabled: value })
-              message.success('状态更新成功')
-            } catch (e) {
-              message.error('状态更新失败')
-              row.enabled = !value ? 1 : 0
-            }
-          }
-        })
-      }
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 150,
-      render(row) {
-        return h(NSpace, null, {
-          default: () => [
-            h(NButton, { size: 'small', onClick: () => onEdit(row) }, { default: () => '编辑' }),
-            h(NButton, { size: 'small', type: 'error', ghost: true, onClick: () => onDelete(row) }, { default: () => '删除' }),
-          ]
-        })
-      }
-    }
-  ]
-}
-
-const ruleColumns = createRuleColumns({
-  onEdit: openRuleFormModal,
-  onDelete: handleDeleteRule,
-})
-
-const columns = createColumns({
-    onEdit: openModal,
-    onUpdate: handleUpdate,
-    onDelete: handleDelete,
-    onPreviewNodes: onPreviewNodes,
-    onManageRules: (sub) => onManageRules(sub, 'subscription'),
-})
 
 onMounted(() => {
-  fetchSubscriptions()
-  subscriptionGroupStore.fetchGroups()
-  nodeGroupStore.fetchGroups()
-
-  // Load update settings from localStorage
-  const savedSettings = localStorage.getItem('subscriptionUpdateSettings')
-  if (savedSettings) {
-    Object.assign(updateSettings, JSON.parse(savedSettings))
-  }
-
-  // Watch for changes and save to localStorage
-  watch(updateSettings, (newSettings: typeof updateSettings) => {
-    localStorage.setItem('subscriptionUpdateSettings', JSON.stringify(newSettings))
-  })
-
-  // Watch for the progress to complete
-  watch(updateProgress, (progress) => {
-    if (progress.total > 0 && progress.current === progress.total) {
-      // Use nextTick to ensure the final progress number is rendered before showing the message
-      nextTick(() => {
-        if (updateLogLoading.value) { // Check if it's still considered loading
-          message.success('订阅更新任务完成！')
-          if (checkedRowKeys.value.length > 0) {
-            checkedRowKeys.value = []
-          }
-          fetchSubscriptions()
-          updateLogLoading.value = false
-        }
-      })
-    }
-  }, { deep: true })
-})
-
-const openSortModal = () => {
-  sortableGroups.value = [...subscriptionGroupStore.groups]
-  showSortModal.value = true
-}
-
-const handleSortSave = async () => {
-  sortLoading.value = true
-  try {
-    const groupIds = sortableGroups.value.map(g => g.id)
-    await subscriptionGroupStore.updateGroupOrder(groupIds)
-    message.success('分组顺序已更新')
-    showSortModal.value = false
-  } catch (error: any) {
-    message.error(error.message || '更新分组顺序失败')
-  } finally {
-    sortLoading.value = false
-  }
-}
+  fetchSubscriptions();
+  subscriptionGroupStore.fetchGroups();
+});
 </script>
 
 <template>
-  <div>
+  <div class="subscriptions-view">
     <n-page-header>
-      <template #title>
-        订阅管理
-      </template>
-      <template #extra>
-        <n-space>
-          <n-button type="primary" @click="openModal(null)">
-            <template #icon>
-              <n-icon :component="AddOutline" />
-            </template>
-            <template v-if="!isMobile">新增订阅</template>
-          </n-button>
-          <n-dropdown
-            trigger="click"
-            :options="[
-              { label: '更新全部', key: 'update-all' },
-              { label: '批量导入', key: 'import' },
-              { label: '新增分组', key: 'add-group' },
-              { label: '调整顺序', key: 'sort' },
-              { label: '移动到分组', key: 'move-to-group', disabled: checkedRowKeys.length === 0 },
-              { label: '批量删除', key: 'batch-delete', disabled: checkedRowKeys.length === 0 },
-              { label: '清除失败项', key: 'clear-failed' },
-              { label: '一键清除', key: 'clear-current-group' },
-            ]"
-            @select="key => {
-              if (key === 'update-all') handleUpdateAll();
-              if (key === 'import') openImportModal();
-              if (key === 'add-group') showAddGroupModal = true;
-              if (key === 'sort') openSortModal();
-              if (key === 'move-to-group') showMoveToGroupModal = true;
-              if (key === 'batch-delete') handleBatchDelete();
-              if (key === 'clear-failed') handleClearAllFailed();
-              if (key === 'clear-current-group') handleClearCurrentGroup();
-            }"
-          >
-            <n-button>
-              <template #icon>
-                <n-icon :component="EllipsisHorizontal" />
-              </template>
-            </n-button>
-          </n-dropdown>
-        </n-space>
-      </template>
+        <template #title>订阅管理</template>
+        <template #extra>
+            <n-space>
+                <n-button type="primary" @click="openModal(null)">
+                    <template #icon><n-icon :component="AddOutline" /></template>
+                    新增订阅
+                </n-button>
+                <n-button type="primary" secondary @click="openImportModal">
+                   <template #icon><n-icon :component="AddOutline" /></template>
+                   批量导入
+                </n-button>
+                <n-dropdown
+                    trigger="click"
+                    :options="[
+                      { label: '更新全部', key: 'update-all' },
+                      { label: '批量删除', key: 'batch-delete', disabled: checkedRowKeys.length === 0 },
+                      { label: '清空当前分组', key: 'clear-current' },
+                    ]"
+                    @select="key => {
+                        if (key === 'update-all') handleUpdateAll();
+                        if (key === 'batch-delete') handleBatchDelete();
+                        if (key === 'clear-current') handleClearCurrentGroup();
+                    }"
+                >
+                    <n-button>
+                         <template #icon><n-icon :component="MoreIcon" /></template>
+                         批量操作
+                    </n-button>
+                </n-dropdown>
+            </n-space>
+        </template>
     </n-page-header>
 
-    <n-tabs type="card" class="mt-4" v-model:value="activeTab" @update:value="showDropdown = false">
-      <n-tab-pane name="all" :tab="`全部 (${groupCounts.all})`" />
-      <n-tab-pane name="ungrouped" :tab="`未分组 (${groupCounts.ungrouped})`" />
-      <n-tab-pane
-        v-for="group in subscriptionGroupStore.groups"
-        :key="group.id"
-        :name="group.id"
-      >
-        <template #tab>
-          <div
-            class="group-tab-wrapper"
-            @click.prevent="handleTabClick(group, $event)"
-            @contextmenu.prevent="handleContextMenu(group, $event)"
-          >
-            <span :style="{ color: group.is_enabled ? '' : '#999', marginRight: '8px' }">
-              {{ group.name }} ({{ groupCounts[group.id] || 0 }})
-            </span>
-            <n-button v-if="activeTab === group.id" text class="group-actions-button">
-              <n-icon :component="MoreIcon" />
-            </n-button>
-          </div>
-        </template>
-      </n-tab-pane>
+    <n-tabs type="card" class="mt-4" v-model:value="activeTab">
+        <n-tab-pane name="all" :tab="`全部 (${groupCounts.all})`" />
+        <n-tab-pane name="ungrouped" :tab="`未分组 (${groupCounts.ungrouped})`" />
+        <n-tab-pane
+            v-for="group in subscriptionGroupStore.groups"
+            :key="group.id"
+            :name="group.id"
+            :tab="`${group.name} (${groupCounts[group.id] || 0})`"
+        />
     </n-tabs>
 
-    <n-dropdown
-      placement="bottom-start"
-      trigger="manual"
-      :x="dropdownX"
-      :y="dropdownY"
-      :options="activeDropdownGroup ? getDropdownOptions(activeDropdownGroup) : []"
-      :show="showDropdown"
-      @select="handleGroupAction"
-      @clickoutside="showDropdown = false"
-    />
-
     <n-data-table
-      v-if="!isMobile"
-      :columns="columns"
-      :data="filteredSubscriptions"
-      :loading="loading"
-      :pagination="{ pageSize: 10 }"
-      :bordered="false"
-      class="mt-4"
-      v-model:checked-row-keys="checkedRowKeys"
-      :row-key="(row: Subscription) => row.id"
-      :scroll-x="1800"
+        v-if="!isMobile"
+        :columns="createColumns({ onEdit: openModal, onUpdate: handleUpdate, onDelete: handleDelete, onPreviewNodes, onManageRules })"
+        :data="filteredSubscriptions"
+        :row-key="(row: Subscription) => row.id"
+        v-model:checked-row-keys="checkedRowKeys"
+        :loading="loading"
+        :pagination="{ pageSize: 10 }"
+        class="mt-4"
     />
-
-    <n-list v-else bordered class="mt-4">
+     <n-list v-else bordered class="mt-4">
       <n-list-item v-for="sub in paginatedSubscriptions" :key="sub.id">
         <n-thing>
           <template #header>
-            <n-space justify="space-between">
-              <n-text strong>{{ sub.name }}</n-text>
-              <n-tag v-if="sub.error" type="error" size="small">失败</n-tag>
-              <n-tag v-else-if="sub.last_updated" type="success" size="small">成功</n-tag>
-              <n-tag v-else type="default" size="small">待更新</n-tag>
-            </n-space>
+            {{ sub.name }}
           </template>
           <template #description>
-            <n-space :size="4" class="mt-2">
-              <n-tag type="info" round size="small">节点: {{ sub.node_count || 0 }}</n-tag>
-              <n-tag v-if="sub.remaining_traffic !== null && sub.remaining_traffic !== undefined" :type="sub.remaining_traffic < 1024*1024*1024 ? 'error' : 'warning'" round size="small">
-                流量: {{ formatBytes(sub.remaining_traffic) }}
-              </n-tag>
-              <n-tag v-if="sub.remaining_days !== null && sub.remaining_days !== undefined" :type="sub.remaining_days < 3 ? 'error' : 'warning'" round size="small">
-                天数: {{ sub.remaining_days }} 天
-              </n-tag>
-            </n-space>
+             <n-space size="small">
+                <n-tag v-if="sub.last_updated" type="success" size="small" round>已更新</n-tag>
+                <n-tag v-else type="default" size="small" round>待更新</n-tag>
+                <n-tag v-if="sub.node_count" type="info" size="small" round>{{ sub.node_count }} 节点</n-tag>
+             </n-space>
+             <div class="text-xs text-gray-500 mt-1 truncate">{{ sub.url }}</div>
           </template>
         </n-thing>
         <template #suffix>
           <n-dropdown
             trigger="click"
-            :options="[
+             :options="[
               { label: '预览节点', key: 'preview' },
-              { label: '规则', key: 'rules' },
               { label: '编辑', key: 'edit' },
               { label: '更新', key: 'update' },
               { label: '删除', key: 'delete' },
             ]"
             @select="key => {
               if (key === 'preview') onPreviewNodes(sub);
-              if (key === 'rules') onManageRules(sub, 'subscription');
               if (key === 'edit') openModal(sub);
               if (key === 'update') handleUpdate(sub);
               if (key === 'delete') handleDelete(sub);
@@ -1593,8 +921,7 @@ const handleSortSave = async () => {
         </template>
       </n-list-item>
     </n-list>
-
-    <n-pagination
+     <n-pagination
       v-if="isMobile && mobilePagination.pageCount > 1"
       v-model:page="mobilePagination.page"
       :page-count="mobilePagination.pageCount"
@@ -1602,493 +929,173 @@ const handleSortSave = async () => {
       style="justify-content: center;"
     />
 
-    <n-modal
-      v-model:show="showModal"
-      :mask-closable="false"
-      preset="dialog"
-      :title="modalTitle"
-      :positive-button-props="{ loading: saveLoading }"
-      positive-text="保存"
-      negative-text="取消"
-      @positive-click="handleSave"
-      @negative-click="closeModal"
-    >
-      <n-form>
-        <n-form-item label="名称" required>
-          <n-input v-model:value="formState.name" placeholder="为订阅起个名字" />
-        </n-form-item>
-        <n-form-item label="URL" required>
-          <n-input v-model:value="formState.url" placeholder="输入订阅链接" />
-        </n-form-item>
-      </n-form>
+
+    <!-- Modals -->
+    <n-modal v-model:show="showModal" preset="card" :title="modalTitle" style="width: 500px;">
+        <n-form :model="formState" label-placement="left" label-width="80">
+            <n-form-item label="名称" path="name">
+                <n-input v-model:value="formState.name" placeholder="请输入订阅名称" />
+            </n-form-item>
+            <n-form-item label="链接" path="url">
+                <n-input type="textarea" v-model:value="formState.url" placeholder="请输入订阅链接" />
+            </n-form-item>
+        </n-form>
+         <template #footer>
+            <n-space justify="end">
+                <n-button @click="closeModal">取消</n-button>
+                <n-button type="primary" @click="handleSave" :loading="saveLoading">保存</n-button>
+            </n-space>
+        </template>
     </n-modal>
 
-    <n-modal
-      v-model:show="showImportModal"
-      preset="card"
-      title="批量导入订阅"
-      style="width: 600px;"
-      :mask-closable="false"
-    >
-      <n-form @submit.prevent="handleBulkImport">
-        <n-form-item label="订阅链接">
-          <n-input
+    <n-modal v-model:show="showImportModal" preset="card" title="批量导入订阅" style="width: 600px;">
+         <n-input
             v-model:value="importUrls"
             type="textarea"
-            placeholder="每行一个订阅，格式为 “名称,链接” 或直接是链接。"
-            :autosize="{ minRows: 10, maxRows: 20 }"
-          />
-        </n-form-item>
-        <n-form-item label="导入到分组">
+            placeholder="请输入订阅链接，每行一个。格式：名称,链接 或 直接链接 (自动获取域名作为名称)"
+            :autosize="{ minRows: 5, maxRows: 10 }"
+        />
+         <n-form-item label="导入到分组" class="mt-4">
           <n-select
             v-model:value="importGroupId"
-            placeholder="默认导入到“未分组”"
             :options="subscriptionGroupStore.groups.map(g => ({ label: g.name, value: g.id }))"
+            placeholder="选择分组 (可选)"
             clearable
           />
         </n-form-item>
-        <n-space justify="end">
-          <n-button @click="showImportModal = false">取消</n-button>
-          <n-button type="primary" @click="handleBulkImport" :loading="importLoading">导入</n-button>
-        </n-space>
-      </n-form>
+        <template #footer>
+            <n-space justify="end">
+                <n-button @click="showImportModal = false">取消</n-button>
+                <n-button type="primary" @click="handleBulkImport" :loading="importLoading">导入</n-button>
+            </n-space>
+        </template>
     </n-modal>
 
-
-    <n-modal
+     <n-modal
       v-model:show="showNodePreviewModal"
       preset="card"
-      :title="`节点预览 - ${currentSubscriptionForPreview?.name}`"
-      style="width: 800px;"
-      :mask-closable="true"
+      title="节点预览"
+      style="width: 800px; max-width: 95%;"
     >
-      <SubscriptionNodesPreview
-        ref="nodePreviewRef"
-        v-if="currentSubscriptionForPreview"
-        :subscription-id="currentSubscriptionForPreview.id"
-        :subscription-url="currentSubscriptionForPreview.url"
-        :profile-id="currentSubscriptionForPreview.profile_id || undefined"
-        :show="showNodePreviewModal"
-      />
-    </n-modal>
-
-    <n-modal
-      v-model:show="showRulesModal"
-      preset="card"
-      :title="ruleModalTitle"
-      style="width: 900px;"
-      :mask-closable="false"
-    >
-      <n-space justify="end" class="mb-4">
-        <n-button type="primary" @click="openRuleFormModal(null)">添加规则</n-button>
-      </n-space>
-      <n-data-table
-        :columns="ruleColumns"
-        :data="rules"
-        :loading="rulesLoading"
-        :bordered="false"
-      />
-    </n-modal>
-
-    <n-modal
-      v-model:show="showRuleFormModal"
-      :mask-closable="false"
-      preset="dialog"
-      :title="ruleFormTitle"
-      positive-text="保存"
-      negative-text="取消"
-      :positive-button-props="{ loading: ruleSaveLoading }"
-      @positive-click="handleSaveRule"
-    >
-      <n-form ref="ruleFormRef">
-        <n-form-item label="规则名称" required>
-          <n-input v-model:value="ruleFormState.name" placeholder="为规则起个名字" />
-        </n-form-item>
-        <n-form-item label="规则类型" required>
-          <n-select v-model:value="ruleFormState.type" :options="ruleTypeOptions" />
-        </n-form-item>
-        <n-form-item v-if="ruleFormState.type === 'filter_by_name_keyword' || ruleFormState.type === 'exclude_by_name_keyword'" label="关键词" required>
-          <n-dynamic-tags v-model:value="ruleFormState.keywords" />
-          <template #feedback>
-            <span v-if="ruleFormState.type === 'filter_by_name_keyword'">保留节点名包含任意一个关键词的节点。输入后按回车确认。</span>
-            <span v-else>排除节点名包含任意一个关键词的节点。输入后按回车确认。</span>
-          </template>
-          
-          <div class="mt-2">
-            <p class="text-xs text-gray-500 mb-1">常用标签 (点击添加):</p>
-            <n-space :size="'small'" style="flex-wrap: wrap;">
-              <n-tag
-                v-for="keyword in commonKeywords"
-                :key="keyword"
-                size="small"
-                :bordered="false"
-                type="info"
-                style="cursor: pointer;"
-                @click="addKeyword(keyword)"
-              >
-                {{ keyword }}
-              </n-tag>
-            </n-space>
-          </div>
-        </n-form-item>
-
-        <n-form-item v-else-if="ruleFormState.type === 'rename_by_regex'" label="重命名规则" required>
-          <n-space vertical style="width: 100%;">
-            <n-input v-model:value="ruleFormState.renameRegex" placeholder="匹配规则 (Regex)" />
-            <div class="text-xs text-gray-400 mt-1">
-              <p>示例 1: 从 "[HK] Node 01" 提取 "HK" 和 "01", 可用 `^\[(.*)\]\s.*(\d+)$`</p>
-              <p>示例 2: 提取 "HK-专线-01" 中的 "HK" 和 "专线", 可用 `(HK)-(专线)`</p>
-            </div>
-            <n-input v-model:value="ruleFormState.renameFormat" placeholder="重命名格式" class="mt-2" />
-            <div class="text-xs text-gray-400 mt-1">
-              <p>用法: `$1`, `$2` 代表上方匹配规则中的第1、2个括号捕获的内容。</p>
-              <p>示例 1: `NewName-$1-$2` 会得到 "NewName-HK-01"。</p>
-              <p>示例 2: `[$2] $1` 会得到 "[专线] HK"。</p>
-            </div>
-          </n-space>
-        </n-form-item>
-
-        <n-form-item v-else-if="ruleFormState.type === 'filter_by_name_regex'" label="正则表达式" required>
-          <n-input
-            v-model:value="ruleFormState.regex"
-            placeholder="输入用于过滤的正则表达式"
-          />
-          <template #feedback>
-            <p>保留节点名匹配正则表达式的节点。</p>
-            <p><b>用法示例:</b></p>
-            <ul class="list-disc list-inside">
-              <li>匹配多个关键词 (香港或澳门): `香港|澳门`</li>
-              <li>匹配IEPL且不含广州: `IEPL.*(?!广州)`</li>
-              <li>不区分大小写匹配 "iepl": `(?i)iepl`</li>
-              <li>匹配包含 "VIP" 但不包含 "过期" 的节点: `^(?=.*VIP)(?!.*过期)`</li>
-            </ul>
-          </template>
-        </n-form-item>
-
-        <n-form-item v-else label="规则值 (JSON)" required>
-          <n-input
-            v-model:value="ruleFormState.value"
-            type="textarea"
-            placeholder='这是一个兼容旧版或未知规则类型的输入框'
-            :autosize="{ minRows: 3, maxRows: 5 }"
-          />
-        </n-form-item>
-        <n-form-item label="启用">
-          <n-switch v-model:value="ruleFormState.enabled" :checked-value="1" :unchecked-value="0" />
-        </n-form-item>
-      </n-form>
-    </n-modal>
-
-    <n-modal
-      v-model:show="showMoveToGroupModal"
-      preset="card"
-      title="移动订阅到分组"
-      style="width: 400px;"
-      :mask-closable="false"
-    >
-      <n-form @submit.prevent="handleMoveToGroup">
-        <n-form-item label="目标分组" required>
-          <n-select
-            v-model:value="moveToGroupId"
-            placeholder="请选择目标分组（可清空变为未分组）"
-            :options="subscriptionGroupStore.groups.map(g => ({ label: g.name, value: g.id }))"
-            clearable
-          />
-        </n-form-item>
-        <n-space justify="end">
-          <n-button @click="showMoveToGroupModal = false">取消</n-button>
-          <n-button type="primary" @click="handleMoveToGroup" :loading="moveToGroupLoading">确认移动</n-button>
-        </n-space>
-      </n-form>
-    </n-modal>
-
-    <n-modal
-      v-model:show="showAddGroupModal"
-      preset="card"
-      title="新增分组"
-      style="width: 400px;"
-      :mask-closable="false"
-    >
-      <n-form @submit.prevent="handleSaveGroup">
-        <n-form-item label="分组名称" required>
-          <n-input v-model:value="newGroupName" placeholder="请输入分组名称" />
-        </n-form-item>
-        <n-form-item label="分组备注">
-          <n-input
-            v-model:value="newGroupDescription"
-            type="textarea"
-            placeholder="为分组添加一些备注信息（可选）"
-            :autosize="{ minRows: 2, maxRows: 4 }"
-          />
-        </n-form-item>
-        <n-space justify="end">
-          <n-button @click="showAddGroupModal = false">取消</n-button>
-          <n-button type="primary" @click="handleSaveGroup" :loading="addGroupLoading">保存</n-button>
-        </n-space>
-      </n-form>
-    </n-modal>
-
-    <n-modal
-      v-model:show="showEditGroupModal"
-      preset="card"
-      title="编辑分组标签"
-      style="width: 400px;"
-      :mask-closable="false"
-    >
-      <n-form @submit.prevent="handleUpdateGroup">
-        <n-form-item label="分组名称" required>
-          <n-input v-model:value="editingGroupName" placeholder="请输入新的分组名称" />
-        </n-form-item>
-        <n-form-item label="分组备注">
-          <n-input
-            v-model:value="editingGroupDescription"
-            type="textarea"
-            placeholder="为分组添加一些备注信息（可选）"
-            :autosize="{ minRows: 2, maxRows: 4 }"
-          />
-        </n-form-item>
-        <n-space justify="end">
-          <n-button @click="showEditGroupModal = false">取消</n-button>
-          <n-button type="primary" @click="handleUpdateGroup" :loading="editGroupLoading">保存</n-button>
-        </n-space>
-      </n-form>
+        <SubscriptionNodesPreview
+          v-if="currentSubscriptionForPreview"
+          ref="nodePreviewRef"
+          :subscription-id="currentSubscriptionForPreview.id"
+          :subscription-url="currentSubscriptionForPreview.url"
+          :show="showNodePreviewModal"
+        />
     </n-modal>
 
     <n-modal
       v-model:show="showUpdateLogModal"
       preset="card"
-      title="订阅更新"
-      style="width: 600px;"
+      title="批量更新"
+      style="width: 600px; max-width: 95%;"
       :mask-closable="false"
+      :close-on-esc="false"
     >
-      <!-- Configuration Stage -->
       <div v-if="updateStage === 'config'">
-        <n-form label-placement="left" label-width="auto">
-          <n-form-item label="待更新订阅数">
-            <n-statistic :value="subsToUpdate.length" />
-          </n-form-item>
-          <n-form-item label="并发数">
-            <n-input-number v-model:value="updateSettings.concurrency" :min="1" :max="20" />
-            <template #feedback>同时执行的网络请求数量。较高的值可以加快速度，但可能导致请求失败。</template>
-          </n-form-item>
-          <n-form-item label="失败重试次数">
-            <n-input-number v-model:value="updateSettings.retries" :min="0" :max="5" />
-            <template #feedback>每个订阅在更新失败后自动重试的次数。</template>
-          </n-form-item>
-          <n-form-item label="请求间隔 (ms)">
-            <n-input-number v-model:value="updateSettings.delay" :min="0" :step="100" />
-            <template #feedback>同一批次内，每个并发请求之间的间隔。有助于错开请求峰值。</template>
-          </n-form-item>
-          <n-form-item label="批次间隔 (ms)">
-            <n-input-number v-model:value="updateSettings.batchDelay" :min="0" :step="100" />
-            <template #feedback>每完成一个并发批次后，等待一段时间再开始下一个批次。</template>
-          </n-form-item>
-          <n-form-item label="到期天数阈值">
-           <n-input-number v-model:value="updateSettings.expiringDaysThreshold" :min="0" :step="1" />
-           <template #feedback>当剩余天数小于此值时，将归类为“即将到期”。</template>
-         </n-form-item>
-         <n-form-item label="到期流量阈值 (GB)">
-           <n-input-number v-model:value="updateSettings.expiringTrafficThresholdGB" :min="0" :step="1" />
-           <template #feedback>当剩余流量小于此值 (GB) 时，将归类为“即将到期”。</template>
-         </n-form-item>
-        </n-form>
+         <n-alert title="更新配置" type="info" class="mb-4">
+             配置本次更新的并发参数和过期策略。
+         </n-alert>
+         <n-form label-placement="left" label-width="120">
+             <n-form-item label="并发数">
+                 <n-input-number v-model:value="updateSettings.concurrency" :min="1" :max="10" />
+             </n-form-item>
+             <n-form-item label="重试次数">
+                 <n-input-number v-model:value="updateSettings.retries" :min="0" :max="5" />
+             </n-form-item>
+              <n-form-item label="请求间隔 (ms)">
+                 <n-input-number v-model:value="updateSettings.delay" :min="0" :step="100" />
+             </n-form-item>
+             <n-collapse>
+                 <n-collapse-item title="过期策略 (自动清理)" name="1">
+                     <n-form-item label="剩余天数少于">
+                         <n-input-number v-model:value="updateSettings.expiringDaysThreshold" :min="0" />
+                     </n-form-item>
+                     <n-form-item label="剩余流量少于 (GB)">
+                         <n-input-number v-model:value="updateSettings.expiringTrafficThresholdGB" :min="0" :step="0.1" />
+                     </n-form-item>
+                 </n-collapse-item>
+             </n-collapse>
+         </n-form>
       </div>
 
-      <!-- Progress Stage -->
       <div v-else>
-        <div class="text-center mb-4">
+        <div class="mb-4">
+          <div class="flex justify-between mb-1">
+             <span>进度: {{ updateProgress.current }} / {{ updateProgress.total }}</span>
+             <span v-if="updateLogLoading">正在更新...</span>
+             <span v-else>更新完成</span>
+          </div>
           <n-progress
             type="line"
-            :percentage="updateProgress.total > 0 ? Math.floor((updateProgress.current / updateProgress.total) * 100) : 0"
-            :indicator-placement="'inside'"
-            processing
+            :percentage="Math.round((updateProgress.current / updateProgress.total) * 100) || 0"
+            :status="updateLogLoading ? 'default' : 'success'"
+            :processing="updateLogLoading"
           />
-          <p class="mt-2">
-            <span v-if="updateLogLoading">正在更新: {{ updateProgress.current }} / {{ updateProgress.total }}</span>
-            <span v-else>更新完成: {{ updateProgress.current }} / {{ updateProgress.total }}</span>
-          </p>
         </div>
-        <n-collapse>
-          <n-collapse-item :title="`更新成功 (${updateLog.success.length})`" name="success">
-            <div style="max-height: 200px; overflow-y: auto;">
-              <n-tag v-for="sub in updateLog.success" :key="sub.name" type="success" class="m-1">
-                {{ sub.name }}
-              </n-tag>
-              <n-text v-if="updateLog.success.length === 0">没有订阅成功更新。</n-text>
-            </div>
-          </n-collapse-item>
-         <n-collapse-item :title="`即将到期 (${updateLog.expiring.length})`" name="expiring">
-           <div style="max-height: 200px; overflow-y: auto;">
-             <div v-if="updateLog.expiring.length > 0">
-               <div v-for="sub in updateLog.expiring" :key="sub.id" class="mb-2 p-2 border rounded border-yellow-500">
-                 <div class="flex justify-between items-center">
-                   <n-tag type="warning">{{ sub.name }}</n-tag>
-                   <n-space :size="4">
-                     <n-tag v-if="sub.remaining_traffic !== null && sub.remaining_traffic !== undefined" size="small" type="warning">
-                       流量: {{ formatBytes(sub.remaining_traffic) }}
-                     </n-tag>
-                     <n-tag v-if="sub.remaining_days !== null && sub.remaining_days !== undefined" size="small" type="warning">
-                       天数: {{ sub.remaining_days }} 天
-                     </n-tag>
+
+        <n-collapse :default-expanded-names="['failed', 'expiring']">
+           <n-collapse-item title="更新成功" name="success">
+               <template #header-extra>
+                   <n-tag type="success" size="small" round>{{ updateLog.success.length }}</n-tag>
+               </template>
+               <n-list style="max-height: 200px; overflow-y: auto;">
+                   <n-list-item v-for="(item, index) in updateLog.success" :key="index">
+                       {{ item.name }}
+                   </n-list-item>
+               </n-list>
+           </n-collapse-item>
+
+           <n-collapse-item title="更新失败" name="failed">
+               <template #header-extra>
+                   <n-tag type="error" size="small" round>{{ updateLog.failed.length }}</n-tag>
+               </template>
+               <div v-if="updateLog.failed.length > 0" class="mb-2">
+                   <n-space>
+                       <n-button size="small" type="warning" @click="handleRetryFailed" :disabled="updateLogLoading">重试失败项</n-button>
+                       <n-button size="small" type="error" ghost @click="handleClearFailed" :disabled="updateLogLoading">清除失败项</n-button>
                    </n-space>
-                 </div>
                </div>
-             </div>
-             <n-text v-else>没有即将到期的订阅。</n-text>
-           </div>
-         </n-collapse-item>
-          <n-collapse-item :title="`更新失败 (${updateLog.failed.length})`" name="failed">
-             <div style="max-height: 200px; overflow-y: auto;">
-              <div v-if="updateLog.failed.length > 0">
-                <div v-for="sub in updateLog.failed" :key="sub.id" class="mb-2 p-2 border rounded">
-                   <div class="flex justify-between items-center">
-                     <n-tag type="error">{{ sub.name }}</n-tag>
-                     <n-space :size="4">
-                       <n-tag v-if="sub.remaining_traffic !== null && sub.remaining_traffic !== undefined" size="small" :type="sub.remaining_traffic === 0 ? 'error' : 'default'">
-                         流量: {{ formatBytes(sub.remaining_traffic) }}
-                       </n-tag>
-                        <n-tag v-if="sub.remaining_days !== null && sub.remaining_days !== undefined" size="small" :type="sub.remaining_days <= 0 ? 'error' : 'default'">
-                         天数: {{ sub.remaining_days }} 天
-                       </n-tag>
-                     </n-space>
-                   </div>
-                   <n-text class="text-xs text-gray-500 mt-1 block">{{ sub.error }}</n-text>
+               <n-list style="max-height: 200px; overflow-y: auto;">
+                   <n-list-item v-for="sub in updateLog.failed" :key="sub.id">
+                       <div class="flex justify-between">
+                           <span>{{ sub.name }}</span>
+                           <span class="text-red-500 text-xs">{{ sub.error }}</span>
+                       </div>
+                   </n-list-item>
+               </n-list>
+           </n-collapse-item>
+
+           <n-collapse-item title="即将到期/流量不足" name="expiring">
+                <template #header-extra>
+                   <n-tag type="warning" size="small" round>{{ updateLog.expiring.length }}</n-tag>
+               </template>
+                <div v-if="updateLog.expiring.length > 0" class="mb-2">
+                   <n-button size="small" type="error" ghost @click="handleClearExpiring" :disabled="updateLogLoading">清除此类订阅</n-button>
                 </div>
-              </div>
-              <n-text v-else>没有订阅更新失败。</n-text>
-            </div>
-          </n-collapse-item>
+                <n-list style="max-height: 200px; overflow-y: auto;">
+                   <n-list-item v-for="sub in updateLog.expiring" :key="sub.id">
+                        <div class="flex justify-between">
+                           <span>{{ sub.name }}</span>
+                           <span class="text-xs text-gray-500">
+                               Remaining: {{ sub.remaining_days }}d / {{ formatBytes(sub.remaining_traffic ?? 0) }}
+                           </span>
+                       </div>
+                   </n-list-item>
+                </n-list>
+           </n-collapse-item>
         </n-collapse>
       </div>
 
-      <template #footer>
+       <template #footer>
         <n-space justify="end">
-          <div v-if="updateStage === 'config'">
-            <n-button @click="showUpdateLogModal = false">取消</n-button>
-            <n-button type="primary" @click="executeSubscriptionUpdates">开始更新</n-button>
-          </div>
-          <div v-else>
-            <n-button @click="handleCancelUpdate">{{ updateLogLoading ? '中止' : '关闭' }}</n-button>
-            <n-button
-              type="primary"
-              ghost
-              @click="handleRetryFailed"
-              :disabled="updateLog.failed.filter(s => s.error !== '已中止').length === 0 || updateLogLoading"
-            >
-              重试失败项
-            </n-button>
-             <n-button
-              type="warning"
-              ghost
-              @click="handleClearExpiring"
-              :disabled="updateLog.expiring.length === 0 || updateLogLoading"
-            >
-              清除即将到期
-            </n-button>
-             <n-button
-              type="error"
-              ghost
-              @click="handleClearFailed"
-              :disabled="updateLog.failed.filter(s => s.error !== '已中止').length === 0 || updateLogLoading"
-            >
-              清除失败项
-            </n-button>
-          </div>
+          <n-button v-if="updateStage === 'config'" @click="showUpdateLogModal = false">取消</n-button>
+          <n-button v-if="updateStage === 'config'" type="primary" @click="executeSubscriptionUpdates">开始更新</n-button>
+          <n-button v-if="updateStage === 'progress'" @click="handleCancelUpdate" :disabled="!updateLogLoading && updateProgress.current === updateProgress.total">{{ updateLogLoading ? '停止' : '关闭' }}</n-button>
         </n-space>
       </template>
     </n-modal>
-
   </div>
-
-    <n-modal
-      v-model:show="showExportModal"
-      preset="card"
-      :title="`导出分组 '${exportData.groupName}' 的订阅`"
-      style="width: 600px;"
-      :mask-closable="false"
-    >
-      <p class="mb-2">共 {{ exportData.count }} 个订阅链接：</p>
-      <n-input
-        v-model:value="exportData.urls"
-        type="textarea"
-        readonly
-        :autosize="{ minRows: 10, maxRows: 20 }"
-        placeholder="没有订阅链接"
-      />
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showExportModal = false">关闭</n-button>
-          <n-button type="primary" @click="handleCopyExportUrls">复制</n-button>
-        </n-space>
-      </template>
-    </n-modal>
-
-    <n-modal
-      v-model:show="showBatchReplaceModal"
-      preset="card"
-      title="批量替换订阅链接"
-      style="width: 600px;"
-      :mask-closable="false"
-    >
-      <p class="mb-4">将对该分组下的 <b>{{ batchReplaceData.count }}</b> 个订阅链接执行替换操作。</p>
-      <n-form>
-        <n-form-item label="查找内容">
-          <n-input v-model:value="batchReplaceData.find" placeholder="例如，旧的域名或参数" />
-        </n-form-item>
-        <n-form-item label="替换为">
-          <n-input v-model:value="batchReplaceData.replace" placeholder="例如，新的域名或参数（可留空）" />
-        </n-form-item>
-      </n-form>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showBatchReplaceModal = false">取消</n-button>
-          <n-button type="primary" @click="handleBatchReplace" :loading="batchReplaceData.loading">确认替换</n-button>
-        </n-space>
-      </template>
-    </n-modal>
-
-    <n-modal
-      v-model:show="showSortModal"
-      preset="card"
-      title="调整分组顺序"
-      :style="{ width: isMobile ? '90vw' : '500px' }"
-      :mask-closable="false"
-    >
-      <p class="text-gray-500 mb-4">拖动下方的分组名称来调整它们的显示顺序。</p>
-      <n-list bordered>
-        <draggable
-          v-model="sortableGroups"
-          item-key="id"
-          handle=".drag-handle"
-        >
-          <template #item="{ element: group }">
-            <n-list-item>
-              <div class="flex items-center">
-                <n-icon class="drag-handle mr-2 cursor-move" :component="ReorderFourOutline" size="20" />
-                <span>{{ group.name }}</span>
-              </div>
-            </n-list-item>
-          </template>
-        </draggable>
-      </n-list>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showSortModal = false">取消</n-button>
-          <n-button type="primary" @click="handleSortSave" :loading="sortLoading">保存顺序</n-button>
-        </n-space>
-      </template>
-    </n-modal>
-
 </template>
-
-<style scoped>
-.group-tab-wrapper {
-  display: flex;
-  align-items: center;
-  padding: 0 4px;
-}
-
-.group-actions-button {
-  transition: opacity 0.2s;
-}
-</style>

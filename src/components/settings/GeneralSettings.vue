@@ -74,7 +74,9 @@ import { ref, onMounted } from 'vue';
 import {
   NForm, NFormItem, NInput, NButton, useMessage, NDivider, NSpace, NGrid, NFormItemGi, NCard, NInputGroup, NText, type FormInst, type FormRules
 } from 'naive-ui';
-import { api } from '@/utils/api';
+import { usersApi } from '@/api/users';
+import { settingsApi } from '@/api/settings';
+import { adminApi } from '@/api/admin';
 import { useAuthStore } from '@/stores/auth';
 import { LogoutInProgressError } from '@/utils/errors';
 
@@ -109,8 +111,8 @@ const fetchSubToken = async () => {
     return;
   }
   try {
-    const response = await api.get('/user/sub-token');
-    if (response.data.success) {
+    const response = await usersApi.getSubscriptionToken();
+    if (response.data.success && response.data.data) {
       subToken.value = response.data.data.token;
     }
   } catch (error) {
@@ -132,8 +134,8 @@ const copyToken = () => {
 const resetToken = async () => {
   resetLoading.value = true;
   try {
-    const response = await api.post('/user/sub-token/reset');
-    if (response.data.success) {
+    const response = await usersApi.resetSubscriptionToken();
+    if (response.data.success && response.data.data) {
       subToken.value = response.data.data.token;
       authStore.updateTokenAndUser(response.data.data);
       message.success('订阅令牌已重置');
@@ -148,8 +150,8 @@ const resetToken = async () => {
 const saveToken = async () => {
   saveTokenLoading.value = true;
   try {
-    const response = await api.put('/user/sub-token', { token: subToken.value });
-    if (response.data.success) {
+    const response = await usersApi.updateSubscriptionToken(subToken.value);
+    if (response.data.success && response.data.data) {
       authStore.updateTokenAndUser(response.data.data);
       message.success('订阅令牌已保存');
     }
@@ -165,7 +167,7 @@ const fetchSettings = async () => {
     return;
   }
   try {
-    const userSettingsResponse = await api.get('/settings');
+    const userSettingsResponse = await settingsApi.fetchSettings();
     if (userSettingsResponse.data.success && Array.isArray(userSettingsResponse.data.data)) {
       const settings = userSettingsResponse.data.data.reduce((acc: Record<string, any>, setting: { key: string, value: any }) => {
         acc[setting.key] = setting.value;
@@ -199,7 +201,7 @@ const handleSave = async () => {
         description: 'Telegram Chat ID'
       }
     ];
-    await api.post('/settings', userSettingsPayload);
+    await settingsApi.updateSettings(userSettingsPayload);
     message.success('设置已保存');
   } catch (error) {
     message.error('保存设置失败，请检查后端服务');
@@ -212,7 +214,7 @@ const handleSave = async () => {
 const handleTestTelegram = async () => {
   testLoading.value = true;
   try {
-    await api.post('/system/settings/test-telegram');
+    await adminApi.testTelegram();
     message.success('测试消息已发送，请检查您的 Telegram');
   } catch (error: any) {
     message.error(error.response?.data?.message || '发送测试消息失败');
@@ -227,7 +229,7 @@ const handlePasswordChange = async () => {
     if (!errors) {
       passwordChangeLoading.value = true;
       try {
-        await api.put('/user/password', { password: passwordFormState.value.password });
+        await usersApi.updatePassword(passwordFormState.value.password);
         message.success('密码修改成功');
         passwordFormState.value.password = ''; // Clear password field
       } catch (error: any) {

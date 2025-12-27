@@ -1,12 +1,13 @@
 import type { Context, Next } from 'hono';
 import { verify } from 'hono/jwt';
 import type { Env } from '../utils/types';
+import { createErrorResponse } from '../utils/errors';
 
 // Custom authentication middleware
 export const manualAuthMiddleware = async (c: Context<{ Bindings: Env }>, next: Next) => {
   let token = '';
   const authHeader = c.req.header('Authorization');
-  
+
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.substring(7);
   } else {
@@ -17,12 +18,12 @@ export const manualAuthMiddleware = async (c: Context<{ Bindings: Env }>, next: 
   }
 
   if (!token || token === 'null') {
-    return c.json({ success: false, message: 'Unauthorized: Missing or invalid token' }, 401);
+    return createErrorResponse('Unauthorized: Missing or invalid token', 401);
   }
 
   const secret = c.env.JWT_SECRET;
   if (!secret) {
-    return c.json({ success: false, message: 'Internal Server Error: JWT secret not configured' }, 500);
+    return createErrorResponse('Internal Server Error: JWT secret not configured', 500);
   }
 
   try {
@@ -30,7 +31,7 @@ export const manualAuthMiddleware = async (c: Context<{ Bindings: Env }>, next: 
     c.set('jwtPayload', payload);
     await next();
   } catch (error) {
-    return c.json({ success: false, message: 'Unauthorized: Invalid token' }, 401);
+    return createErrorResponse('Unauthorized: Invalid token', 401);
   }
 };
 
@@ -39,7 +40,7 @@ export const adminAuthMiddleware = async (c: Context, next: Next) => {
   const payload = c.get('jwtPayload');
 
   if (!payload || payload.role !== 'admin') {
-    return c.json({ success: false, message: 'Forbidden: Administrator access required' }, 403);
+    return createErrorResponse('Forbidden: Administrator access required', 403);
   }
 
   await next();

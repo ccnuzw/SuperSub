@@ -53,14 +53,14 @@ import { NDataTable, NButton, useMessage, useDialog, NCard, NSwitch, NFlex, NLis
 import type { DataTableColumns } from 'naive-ui';
 import { useIsMobile } from '@/composables/useMediaQuery';
 import { EllipsisVertical as MoreIcon } from '@vicons/ionicons5';
-import { useApi } from '@/composables/useApi';
 import type { User } from '@/types';
 import { useAuthStore } from '@/stores/auth';
+import { adminApi } from '@/api/admin';
 
-const api = useApi();
 const message = useMessage();
 const dialog = useDialog();
 const isMobile = useIsMobile();
+const authStore = useAuthStore();
 
 const loading = ref(true);
 const users = ref<User[]>([]);
@@ -68,15 +68,15 @@ const settingsLoading = ref(true);
 const allowRegistration = ref(false);
 
 const fetchSettings = async () => {
-  const authStore = useAuthStore();
   if (!authStore.isAuthenticated) return;
   settingsLoading.value = true;
   try {
-    const response = await api.get('/admin/system-settings');
-    if (response.success && response.data) {
-      allowRegistration.value = (response.data as { allow_registration: string }).allow_registration === 'true';
+    const response = await adminApi.fetchSystemSettings();
+    if (response.data.success && response.data.data) {
+      allowRegistration.value = response.data.data.allow_registration === 'true';
     } else {
-      message.error(response.message || '获取系统设置失败');
+      // Should interceptor catch this? Response success check.
+      message.error('获取系统设置失败');
     }
   } catch (error: any) {
     message.error(`请求失败: ${error.message}`);
@@ -88,14 +88,14 @@ const fetchSettings = async () => {
 const handleSettingsChange = async (value: boolean) => {
   settingsLoading.value = true;
   try {
-    const response = await api.post('/admin/system-settings', {
+    const response = await adminApi.updateSystemSettings({
       allow_registration: String(value),
     });
-    if (response.success) {
+    if (response.data.success) {
       message.success('设置更新成功');
       allowRegistration.value = value;
     } else {
-      message.error(response.message || '更新设置失败');
+      message.error(response.data.message || '更新设置失败');
       // Revert the switch on failure
       allowRegistration.value = !value;
     }
@@ -116,12 +116,12 @@ const handleUpdateRole = (user: User) => {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const response = await api.put(`/admin/users/${user.id}`, { role: newRole });
-        if (response.success) {
+        const response = await adminApi.updateUserRole(user.id, newRole);
+        if (response.data.success) {
           message.success('用户角色更新成功');
           await fetchUsers();
         } else {
-          message.error(response.message || '更新失败');
+          message.error(response.data.message || '更新失败');
         }
       } catch (error: any) {
         message.error(`请求失败: ${error.message}`);
@@ -138,12 +138,12 @@ const handleDeleteUser = (user: User) => {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const response = await api.delete(`/admin/users/${user.id}`);
-        if (response.success) {
+        const response = await adminApi.deleteUser(user.id);
+        if (response.data.success) {
           message.success('用户删除成功');
           await fetchUsers();
         } else {
-          message.error(response.message || '删除失败');
+          message.error(response.data.message || '删除失败');
         }
       } catch (error: any) {
         message.error(`请求失败: ${error.message}`);
@@ -197,15 +197,14 @@ const createColumns = ({ onUpdateRole, onDeleteUser }: { onUpdateRole: (user: Us
 };
 
 const fetchUsers = async () => {
-  const authStore = useAuthStore();
   if (!authStore.isAuthenticated) return;
   loading.value = true;
   try {
-    const response = await api.get('/admin/users');
-    if (response.success) {
-      users.value = response.data as User[];
+    const response = await adminApi.fetchUsers();
+    if (response.data.success) {
+      users.value = response.data.data || [];
     } else {
-      message.error(response.message || '获取用户列表失败');
+      message.error(response.data.message || '获取用户列表失败');
     }
   } catch (error: any) {
     message.error(`请求失败: ${error.message}`);

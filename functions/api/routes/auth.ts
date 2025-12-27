@@ -1,58 +1,32 @@
 import { Hono } from 'hono';
-import { hash, compare } from 'bcrypt-ts';
-import { sign } from 'hono/jwt';
 import type { Env } from '../utils/types';
+import { AuthService } from '../services/authService';
+import { createErrorResponse } from '../utils/errors';
 
 const auth = new Hono<{ Bindings: Env }>();
 
 auth.post('/register', async (c) => {
-    // Check if registration is allowed
-    const allowRegistrationSetting = await c.env.DB.prepare(
-        `SELECT value FROM system_settings WHERE key = 'allow_registration'`
-    ).first<{ value: string }>();
-
-    // Default to 'true' if the setting is not found, for backward compatibility.
-    const isRegistrationAllowed = allowRegistrationSetting?.value !== 'false';
-
-    if (!isRegistrationAllowed) {
-        return c.json({ success: false, message: 'User registration is currently disabled by the administrator.' }, 403);
-    }
-
     const { username, password } = await c.req.json();
     if (!username || !password) {
-        return c.json({ success: false, message: 'Missing username or password' }, 400);
+        return createErrorResponse('Missing username or password', 400);
     }
-    const existingUser = await c.env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(username).first();
-    if (existingUser) {
-        return c.json({ success: false, message: 'Username already exists' }, 409);
-    }
-    const userCountResult = await c.env.DB.prepare("SELECT COUNT(*) as count FROM users WHERE role != 'system'").first<{ count: number }>();
-    const userCount = userCountResult?.count ?? 0;
-    let role = userCount === 0 ? 'admin' : 'user';
-    const hashedPassword = await hash(password, 10);
-    const id = crypto.randomUUID();
-    const subToken = crypto.randomUUID();
-    const now = new Date().toISOString();
-    await c.env.DB.prepare('INSERT INTO users (id, username, password, role, sub_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, username, hashedPassword, role, subToken, now, now).run();
-    return c.json({ success: true, data: { id, username, role } }, 201);
+
+    const authService = new AuthService(c.env);
+    const result = await authService.register(username, password);
+
+    return c.json({ success: result.success, message: result.message, data: result.data }, result.status as any);
 });
 
 auth.post('/login', async (c) => {
     const { username, password } = await c.req.json();
     if (!username || !password) {
-        return c.json({ success: false, message: 'Missing username or password' }, 400);
+        return createErrorResponse('Missing username or password', 400);
     }
-    const user = await c.env.DB.prepare('SELECT * FROM users WHERE username = ?').bind(username).first<any>();
-    if (!user) {
-        return c.json({ success: false, message: 'User not found' }, 404);
-    }
-    const isPasswordValid = await compare(password, user.password as string);
-    if (!isPasswordValid) {
-        return c.json({ success: false, message: 'Invalid password' }, 401);
-    }
-    const payload = { id: user.id, username: user.username, role: user.role || 'user', sub_token: user.sub_token, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) };
-    const token = await sign(payload, c.env.JWT_SECRET);
-    return c.json({ success: true, data: { token, user: payload } });
+
+    const authService = new AuthService(c.env);
+    const result = await authService.login(username, password);
+
+    return c.json({ success: result.success, message: result.message, data: result.data }, result.status as any);
 });
 
 export default auth;

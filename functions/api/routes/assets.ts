@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../utils/types';
 import { manualAuthMiddleware, adminAuthMiddleware } from '../middleware/auth';
+import { createErrorResponse } from '../utils/errors';
 
 const assets = new Hono<{ Bindings: Env }>();
 
@@ -11,7 +12,7 @@ assets.use('*', manualAuthMiddleware);
 assets.get('/', async (c) => {
   const { type } = c.req.query();
   if (!type || !['backend', 'config'].includes(type)) {
-    return c.json({ success: false, message: 'Invalid or missing type parameter. Must be "backend" or "config".' }, 400);
+    return createErrorResponse('Invalid or missing type parameter. Must be "backend" or "config".', 400);
   }
 
   try {
@@ -22,7 +23,7 @@ assets.get('/', async (c) => {
     return c.json({ success: true, data: results });
   } catch (error: any) {
     console.error(`Failed to fetch assets:`, error);
-    return c.json({ success: false, message: `Database error: ${error.message}` }, 500);
+    return createErrorResponse(`Database error: ${error.message}`, 500);
   }
 });
 
@@ -32,7 +33,7 @@ assets.post('/', adminAuthMiddleware, async (c) => {
   const { name, url, type } = await c.req.json();
 
   if (!name || !url || !type || !['backend', 'config'].includes(type)) {
-    return c.json({ success: false, message: 'Missing or invalid parameters.' }, 400);
+    return createErrorResponse('Missing or invalid parameters.', 400);
   }
 
   try {
@@ -45,11 +46,11 @@ assets.post('/', adminAuthMiddleware, async (c) => {
     if (success) {
       return c.json({ success: true, message: 'Asset created successfully.' }, 201);
     } else {
-      return c.json({ success: false, message: 'Failed to create asset.' }, 500);
+      return createErrorResponse('Failed to create asset.', 500);
     }
   } catch (error: any) {
     console.error('Failed to create asset:', error);
-    return c.json({ success: false, message: `Database error: ${error.message}` }, 500);
+    return createErrorResponse(`Database error: ${error.message}`, 500);
   }
 });
 
@@ -59,7 +60,7 @@ assets.put('/:id', adminAuthMiddleware, async (c) => {
   const { name, url } = await c.req.json();
 
   if (!name || !url) {
-    return c.json({ success: false, message: 'Missing required parameters.' }, 400);
+    return createErrorResponse('Missing required parameters.', 400);
   }
 
   try {
@@ -71,11 +72,11 @@ assets.put('/:id', adminAuthMiddleware, async (c) => {
     if (success) {
       return c.json({ success: true, message: 'Asset updated successfully.' });
     } else {
-      return c.json({ success: false, message: 'Asset not found or no changes made.' }, 404);
+      return createErrorResponse('Asset not found or no changes made.', 404);
     }
   } catch (error: any) {
     console.error('Failed to update asset:', error);
-    return c.json({ success: false, message: `Database error: ${error.message}` }, 500);
+    return createErrorResponse(`Database error: ${error.message}`, 500);
   }
 });
 
@@ -91,11 +92,11 @@ assets.delete('/:id', adminAuthMiddleware, async (c) => {
     if (success) {
       return c.json({ success: true, message: 'Asset deleted successfully.' });
     } else {
-      return c.json({ success: false, message: 'Asset not found.' }, 404);
+      return createErrorResponse('Asset not found.', 404);
     }
   } catch (error: any) {
     console.error('Failed to delete asset:', error);
-    return c.json({ success: false, message: `Database error: ${error.message}` }, 500);
+    return createErrorResponse(`Database error: ${error.message}`, 500);
   }
 });
 

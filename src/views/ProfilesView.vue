@@ -6,7 +6,7 @@ import { useMessage, useDialog, NButton, NSpace, NDataTable, NPageHeader, NModal
 import type { DataTableColumns, DropdownOption } from 'naive-ui';
 import { Pencil as EditIcon, TrashBinOutline as DeleteIcon, CopyOutline as CopyIcon, EyeOutline as PreviewIcon, DocumentTextOutline as LogIcon, EllipsisVertical as MoreIcon } from '@vicons/ionicons5';
 import { useIsMobile } from '@/composables/useMediaQuery';
-import { api } from '@/utils/api';
+import { profilesApi } from '@/api/profiles';
 import { useAuthStore } from '@/stores/auth';
 import { LogoutInProgressError } from '@/utils/errors';
 import type { ApiResponse, Profile, Subscription, Node, LogEntry, LogLevel } from '@/types';
@@ -110,8 +110,7 @@ const createColumns = ({ onCopy, onPreview, onLogs, onEdit, onDelete }: {
     onCopy: (row: Profile) => void,
     onPreview: (row: Profile) => void,
     onLogs: (row: Profile) => void,
-    onEdit: (row
-: Profile) => void,
+    onEdit: (row: Profile) => void,
     onDelete: (row: Profile) => void,
 }): DataTableColumns<Profile> => {
   return [
@@ -152,7 +151,7 @@ const fetchProfiles = async () => {
   if (!authStore.isAuthenticated) return;
   loading.value = true;
   try {
-    const response = await api.get<ApiResponse<Profile[]>>('/profiles');
+    const response = await profilesApi.fetchProfiles();
     if (response.data.success) {
       profiles.value = response.data.data || [];
     } else {
@@ -175,7 +174,7 @@ const handleDelete = (row: Profile) => {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const response = await api.delete<ApiResponse>(`/profiles/${row.id}`);
+        const response = await profilesApi.deleteProfile(row.id);
         if (response.data.success) {
           message.success('配置删除成功');
           fetchProfiles();
@@ -204,13 +203,15 @@ const onPreview = async (row: Profile) => {
   loadingNodesPreview.value = true;
   showNodesPreviewModal.value = true;
   try {
-    const response = await api.get<ApiResponse<typeof nodesPreviewData.value>>(`/profiles/${row.id}/preview-nodes`);
-    if (response.data.success) {
-      if (response.data.data) {
-        nodesPreviewData.value = response.data.data;
+    const response = await profilesApi.previewNodes(row.id);
+    const responseData = response.data as ApiResponse<any>;
+    if (typeof responseData !== 'string' && responseData.success) {
+      if (responseData.data) {
+        nodesPreviewData.value = responseData.data;
       }
     } else {
-      message.error(response.data.message || '加载预览失败');
+      const msg = typeof responseData === 'string' ? responseData : responseData.message;
+      message.error(msg || '加载预览失败');
       showNodesPreviewModal.value = false;
     }
   } catch (err: any) {

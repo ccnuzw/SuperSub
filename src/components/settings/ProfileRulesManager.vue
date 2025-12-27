@@ -3,7 +3,7 @@ import { h, watch } from 'vue';
 import { ref, onMounted, computed } from 'vue';
 import { NCard, NButton, NDataTable, NSpace, NSwitch, useMessage, NModal, NForm, NFormItem, NInput, NSelect, NInputNumber, NAlert, NP, NUl, NLi, NText } from 'naive-ui';
 import type { DataTableColumns, FormInst, FormRules } from 'naive-ui';
-import { api } from '@/utils/api';
+import { profileRulesApi } from '@/api/profileRules';
 
 const props = defineProps<{
   profileId?: string | null;
@@ -107,9 +107,9 @@ const fetchRules = async () => {
   if (isLocalMode.value || !props.profileId) return;
   loading.value = true;
   try {
-    const response = await api.get(`/profile-rules/${props.profileId}`);
+    const response = await profileRulesApi.fetchRules(props.profileId);
     if (response.data.success) {
-      rules.value = response.data.data;
+      rules.value = response.data.data || [];
       emit('update:modelValue', JSON.parse(JSON.stringify(rules.value)));
     } else {
       message.error('获取规则失败');
@@ -150,7 +150,7 @@ const handleDelete = async (ruleOrId: any, index: number) => {
     message.success('规则已删除');
   } else {
     try {
-      await api.delete(`/profile-rules/${ruleOrId.id}`);
+      await profileRulesApi.deleteRule(props.profileId!, ruleOrId.id);
       message.success('规则删除成功');
       fetchRules();
     } catch (error) {
@@ -179,10 +179,10 @@ const handleSave = async () => {
     } else {
       try {
         if (isEditing.value) {
-          await api.put(`/profile-rules/${currentRule.value.id}`, currentRule.value);
+          await profileRulesApi.updateRule(props.profileId!, currentRule.value.id, currentRule.value);
           message.success('规则更新成功');
         } else {
-          await api.post('/profile-rules', currentRule.value);
+          await profileRulesApi.createRule(props.profileId!, currentRule.value);
           message.success('规则添加成功');
         }
         showModal.value = false;
@@ -201,7 +201,7 @@ const handleEnabledChange = async (rule: any, enabled: boolean) => {
     message.success('状态已更新');
   } else {
     try {
-      await api.put(`/profile-rules/${rule.id}`, { ...rule, enabled: rule.enabled });
+      await profileRulesApi.updateRule(props.profileId!, rule.id, { ...rule });
       message.success('状态更新成功');
     } catch (error) {
       message.error('更新状态失败');

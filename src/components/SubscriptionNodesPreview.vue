@@ -5,7 +5,9 @@ import type { DataTableColumns } from 'naive-ui';
 import { Node, ApiResponse } from '@/types';
 import { useGroupStore as useNodeGroupStore } from '@/stores/groups';
 import { regenerateLink, type ParsedNode } from '@/utils/nodeParser';
-import { api } from '@/utils/api';
+import { subscriptionsApi } from '@/api/subscriptions';
+import { profilesApi } from '@/api/profiles';
+import { nodesApi } from '@/api/nodes';
 import { getNaiveTagColor } from '@/utils/colors';
 
 const props = defineProps({
@@ -98,13 +100,14 @@ const fetchPreview = async () => {
 
   try {
     // If there's a profileId, it means this subscription is part of a profile.
-    // We should use the profile's preview logic.
     if (props.profileId) {
-      const response = await api.get<ApiResponse<any>>(`/profiles/${props.profileId}/preview-nodes`);
-      if (response.data.success) {
-        previewData.value = response.data.data;
+      const response = await profilesApi.previewNodes(props.profileId);
+      // Ensure response.data is treated as ApiResponse object
+      const data = response.data as ApiResponse<any>;
+      if (typeof data !== 'string' && data.success) {
+        previewData.value = data.data;
       } else {
-        throw new Error(response.data.message || '获取配置文件预览失败');
+        throw new Error(typeof data !== 'string' ? data.message : 'Invalid response format');
       }
     } else {
       // Fallback to old logic if not part of a profile
@@ -113,10 +116,10 @@ const fetchPreview = async () => {
         subscription_id: props.subscriptionId,
         apply_rules: applyRules.value,
       };
-      const response = await api.post<ApiResponse<{ nodes: Partial<Node>[], analysis: any }>>('/subscriptions/preview', payload, { timeout: 15000 });
+      
+      const response = await subscriptionsApi.preview(payload);
       if (response.data.success && response.data.data?.nodes) {
-        // Adapt to the new data structure for consistency
-        previewData.value = { mode: 'local', nodes: response.data.data.nodes, analysis: response.data.data.analysis };
+        previewData.value = { mode: 'local', nodes: response.data.data.nodes, analysis: response.data.data.analysis || {} };
       } else {
         throw new Error(response.data.message || '获取节点预览失败');
       }
@@ -137,11 +140,7 @@ const handleImport = async () => {
     }
     importLoading.value = true;
     try {
-        // Send the array of parsed node objects directly
-        const response = await api.post<ApiResponse>('/nodes/batch-import', {
-          nodes: nodes.value,
-          groupId: selectedGroupId.value,
-        });
+        const response = await nodesApi.importNodes(nodes.value, selectedGroupId.value);
         if (response.data.success) {
             message.success(response.data.message || '节点导入成功');
         } else {
@@ -154,7 +153,6 @@ const handleImport = async () => {
     }
 };
 
-// Expose the fetch function to the parent component
 defineExpose({
   fetchPreview,
 });
@@ -163,7 +161,6 @@ watch(applyRules, () => {
     fetchPreview();
 });
 
-// Re-fetch when the modal becomes visible, if it's not the initial load
 watch(() => props.show, (newVal, oldVal) => {
     if (newVal && !oldVal) {
         fetchPreview();

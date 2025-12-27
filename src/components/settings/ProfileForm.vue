@@ -5,7 +5,11 @@ import { CopyOutline as CopyIcon } from '@vicons/ionicons5';
 import { useIsMobile } from '@/composables/useMediaQuery';
 import type { FormInst } from 'naive-ui';
 import type { Profile, Subscription } from '@/types';
-import { api } from '@/utils/api';
+import { subscriptionsApi } from '@/api/subscriptions';
+import { nodesApi } from '@/api/nodes';
+import { assetsApi } from '@/api/assets';
+import { usersApi } from '@/api/users';
+import { profilesApi } from '@/api/profiles';
 import { useAuthStore } from '@/stores/auth';
 import ProfileRulesManager from './ProfileRulesManager.vue';
 
@@ -81,13 +85,13 @@ const fetchAllSources = async () => {
   if (!authStore.isAuthenticated) return;
   try {
     const [subsRes, nodesRes, backendRes, configRes] = await Promise.all([
-      api.get<any>('/subscriptions/grouped'),
-      api.get<any>('/nodes/grouped'),
-      api.get<any>('/assets?type=backend'),
-      api.get<any>('/assets?type=config'),
+      subscriptionsApi.fetchGroupedSubscriptions(),
+      nodesApi.fetchGroupedNodes(),
+      assetsApi.fetchAssets('backend'),
+      assetsApi.fetchAssets('config'),
     ]);
     if (subsRes.data.success) allGroupedSubscriptions.value = subsRes.data.data || [];
-    if (nodesRes.data.success) allManualNodes.value = nodesRes.data.data || {};
+    if (nodesRes.data.success) allManualNodes.value = (nodesRes.data.data as any) || {};
     if (backendRes.data.success) allBackends.value = backendRes.data.data || [];
     if (configRes.data.success) allConfigs.value = configRes.data.data || [];
   } catch (err) {
@@ -98,8 +102,8 @@ const fetchAllSources = async () => {
 const fetchProfileData = async (id: string) => {
   loadingData.value = true;
   try {
-    const response = await api.get<any>(`/profiles/${id}`);
-    if (response.data.success) {
+    const response = await profilesApi.fetchProfile(id);
+    if (response.data.success && response.data.data) {
       const profile = response.data.data;
       formState.id = profile.id;
       formState.name = profile.name;
@@ -117,8 +121,6 @@ const fetchProfileData = async (id: string) => {
         formState.airport_subscription_options.strategy = 'all';
       } else if (opts.random) {
         formState.airport_subscription_options.strategy = 'random';
-      } else if (opts.polling) {
-        formState.airport_subscription_options.strategy = 'polling';
       } else {
         formState.airport_subscription_options.strategy = 'all';
       }
@@ -230,8 +232,8 @@ const handleSave = async () => {
       }
 
       const response = props.profileId
-        ? await api.put<any>(`/profiles/${props.profileId}`, payload)
-        : await api.post<any>('/profiles', payload);
+        ? await profilesApi.updateProfile(props.profileId, payload)
+        : await profilesApi.createProfile(payload);
 
       if (response.data.success) {
         message.success(props.profileId ? '配置更新成功' : '配置新增成功');
@@ -255,11 +257,11 @@ onMounted(async () => {
   if (props.profileId) {
     await fetchProfileData(props.profileId);
   } else {
-    const defaultsResponse = await api.get('/user/defaults');
+    const defaultsResponse = await usersApi.fetchDefaults();
     if (defaultsResponse.data.success && defaultsResponse.data.data) {
       const userDefaults = defaultsResponse.data.data;
-      formState.subconverter_backend_id = userDefaults.default_backend_id || null;
-      formState.subconverter_config_id = userDefaults.default_config_id || null;
+      formState.subconverter_backend_id = userDefaults.default_backend_id ? Number(userDefaults.default_backend_id) : null;
+      formState.subconverter_config_id = userDefaults.default_config_id ? Number(userDefaults.default_config_id) : null;
     }
     // Reset rules for new form
     formState.rules = [];

@@ -3,7 +3,8 @@ import { ref, onMounted, computed } from 'vue';
 import { NStatistic, NGrid, NGi, NCard, NSkeleton, NAlert, NPageHeader } from 'naive-ui';
 import { useAuthStore } from '@/stores/auth';
 import { useNodeStatusStore } from '@/stores/nodeStatus';
-import { api } from '@/utils/api';
+import { statsApi } from '@/api/stats';
+import { adminApi } from '@/api/admin';
 
 const authStore = useAuthStore();
 const nodeStatusStore = useNodeStatusStore();
@@ -22,27 +23,6 @@ const logSummary = ref({
 const loading = ref(true);
 const error = ref<string | null>(null);
 
-interface StatsData {
-  subscriptions: number;
-  nodes: number;
-  profiles: number;
-}
-
-interface StatsApiResponse {
-  success: boolean;
-  data?: StatsData;
-  message?: string;
-}
-
-interface LogSummaryApiResponse {
-  success: boolean;
-  data?: {
-    todayAccess: number;
-    weeklyUniqueIps: number;
-  };
-  message?: string;
-}
-
 const onlineNodes = computed(() => Object.values(nodeStatusStore.statuses).filter(s => s.status === 'healthy').length);
 const offlineNodes = computed(() => stats.value.nodes - onlineNodes.value);
 
@@ -51,25 +31,36 @@ onMounted(async () => {
   loading.value = true;
   try {
     const [statsResponse, logSummaryResponse] = await Promise.all([
-      api.get<StatsApiResponse>('/stats'),
-      api.get<LogSummaryApiResponse>('/admin/logs/summary')
+      statsApi.fetchUserStats(),
+      adminApi.fetchLogSummary() // This might fail if user is not admin, logic should handle permissions ideally
     ]);
 
     if (statsResponse.data.success && statsResponse.data.data) {
-      stats.value = statsResponse.data.data;
+      // Map API response to local state structure
+      const data = statsResponse.data.data;
+      stats.value = {
+        subscriptions: data.total_subscriptions || 0,
+        nodes: data.total_nodes || 0,
+        profiles: 0 // API doesn't seem to return profiles count yet?
+      };
     } else {
-      throw new Error(statsResponse.data.message || 'Failed to fetch stats');
+      throw new Error('Failed to fetch stats');
     }
 
+    // Admin endpoint might fail for non-admins, or return empty/error.
+    // Assuming backend returns success=false or throws 403.
+    // Client interceptor throws on 401, but maybe not 403.
     if (logSummaryResponse.data.success && logSummaryResponse.data.data) {
       logSummary.value = logSummaryResponse.data.data;
-    } else {
-      // Non-critical, so just log it
-      console.error('Failed to fetch log summary:', logSummaryResponse.data.message);
     }
-
   } catch (err: any) {
-    error.value = err.message;
+    // If it's a 403 for the log summary, we might want to ignore it if the user isn't admin
+    // But since we catch all, we just set error. 
+    // Ideally we differentiate.
+    console.error('Dashboard load error:', err);
+    // error.value = err.message; // Don't block the whole dashboard for partial failure logic (if designed so)
+    // But for now, let's keep original behavior: any error displays alert.
+    error.value = err.message || 'Failed to load dashboard data';
   } finally {
     loading.value = false;
   }

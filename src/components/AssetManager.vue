@@ -61,18 +61,14 @@ import {
 import { Star as StarIcon, StarOutline as StarOutlineIcon } from '@vicons/ionicons5';
 import { useIsMobile } from '@/composables/useMediaQuery';
 import type { DataTableColumns } from 'naive-ui';
-import { api } from '@/utils/api';
+import { assetsApi } from '@/api/assets';
+import { usersApi } from '@/api/users';
 import { useAuthStore } from '@/stores/auth';
+import type { SubconverterAsset } from '@/types';
 
-type SubconverterAsset = {
-  id: number;
-  name: string;
-  url: string;
-  type: 'backend' | 'config';
-};
 
 type UserDefaults = {
-  default_backend_id?: number;
+  default_backend_id?: number; // Changed to number to match ID type
   default_config_id?: number;
 };
 
@@ -114,9 +110,13 @@ const rules = {
 const fetchUserDefaults = async () => {
   if (!authStore.isAuthenticated) return;
   try {
-    const response = await api.get('/user/defaults');
-    if (response.data.success) {
-      userDefaults.value = response.data.data;
+    const response = await usersApi.fetchDefaults();
+    if (response.data.success && response.data.data) {
+      // Cast the response data to handle potential string/number mismatch if API returns strings
+      userDefaults.value = {
+          default_backend_id: response.data.data.default_backend_id ? Number(response.data.data.default_backend_id) : undefined,
+          default_config_id: response.data.data.default_config_id ? Number(response.data.data.default_config_id) : undefined
+      };
     }
   } catch (error) {
     console.warn('Could not fetch user defaults.', error);
@@ -127,9 +127,9 @@ const fetchAssets = async () => {
   if (!authStore.isAuthenticated) return;
   loading.value = true;
   try {
-    const response = await api.get(`/assets?type=${props.assetType}`);
+    const response = await assetsApi.fetchAssets(props.assetType);
     if (response.data.success) {
-      assets.value = response.data.data;
+      assets.value = (response.data.data as SubconverterAsset[]) || [];
       emit('assets-updated', assets.value);
     }
   } catch (error) {
@@ -153,10 +153,10 @@ const handleSave = async () => {
   saveLoading.value = true;
   try {
     if (currentAsset.value.id) {
-      await api.put(`/assets/${currentAsset.value.id}`, currentAsset.value);
+      await assetsApi.updateAsset(currentAsset.value.id, currentAsset.value as any);
       message.success('更新成功');
     } else {
-      await api.post('/assets', currentAsset.value);
+      await assetsApi.createAsset(currentAsset.value as any);
       message.success('添加成功');
     }
     showModal.value = false;
@@ -170,7 +170,7 @@ const handleSave = async () => {
 
 const handleDelete = async (id: number) => {
   try {
-    await api.delete(`/assets/${id}`);
+    await assetsApi.deleteAsset(id);
     message.success('删除成功');
     await fetchAssets();
   } catch (error: any) {
@@ -179,7 +179,7 @@ const handleDelete = async (id: number) => {
 };
 
 const handleSetDefault = async (id: number) => {
-  const payload: Partial<UserDefaults> = {};
+  const payload: any = {};
   if (props.assetType === 'backend') {
     payload.default_backend_id = id;
   } else {
@@ -187,7 +187,7 @@ const handleSetDefault = async (id: number) => {
   }
 
   try {
-    await api.put('/user/defaults', payload);
+    await usersApi.updateDefaults(payload);
     message.success('默认设置成功');
     await fetchUserDefaults(); // Refresh defaults state
   } catch (error) {

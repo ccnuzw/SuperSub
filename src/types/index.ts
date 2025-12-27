@@ -2,6 +2,7 @@ export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
   message?: string;
+  error?: string;
 }
 
 export interface User {
@@ -20,10 +21,11 @@ export interface Subscription {
   name: string;
   url: string;
   node_count?: number;
-  enabled: number; // 0 or 1
+  is_enabled: number | boolean; // Backend uses is_enabled
+  enabled?: number | boolean; // Legacy/Frontend compat
   created_at: string;
   updated_at: string;
-  last_updated?: string;
+  last_updated?: string | null;
   error?: string | null;
   expires_at?: string | null;
   subscription_info?: string | null;
@@ -43,7 +45,7 @@ export interface Node {
   protocol: string;
   protocol_params: any;
 
- raw?: string; // Raw node link, for import purposes
+  raw?: string; // Raw node link, for import purposes
 
   // Legacy fields for backward compatibility during transition
   server?: string;
@@ -68,9 +70,9 @@ export interface Profile {
   id: string;
   user_id: string;
   name: string;
-  alias?: string;
+  alias?: string | null;
   content?: string; // The raw JSON string from the DB
-  
+
   // Data sources
   subscription_ids?: string[];
   node_ids?: string[];
@@ -79,11 +81,17 @@ export interface Profile {
   node_prefix_settings?: {
     enable_subscription_prefix?: boolean;
     manual_node_prefix?: string;
+    enable_group_name_prefix?: boolean;
+    manual_nodes_first?: boolean;
   };
   airport_subscription_options?: {
-    polling?: boolean;
+    strategy?: 'all' | 'polling' | 'random';
+    polling_mode?: 'hourly' | 'request' | 'group_request';
+    use_all?: boolean;
     random?: boolean;
-    timeout?: number; // in seconds
+    timeout?: number;
+    polling_threshold?: number;
+    polling_interval?: number;
   };
 
   // Generation mode fields
@@ -166,9 +174,29 @@ export interface SubconverterAsset {
 export type LogLevel = 'STEP' | 'INFO' | 'SUCCESS' | 'WARN' | 'ERROR' | 'DEBUG';
 
 export interface LogEntry {
-    level: LogLevel;
-    message: string;
-    timestamp: string;
-    step?: string;
-    data?: any;
+  level: LogLevel;
+  message: string;
+  timestamp: string;
+  step?: string;
+  data?: any;
+}
+export interface NodeGroup {
+  id: string;
+  name: string;
+  user_id: string;
+  is_enabled: boolean;
+  order_index?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SubscriptionGroup {
+  id: string;
+  name: string;
+  description?: string | null;
+  user_id: string;
+  is_enabled: boolean;
+  order_index?: number;
+  created_at: string;
+  updated_at: string;
 }
