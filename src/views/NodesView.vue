@@ -13,6 +13,13 @@ import { FlashOutline as FlashIcon, EllipsisVertical as MoreIcon, ReorderFourOut
 import { parseNodeLinks, ParsedNode } from '@/utils/nodeParser';
 import { getNaiveTagColor } from '@/utils/colors';
 import { nodesApi } from '@/api/nodes';
+import NodeTable from '@/components/nodes/NodeTable.vue';
+import NodeFormModal from '@/components/nodes/modals/NodeFormModal.vue';
+import NodeImportModal from '@/components/nodes/modals/NodeImportModal.vue';
+import NodeMoveToGroupModal from '@/components/nodes/modals/NodeMoveToGroupModal.vue';
+import NodeSortGroupsModal from '@/components/nodes/modals/NodeSortGroupsModal.vue';
+import NodeGroupFormModal from '@/components/nodes/modals/NodeGroupFormModal.vue';
+import { useNodeGroups } from '@/composables/nodes/useNodeGroups';
 
 const message = useMessage();
 const dialog = useDialog();
@@ -122,82 +129,7 @@ const groupCounts = computed(() => {
   return counts;
 });
 
-const createColumns = ({ onTest, onEdit, onDelete }: {
-    onTest: (row: Node) => void,
-    onEdit: (row: Node) => void,
-    onDelete: (row: Node) => void,
-}): DataTableColumns<Node> => {
-  return [
-    {
-      type: 'selection',
-    },
-    {
-      title: '状态',
-      key: 'status',
-      width: 80,
-      align: 'center',
-      render(row) {
-        const status = nodeStatusStore.getStatusByNodeId(row.id);
-        switch (status?.status) {
-          case 'healthy':
-            return h(NIcon, { color: '#63e2b7', size: 20 }, { default: () => '●' });
-          case 'unhealthy':
-            return h(NIcon, { color: '#e88080', size: 20 }, { default: () => '●' });
-          case 'testing':
-            return h(NSpin, { size: 'small' });
-          default:
-            return h(NIcon, { color: '#cccccc', size: 20 }, { default: () => '●' });
-        }
-      }
-    },
-    { title: '名称', key: 'name', sorter: 'default', ellipsis: { tooltip: true } },
-    { title: '服务器', key: 'server', sorter: 'default', ellipsis: { tooltip: true } },
-    { title: '端口', key: 'port', sorter: 'default', width: 100 },
-    {
-      title: '类型',
-      key: 'protocol',
-      sorter: 'default',
-      width: 120,
-      render(row) {
-        const protocol = row.protocol || row.type || 'N/A';
-        return h(NTag, {
-            size: 'small',
-            round: true,
-            color: getNaiveTagColor(protocol, 'protocol')
-        }, { default: () => protocol.toUpperCase() });
-      }
-    },
-    {
-      title: '延迟',
-      key: 'latency',
-      width: 100,
-      sorter: (a, b) => (a.latency ?? Infinity) - (b.latency ?? Infinity),
-      render(row) {
-        const status = nodeStatusStore.getStatusByNodeId(row.id);
-        const latency = status?.latency;
-        if (latency === undefined || latency === null) {
-          return h(NTag, { type: 'default', size: 'small', round: true }, { default: () => 'N/A' });
-        }
-        const type = latency < 200 ? 'success' : latency < 500 ? 'warning' : 'error';
-        return h(NTag, { type, size: 'small', round: true }, { default: () => `${latency}ms` });
-      }
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 220,
-      render(row) {
-        return h(NSpace, null, {
-          default: () => [
-            h(NButton, { size: 'small', circle: true, tertiary: true, onClick: () => testNode(row), loading: nodeStatusStore.getStatusByNodeId(row.id)?.status === 'testing' }, { icon: () => h(NIcon, null, { default: () => h(FlashIcon) }) }),
-            h(NButton, { size: 'small', onClick: () => handleEditNode(row) }, { default: () => '编辑' }),
-            h(NButton, { size: 'small', type: 'error', ghost: true, onClick: () => handleDeleteNode(row) }, { default: () => '删除' }),
-          ]
-        });
-      }
-    }
-  ];
-};
+
 
 const fetchData = async () => {
   if (!authStore.isAuthenticated) return;
@@ -253,52 +185,32 @@ const editingNode = ref<Node | null>(null);
 const saveLoading = ref(false);
 
 const showAddFromLinkModal = ref(false);
-const addLink = ref('');
 const addFromLinkLoading = ref(false);
-const previewNodes = ref<(ParsedNode & { id: string; raw: string; })[]>([]);
-const importGroupId = ref<string | undefined>(undefined);
 
-const showMoveToGroupModal = ref(false);
-const moveToGroupId = ref<string | null>(null);
-const moveToGroupLoading = ref(false);
-
-const showAddGroupModal = ref(false);
-const newGroupName = ref('');
-const addGroupLoading = ref(false);
-
-const showEditGroupModal = ref(false);
-const editingGroup = ref<NodeGroup | null>(null);
-const editingGroupName = ref('');
-const editGroupLoading = ref(false);
+const {
+  groupFormVisible,
+  groupFormName,
+  groupFormLoading,
+  groupFormTitle,
+  openAddGroup,
+  openEditGroup,
+  submitGroupForm,
+  moveModalVisible,
+  moveModalLoading,
+  openMoveModal,
+  submitMove,
+  sortModalVisible,
+  sortLoading,
+  openSortModal,
+  submitSort,
+  deleteGroup,
+  toggleGroup
+} = useNodeGroups();
 
 const showDropdown = ref(false);
 const dropdownX = ref(0);
 const dropdownY = ref(0);
 const activeDropdownGroup = ref<NodeGroup | null>(null);
-
-// Group Sorting
-const showSortModal = ref(false);
-const sortableGroups = ref<NodeGroup[]>([]);
-const sortLoading = ref(false);
-
-const openSortModal = () => {
-  sortableGroups.value = [...groupStore.groups];
-  showSortModal.value = true;
-};
-
-const handleSortSave = async () => {
-  sortLoading.value = true;
-  try {
-    const groupIds = sortableGroups.value.map(g => g.id);
-    await groupStore.updateGroupOrder(groupIds);
-    message.success('分组顺序已更新');
-    showSortModal.value = false;
-  } catch (error: any) {
-    message.error(error.message || '更新分组顺序失败');
-  } finally {
-    sortLoading.value = false;
-  }
-};
 
 // Group Export
 const showExportModal = ref(false);
@@ -367,54 +279,24 @@ const handleDeduplicateGroup = (groupId: string) => {
     });
 };
 
-const previewColumns: DataTableColumns<ParsedNode> = [
-    {
-        type: 'expand',
-        renderExpand: (rowData) => {
-            return h(NCode, {
-                code: JSON.stringify(rowData.protocol_params, null, 2),
-                language: 'json',
-                class: 'my-2'
-            });
-        }
-    },
-  { title: '名称', key: 'name', ellipsis: { tooltip: true } },
-  { title: '协议', key: 'protocol', width: 80 },
-  { title: '服务器', key: 'server', ellipsis: { tooltip: true } },
-  { title: '端口', key: 'port', width: 70 },
-];
-
-watch(addLink, debounce((newVal: string) => {
-  if (newVal.trim()) {
-    previewNodes.value = parseNodeLinks(newVal);
-  } else {
-    previewNodes.value = [];
-  }
-}, 300));
 
 
-const defaultFormState: Partial<Node> = {
-  name: '',
-  link: '', // Assuming link is part of Node interface in Node type
-};
 
-const formState = reactive({ ...defaultFormState });
 
-const modalTitle = computed(() => (editingNode.value ? '编辑节点' : '新增节点'));
+
+
 
 const openModal = (node: Node | null = null) => {
   if (node) {
     editingNode.value = node;
-    formState.name = node.name;
-    // @ts-ignore
-    formState.link = node.link; // If 'link' is not in Node interface, careful here
+    // formState handled by component watcher
     showModal.value = true;
   } else {
-    handleOpenAddFromLinkModal();
+    showAddFromLinkModal.value = true;
   }
 };
 
-const handleSave = async () => {
+const handleSave = async (payload: { name: string; link: string }) => {
   if (!editingNode.value) {
     message.error('发生意外错误：没有正在编辑的节点。');
     return;
@@ -422,11 +304,6 @@ const handleSave = async () => {
 
   saveLoading.value = true;
   try {
-    const payload = {
-      name: formState.name,
-      // @ts-ignore
-      link: formState.link,
-    };
     
     const response = await nodesApi.updateNode(editingNode.value.id, payload);
     if (response.data.success) {
@@ -444,22 +321,16 @@ const handleSave = async () => {
 };
 
 
-const handleOpenAddFromLinkModal = () => {
-  addLink.value = '';
-  previewNodes.value = [];
-  showAddFromLinkModal.value = true;
-};
-
-const handleBatchImport = async () => {
-  if (previewNodes.value.length === 0) {
+const handleBatchImport = async (payload: { nodes: (ParsedNode & { id: string; raw: string })[]; groupId: string | null }) => {
+  if (payload.nodes.length === 0) {
     message.warning('没有可导入的有效节点。');
     return;
   }
   addFromLinkLoading.value = true;
   try {
-    const response = await nodesApi.importNodes(previewNodes.value, importGroupId.value || null);
+    const response = await nodesApi.importNodes(payload.nodes, payload.groupId || null);
     if (response.data.success) {
-      message.success(response.data.message || `成功导入 ${previewNodes.value.length} 个节点`);
+      message.success(response.data.message || `成功导入 ${payload.nodes.length} 个节点`);
       showAddFromLinkModal.value = false;
       fetchData();
     } else {
@@ -518,11 +389,7 @@ const handleSaveOrder = async () => {
   }
 };
 
-const columns = createColumns({
-    onTest: testNode,
-    onEdit: handleEditNode,
-    onDelete: handleDeleteNode,
-});
+
 
 const handleBatchDelete = () => {
   if (checkedRowKeys.value.length === 0) {
@@ -551,28 +418,12 @@ const handleBatchDelete = () => {
   });
 };
 
-const handleSaveGroup = async () => {
-  if (!newGroupName.value.trim()) {
-    message.warning('分组名称不能为空');
-    return;
-  }
-  addGroupLoading.value = true;
-  try {
-    const response = await groupStore.addGroup(newGroupName.value);
-    // groupStore returns response.data directly in the refactored store
-    if (response.success) {
-      message.success('分组创建成功');
-      showAddGroupModal.value = false;
-      newGroupName.value = '';
-    } else {
-      message.error(response.message || '创建失败');
-    }
-  } catch (error: any) {
-    message.error(error.message || '创建失败');
-  } finally {
-    addGroupLoading.value = false;
-  }
-};
+const handleMoveToGroup = (groupId: string | null) => {
+  submitMove(checkedRowKeys.value, groupId, () => {
+      checkedRowKeys.value = []
+      fetchData()
+  })
+}
 
 const getDropdownOptions = (group: NodeGroup) => {
   return [
@@ -598,34 +449,16 @@ const handleGroupAction = (key: string) => {
       handleDeduplicateGroup(group.id);
       break;
     case 'rename':
-      editingGroup.value = group;
-      editingGroupName.value = group.name;
-      showEditGroupModal.value = true;
+      openEditGroup(group);
       break;
     case 'toggle':
-      groupStore.toggleGroup(group.id).catch((err: any) => message.error(err.message || '操作失败'));
+      toggleGroup(group.id);
       break;
     case 'delete':
-      dialog.warning({
-        title: '确认删除',
-        content: `确定要删除分组 "${group.name}" 吗？分组下的节点将变为“未分组”。`,
-        positiveText: '确定',
-        negativeText: '取消',
-        onPositiveClick: async () => {
-          try {
-            const response = await groupStore.deleteGroup(group.id);
-            if (response.success) {
-              message.success('分组删除成功');
-              if (activeTab.value === group.id) {
-                activeTab.value = 'all';
-              }
-            } else {
-              message.error(response.message || '删除失败');
-            }
-          } catch (error: any) {
-            message.error(error.message || '删除失败');
+      deleteGroup(group, () => {
+          if (activeTab.value === group.id) {
+            activeTab.value = 'all';
           }
-        }
       });
       break;
   }
@@ -655,49 +488,9 @@ const handleContextMenu = (group: NodeGroup, event: MouseEvent) => {
 };
 
 
-const handleUpdateGroup = async () => {
-  if (!editingGroup.value || !editingGroupName.value.trim()) {
-    message.warning('分组名称不能为空');
-    return;
-  }
-  editGroupLoading.value = true;
-  try {
-    const response = await groupStore.updateGroup(editingGroup.value.id, editingGroupName.value);
-    if (response.success) {
-      message.success('分组更新成功');
-      showEditGroupModal.value = false;
-    } else {
-      message.error(response.message || '更新失败');
-    }
-  } catch (error: any) {
-    message.error(error.message || '更新失败');
-  } finally {
-    editGroupLoading.value = false;
-  }
-};
+const handleUpdateGroup = async () => {}; // Moved to composable
 
-const handleMoveToGroup = async () => {
-  if (checkedRowKeys.value.length === 0) {
-    message.warning('请至少选择一个节点');
-    return;
-  }
-  moveToGroupLoading.value = true;
-  try {
-    const response = await nodesApi.batchUpdateGroup(checkedRowKeys.value, moveToGroupId.value);
-    if (response.data.success) {
-      message.success('节点分组更新成功');
-      showMoveToGroupModal.value = false;
-      checkedRowKeys.value = [];
-      fetchData();
-    } else {
-      message.error(response.data.message || '移动失败');
-    }
-  } catch (error: any) {
-    message.error(error.message || '请求失败');
-  } finally {
-    moveToGroupLoading.value = false;
-  }
-};
+const handleMoveToProps = async () => {}; // Replaced via composable wrapper
 
 onMounted(() => {
   fetchData();
@@ -735,12 +528,12 @@ onBeforeUnmount(() => {
             ]"
             @select="key => {
               if (key === 'manual-sort') isSorting = true;
-              if (key === 'auto-sort') handleBatchAction('sort');
-              if (key === 'sort-groups') openSortModal();
-              if (key === 'deduplicate') handleBatchAction('deduplicate');
-              if (key === 'add-group') showAddGroupModal = true;
-              if (key === 'clear-all') handleBatchAction('clear');
-              if (key === 'move-to-group') showMoveToGroupModal = true;
+               if (key === 'auto-sort') handleBatchAction('sort');
+               if (key === 'sort-groups') openSortModal();
+               if (key === 'deduplicate') handleBatchAction('deduplicate');
+               if (key === 'add-group') openAddGroup();
+               if (key === 'clear-all') handleBatchAction('clear');
+               if (key === 'move-to-group') openMoveModal();
               if (key === 'batch-delete') handleBatchDelete();
               if (key === 'test-selected') testSelectedNodes();
               if (key === 'test-current-group') testAllNodes();
@@ -802,19 +595,18 @@ onBeforeUnmount(() => {
       @clickoutside="showDropdown = false"
     />
 
-    <n-data-table
+    <NodeTable
       v-if="!isSorting && !isMobile"
-      :columns="columns"
-      :data="filteredNodes"
-      :row-key="(row: Node) => row.id"
-      v-model:checked-row-keys="checkedRowKeys"
+      :nodes="filteredNodes"
       :loading="loading"
-      :pagination="{ pageSize: 15 }"
-      :bordered="false"
+      v-model:checked-row-keys="checkedRowKeys"
+      @test="testNode"
+      @edit="handleEditNode"
+      @delete="handleDeleteNode"
       class="mt-4"
     />
 
-    <n-list v-if="!isSorting && isMobile" bordered class="mt-4">
+    <n-list v-else-if="!isSorting && isMobile" bordered class="mt-4">
       <n-list-item v-for="node in paginatedNodes" :key="node.id">
         <n-thing>
           <template #avatar>
@@ -911,124 +703,42 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <n-modal v-model:show="showModal" preset="card" :title="modalTitle" style="width: 600px; max-width: 90%;">
-      <n-form :model="formState" label-placement="left" label-width="80">
-        <n-form-item label="名称" path="name">
-          <n-input v-model:value="formState.name" placeholder="请输入节点名称" />
-        </n-form-item>
-        <n-form-item label="链接" path="link">
-          <n-input type="textarea" v-model:value="formState.link as string" placeholder="vmess://... or vless://..." :autosize="{ minRows: 3, maxRows: 6 }" />
-        </n-form-item>
-      </n-form>
-      <template #footer>
-        <n-space justify="end">
-            <n-button @click="showModal = false">取消</n-button>
-            <n-button type="primary" @click="handleSave" :loading="saveLoading">保存</n-button>
-        </n-space>
-      </template>
-    </n-modal>
+    <NodeFormModal
+        v-model:show="showModal"
+        :node="editingNode"
+        :loading="saveLoading"
+        @submit="handleSave"
+    />
 
-    <n-modal v-model:show="showAddFromLinkModal" preset="card" title="导入节点" style="width: 600px; max-width: 90%;">
-        <n-input
-            v-model:value="addLink"
-            type="textarea"
-            placeholder="粘贴订阅链接或节点链接，每行一个..."
-            :autosize="{ minRows: 5, maxRows: 10 }"
-        />
-        <n-form-item label="导入到分组" class="mt-4">
-          <n-select
-            v-model:value="importGroupId"
-            :options="groupStore.groups.map(g => ({ label: g.name, value: g.id }))"
-            placeholder="选择分组 (可选)"
-            clearable
-          />
-        </n-form-item>
-        <div class="mt-4" v-if="previewNodes.length > 0">
-            <p>预览 ({{ previewNodes.length }} 个节点):</p>
-             <n-data-table
-                :columns="previewColumns"
-                :data="previewNodes"
-                :pagination="{ pageSize: 5 }"
-                size="small"
-                class="mt-2"
-            />
-        </div>
-        <template #footer>
-            <n-space justify="end">
-                <n-button @click="showAddFromLinkModal = false">取消</n-button>
-                <n-button type="primary" @click="handleBatchImport" :loading="addFromLinkLoading" :disabled="previewNodes.length === 0">导入</n-button>
-            </n-space>
-        </template>
-    </n-modal>
+    <NodeImportModal
+        v-model:show="showAddFromLinkModal"
+        :groups="groupStore.groups"
+        :loading="addFromLinkLoading"
+        @import="handleBatchImport"
+    />
 
-    <n-modal v-model:show="showMoveToGroupModal" preset="card" title="移动到分组" style="width: 400px;">
-        <n-space vertical>
-            <p>将选中的节点移动到：</p>
-            <n-select
-                v-model:value="moveToGroupId"
-                :options="[{ label: '未分组', value: null }, ...groupStore.groups.map(g => ({ label: g.name, value: g.id }))] as any"
-                placeholder="选择目标分组"
-            />
-        </n-space>
-        <template #footer>
-            <n-space justify="end">
-                <n-button @click="showMoveToGroupModal = false">取消</n-button>
-                <n-button type="primary" @click="handleMoveToGroup" :loading="moveToGroupLoading">确认移动</n-button>
-            </n-space>
-        </template>
-    </n-modal>
+    <NodeMoveToGroupModal
+        v-model:show="moveModalVisible"
+        :groups="groupStore.groups"
+        :loading="moveModalLoading"
+        :node-count="checkedRowKeys.length"
+        @submit="handleMoveToGroup"
+    />
 
-    <n-modal v-model:show="showAddGroupModal" preset="card" title="新增分组" style="width: 400px;">
-      <n-input v-model:value="newGroupName" placeholder="分组名称" @keyup.enter="handleSaveGroup" />
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showAddGroupModal = false">取消</n-button>
-          <n-button type="primary" @click="handleSaveGroup" :loading="addGroupLoading">确定</n-button>
-        </n-space>
-      </template>
-    </n-modal>
+    <NodeGroupFormModal
+      v-model:show="groupFormVisible"
+      v-model:modelValue="groupFormName"
+      :loading="groupFormLoading"
+      :title="groupFormTitle"
+      @submit="submitGroupForm"
+    />
 
-    <n-modal v-model:show="showEditGroupModal" preset="card" title="重命名分组" style="width: 400px;">
-      <n-input v-model:value="editingGroupName" placeholder="分组名称" @keyup.enter="handleUpdateGroup" />
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showEditGroupModal = false">取消</n-button>
-          <n-button type="primary" @click="handleUpdateGroup" :loading="editGroupLoading">确定</n-button>
-        </n-space>
-      </template>
-    </n-modal>
-
-    <n-modal
-      v-model:show="showSortModal"
-      preset="card"
-      title="调整分组顺序"
-      :style="{ width: isMobile ? '90vw' : '500px' }"
-      :mask-closable="false"
-    >
-      <p class="text-gray-500 mb-4">拖动下方的分组名称来调整它们的显示顺序。</p>
-      <n-list bordered>
-        <draggable
-          v-model="sortableGroups"
-          item-key="id"
-          handle=".drag-handle"
-        >
-          <template #item="{ element: group }">
-            <n-list-item>
-              <div class="flex items-center">
-                <n-icon class="drag-handle mr-2 cursor-move" :component="DragHandleIcon" size="20" />
-                <span>{{ group.name }}</span>
-              </div>
-            </n-list-item>
-          </template>
-        </draggable>
-      </n-list>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showSortModal = false">取消</n-button>
-          <n-button type="primary" @click="handleSortSave" :loading="sortLoading">保存顺序</n-button>
-        </n-space>
-      </template>
-    </n-modal>
+    <NodeSortGroupsModal
+      v-model:show="sortModalVisible"
+      :groups="groupStore.groups"
+      :loading="sortLoading"
+      @save="submitSort"
+    />
 
     <n-modal
       v-model:show="showExportModal"
