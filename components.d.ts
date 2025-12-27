@@ -40,6 +40,8 @@ declare module 'vue' {
     SubscriptionLogModal: typeof import('./src/components/SubscriptionLogModal.vue')['default']
     SubscriptionNodesPreview: typeof import('./src/components/SubscriptionNodesPreview.vue')['default']
     SubscriptionTable: typeof import('./src/components/subscriptions/SubscriptionTable.vue')['default']
+    SystemSettingsCard: typeof import('./src/components/admin/SystemSettingsCard.vue')['default']
     UpdateLogModal: typeof import('./src/components/subscriptions/modals/UpdateLogModal.vue')['default']
+    UserTable: typeof import('./src/components/admin/UserTable.vue')['default']
   }
 }
