@@ -3,7 +3,7 @@ import { ref, onMounted, reactive, h, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, useDialog, NButton, NSpace, NTag, NDataTable, NPageHeader, NModal, NForm, NFormItem, NInput, NTooltip, NGrid, NGi, NStatistic, NCard, NSwitch, NSelect, NDynamicTags, NRadioGroup, NRadioButton, NInputGroup, NIcon, NTabs, NTabPane, NDropdown, NProgress, NCollapse, NCollapseItem, NInputNumber, NList, NListItem, NThing, NPagination } from 'naive-ui'
 import draggable from 'vuedraggable'
-import { EyeOutline, FilterOutline, CreateOutline, SyncOutline, TrashOutline, EllipsisVertical as MoreIcon, SettingsOutline, ReorderFourOutline, AddOutline, EllipsisHorizontal } from '@vicons/ionicons5'
+import { EyeOutline, FilterOutline, CreateOutline, SyncOutline, TrashOutline as TrashIcon, EllipsisVertical as MoreIcon, SettingsOutline, ReorderFourOutline, AddOutline, EllipsisHorizontal, RefreshOutline as RefreshIcon, CheckmarkCircle as CheckmarkCircleIcon, CloseCircle as CloseCircleIcon } from '@vicons/ionicons5'
 import type { DataTableColumns, FormInst, DropdownOption } from 'naive-ui'
 import { useIsMobile } from '@/composables/useMediaQuery'
 import { Subscription, Node, ApiResponse } from '@/types'
@@ -372,7 +372,7 @@ const createColumns = ({ onEdit, onUpdate, onDelete, onPreviewNodes, onManageRul
             createTooltipButton('规则', FilterOutline, () => onManageRules(row), { type: 'info' }),
             createTooltipButton('编辑', CreateOutline, () => onEdit(row)),
             createTooltipButton('更新', SyncOutline, () => onUpdate(row), { type: 'primary', loading: updatingId.value === row.id || updatingIds.value.has(row.id) }),
-            createTooltipButton('删除', TrashOutline, () => onDelete(row), { type: 'error' }),
+            createTooltipButton('删除', TrashIcon, () => onDelete(row), { type: 'error' }),
           ]
         })
       }
@@ -1395,6 +1395,10 @@ const handleSortSave = async () => {
   }
 }
 
+const updateModalTitle = computed(() => {
+  return `批量更新 (共 ${subsToUpdate.value.length} 个订阅)`
+})
+
 onMounted(() => {
   fetchSubscriptions();
   subscriptionGroupStore.fetchGroups();
@@ -1595,111 +1599,143 @@ onMounted(() => {
     <n-modal
       v-model:show="showUpdateLogModal"
       preset="card"
-      title="批量更新"
-      style="width: 600px; max-width: 95%;"
+      title="订阅更新"
+      style="width: 600px;"
       :mask-closable="false"
-      :close-on-esc="false"
     >
+      <!-- Configuration Stage -->
       <div v-if="updateStage === 'config'">
-         <n-alert title="更新配置" type="info" class="mb-4">
-             配置本次更新的并发参数和过期策略。
-         </n-alert>
-         <n-form label-placement="left" label-width="120">
-             <n-form-item label="并发数">
-                 <n-input-number v-model:value="updateSettings.concurrency" :min="1" :max="10" />
-             </n-form-item>
-             <n-form-item label="重试次数">
-                 <n-input-number v-model:value="updateSettings.retries" :min="0" :max="5" />
-             </n-form-item>
-              <n-form-item label="请求间隔 (ms)">
-                 <n-input-number v-model:value="updateSettings.delay" :min="0" :step="100" />
-             </n-form-item>
-             <n-collapse>
-                 <n-collapse-item title="过期策略 (自动清理)" name="1">
-                     <n-form-item label="剩余天数少于">
-                         <n-input-number v-model:value="updateSettings.expiringDaysThreshold" :min="0" />
-                     </n-form-item>
-                     <n-form-item label="剩余流量少于 (GB)">
-                         <n-input-number v-model:value="updateSettings.expiringTrafficThresholdGB" :min="0" :step="0.1" />
-                     </n-form-item>
-                 </n-collapse-item>
-             </n-collapse>
-         </n-form>
+        <n-form label-placement="left" label-width="auto">
+          <n-form-item label="待更新订阅数">
+            <n-statistic :value="subsToUpdate.length" />
+          </n-form-item>
+          <n-form-item label="并发数">
+            <n-input-number v-model:value="updateSettings.concurrency" :min="1" :max="20" />
+            <template #feedback>同时执行的网络请求数量。较高的值可以加快速度，但可能导致请求失败。</template>
+          </n-form-item>
+          <n-form-item label="失败重试次数">
+            <n-input-number v-model:value="updateSettings.retries" :min="0" :max="5" />
+            <template #feedback>每个订阅在更新失败后自动重试的次数。</template>
+          </n-form-item>
+          <n-form-item label="请求间隔 (ms)">
+            <n-input-number v-model:value="updateSettings.delay" :min="0" :step="100" />
+            <template #feedback>同一批次内，每个并发请求之间的间隔。有助于错开请求峰值。</template>
+          </n-form-item>
+          <n-form-item label="批次间隔 (ms)">
+            <n-input-number v-model:value="updateSettings.batchDelay" :min="0" :step="100" />
+            <template #feedback>每完成一个并发批次后，等待一段时间再开始下一个批次。</template>
+          </n-form-item>
+          <n-form-item label="到期天数阈值">
+           <n-input-number v-model:value="updateSettings.expiringDaysThreshold" :min="0" :step="1" />
+           <template #feedback>当剩余天数小于此值时，将归类为“即将到期”。</template>
+         </n-form-item>
+         <n-form-item label="到期流量阈值 (GB)">
+           <n-input-number v-model:value="updateSettings.expiringTrafficThresholdGB" :min="0" :step="1" />
+           <template #feedback>当剩余流量小于此值 (GB) 时，将归类为“即将到期”。</template>
+         </n-form-item>
+        </n-form>
       </div>
 
+      <!-- Progress Stage -->
       <div v-else>
-        <div class="mb-4">
-          <div class="flex justify-between mb-1">
-             <span>进度: {{ updateProgress.current }} / {{ updateProgress.total }}</span>
-             <span v-if="updateLogLoading">正在更新...</span>
-             <span v-else>更新完成</span>
-          </div>
+        <div class="text-center mb-4">
           <n-progress
             type="line"
-            :percentage="Math.round((updateProgress.current / updateProgress.total) * 100) || 0"
-            :status="updateLogLoading ? 'default' : 'success'"
-            :processing="updateLogLoading"
+            :percentage="updateProgress.total > 0 ? Math.floor((updateProgress.current / updateProgress.total) * 100) : 0"
+            :indicator-placement="'inside'"
+            processing
           />
+          <p class="mt-2">
+            <span v-if="updateLogLoading">正在更新: {{ updateProgress.current }} / {{ updateProgress.total }}</span>
+            <span v-else>更新完成: {{ updateProgress.current }} / {{ updateProgress.total }}</span>
+          </p>
         </div>
-
-        <n-collapse :default-expanded-names="['failed', 'expiring']">
-           <n-collapse-item title="更新成功" name="success">
-               <template #header-extra>
-                   <n-tag type="success" size="small" round>{{ updateLog.success.length }}</n-tag>
-               </template>
-               <n-list style="max-height: 200px; overflow-y: auto;">
-                   <n-list-item v-for="(item, index) in updateLog.success" :key="index">
-                       {{ item.name }}
-                   </n-list-item>
-               </n-list>
-           </n-collapse-item>
-
-           <n-collapse-item title="更新失败" name="failed">
-               <template #header-extra>
-                   <n-tag type="error" size="small" round>{{ updateLog.failed.length }}</n-tag>
-               </template>
-               <div v-if="updateLog.failed.length > 0" class="mb-2">
-                   <n-space>
-                       <n-button size="small" type="warning" @click="handleRetryFailed" :disabled="updateLogLoading">重试失败项</n-button>
-                       <n-button size="small" type="error" ghost @click="handleClearFailed" :disabled="updateLogLoading">清除失败项</n-button>
+        <n-collapse>
+          <n-collapse-item :title="`更新成功 (${updateLog.success.length})`" name="success">
+            <div style="max-height: 200px; overflow-y: auto;">
+              <n-tag v-for="sub in updateLog.success" :key="sub.name" type="success" class="m-1">
+                {{ sub.name }}
+              </n-tag>
+              <n-text v-if="updateLog.success.length === 0">没有订阅成功更新。</n-text>
+            </div>
+          </n-collapse-item>
+         <n-collapse-item :title="`即将到期 (${updateLog.expiring.length})`" name="expiring">
+           <div style="max-height: 200px; overflow-y: auto;">
+             <div v-if="updateLog.expiring.length > 0">
+               <div v-for="sub in updateLog.expiring" :key="sub.id" class="mb-2 p-2 border rounded border-yellow-500">
+                 <div class="flex justify-between items-center">
+                   <n-tag type="warning">{{ sub.name }}</n-tag>
+                   <n-space :size="4">
+                     <n-tag v-if="sub.remaining_traffic !== null && sub.remaining_traffic !== undefined" size="small" type="warning">
+                       流量: {{ formatBytes(sub.remaining_traffic) }}
+                     </n-tag>
+                     <n-tag v-if="sub.remaining_days !== null && sub.remaining_days !== undefined" size="small" type="warning">
+                       天数: {{ sub.remaining_days }} 天
+                     </n-tag>
                    </n-space>
+                 </div>
                </div>
-               <n-list style="max-height: 200px; overflow-y: auto;">
-                   <n-list-item v-for="sub in updateLog.failed" :key="sub.id">
-                       <div class="flex justify-between">
-                           <span>{{ sub.name }}</span>
-                           <span class="text-red-500 text-xs">{{ sub.error }}</span>
-                       </div>
-                   </n-list-item>
-               </n-list>
-           </n-collapse-item>
-
-           <n-collapse-item title="即将到期/流量不足" name="expiring">
-                <template #header-extra>
-                   <n-tag type="warning" size="small" round>{{ updateLog.expiring.length }}</n-tag>
-               </template>
-                <div v-if="updateLog.expiring.length > 0" class="mb-2">
-                   <n-button size="small" type="error" ghost @click="handleClearExpiring" :disabled="updateLogLoading">清除此类订阅</n-button>
+             </div>
+             <n-text v-else>没有即将到期的订阅。</n-text>
+           </div>
+         </n-collapse-item>
+          <n-collapse-item :title="`更新失败 (${updateLog.failed.length})`" name="failed">
+             <div style="max-height: 200px; overflow-y: auto;">
+              <div v-if="updateLog.failed.length > 0">
+                <div v-for="sub in updateLog.failed" :key="sub.id" class="mb-2 p-2 border rounded">
+                   <div class="flex justify-between items-center">
+                     <n-tag type="error">{{ sub.name }}</n-tag>
+                     <n-space :size="4">
+                       <n-tag v-if="sub.remaining_traffic !== null && sub.remaining_traffic !== undefined" size="small" :type="sub.remaining_traffic === 0 ? 'error' : 'default'">
+                         流量: {{ formatBytes(sub.remaining_traffic) }}
+                       </n-tag>
+                        <n-tag v-if="sub.remaining_days !== null && sub.remaining_days !== undefined" size="small" :type="sub.remaining_days <= 0 ? 'error' : 'default'">
+                         天数: {{ sub.remaining_days }} 天
+                       </n-tag>
+                     </n-space>
+                   </div>
+                   <n-text class="text-xs text-gray-500 mt-1 block">{{ sub.error }}</n-text>
                 </div>
-                <n-list style="max-height: 200px; overflow-y: auto;">
-                   <n-list-item v-for="sub in updateLog.expiring" :key="sub.id">
-                        <div class="flex justify-between">
-                           <span>{{ sub.name }}</span>
-                           <span class="text-xs text-gray-500">
-                               Remaining: {{ sub.remaining_days }}d / {{ formatBytes(sub.remaining_traffic ?? 0) }}
-                           </span>
-                       </div>
-                   </n-list-item>
-                </n-list>
-           </n-collapse-item>
+              </div>
+              <n-text v-else>没有订阅更新失败。</n-text>
+            </div>
+          </n-collapse-item>
         </n-collapse>
       </div>
 
-       <template #footer>
+      <template #footer>
         <n-space justify="end">
-          <n-button v-if="updateStage === 'config'" @click="showUpdateLogModal = false">取消</n-button>
-          <n-button v-if="updateStage === 'config'" type="primary" @click="executeSubscriptionUpdates">开始更新</n-button>
-          <n-button v-if="updateStage === 'progress'" @click="handleCancelUpdate" :disabled="!updateLogLoading && updateProgress.current === updateProgress.total">{{ updateLogLoading ? '停止' : '关闭' }}</n-button>
+          <div v-if="updateStage === 'config'">
+            <n-button @click="showUpdateLogModal = false">取消</n-button>
+            <n-button type="primary" @click="executeSubscriptionUpdates">开始更新</n-button>
+          </div>
+          <div v-else>
+            <n-button @click="handleCancelUpdate">{{ updateLogLoading ? '中止' : '关闭' }}</n-button>
+            <n-button
+              type="primary"
+              ghost
+              @click="handleRetryFailed"
+              :disabled="updateLog.failed.filter(s => s.error !== '已中止').length === 0 || updateLogLoading"
+            >
+              重试失败项
+            </n-button>
+             <n-button
+              type="warning"
+              ghost
+              @click="handleClearExpiring"
+              :disabled="updateLog.expiring.length === 0 || updateLogLoading"
+            >
+              清除即将到期
+            </n-button>
+             <n-button
+              type="error"
+              ghost
+              @click="handleClearFailed"
+              :disabled="updateLog.failed.filter(s => s.error !== '已中止').length === 0 || updateLogLoading"
+            >
+              清除失败项
+            </n-button>
+          </div>
         </n-space>
       </template>
     </n-modal>
