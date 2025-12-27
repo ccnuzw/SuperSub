@@ -14,6 +14,7 @@ declare module 'vue' {
     GeneralSettings: typeof import('./src/components/settings/GeneralSettings.vue')['default']
     Layout: typeof import('./src/components/Layout.vue')['default']
     NAlert: typeof import('naive-ui')['NAlert']
+    NEmpty: typeof import('naive-ui')['NEmpty']
     NSpin: typeof import('naive-ui')['NSpin']
     ProfileForm: typeof import('./src/components/settings/ProfileForm.vue')['default']
     ProfileRulesManager: typeof import('./src/components/settings/ProfileRulesManager.vue')['default']

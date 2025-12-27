@@ -21,10 +21,24 @@ export const subscriptionGroupsApi = {
     },
 
     toggleGroup: (id: string) => {
-        return client.put<ApiResponse<SubscriptionGroup>>(`/subscription-groups/${id}/toggle`, {});
+        return client.patch<ApiResponse<SubscriptionGroup>>(`/subscription-groups/${id}/toggle`, {});
     },
 
     updateGroupOrder: (groupIds: string[]) => {
-        return client.post<ApiResponse<null>>('/subscription-groups/reorder', { ids: groupIds });
+        return client.post<ApiResponse<null>>('/subscription-groups/update-order', { groupIds: groupIds });
+    },
+
+    // Rules
+    fetchRules: (id: string) => {
+        return client.get<ApiResponse<import('@/types').SubscriptionRule[]>>(`/subscription-groups/${id}/rules`);
+    },
+    addRule: (id: string, rule: Partial<import('@/types').SubscriptionRule>) => {
+        return client.post<ApiResponse<import('@/types').SubscriptionRule>>(`/subscription-groups/${id}/rules`, rule);
+    },
+    updateRule: (groupId: string, ruleId: number, rule: Partial<import('@/types').SubscriptionRule>) => {
+        return client.put<ApiResponse<import('@/types').SubscriptionRule>>(`/subscription-groups/${groupId}/rules/${ruleId}`, rule);
+    },
+    deleteRule: (groupId: string, ruleId: number) => {
+        return client.delete<ApiResponse<null>>(`/subscription-groups/${groupId}/rules/${ruleId}`);
     }
 };

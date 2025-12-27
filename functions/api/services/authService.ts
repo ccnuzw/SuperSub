@@ -59,4 +59,15 @@ export class AuthService {
 
         return { success: true, data: { token, user: payload }, status: 200 };
     }
+
+    async getRegistrationStatus(): Promise<{ success: boolean; data: { allow_registration: boolean }; status: number }> {
+        const allowRegistrationSetting = await this.db.prepare(
+            `SELECT value FROM system_settings WHERE key = 'allow_registration'`
+        ).first<{ value: string }>();
+
+        // Default to 'true' if the setting is not found
+        const isRegistrationAllowed = allowRegistrationSetting?.value !== 'false';
+
+        return { success: true, data: { allow_registration: isRegistrationAllowed }, status: 200 };
+    }
 }

@@ -229,4 +229,41 @@ subscriptions.post('/clear-by-group', async (c) => {
 });
 
 
+
+subscriptions.post('/batch-update-group', async (c) => {
+    const user = c.get('jwtPayload');
+    const { subscriptionIds, groupId } = await c.req.json<{ subscriptionIds: string[], groupId: string | null }>();
+    const service = new SubscriptionService(c.env);
+    try {
+        await service.batchUpdateGroup(user.id, subscriptionIds, groupId);
+        return c.json({ success: true, message: 'Subscriptions moved successfully.' });
+    } catch (e: any) {
+        return createErrorResponse(e.message, 500);
+    }
+});
+
+subscriptions.post('/batch-update-urls', async (c) => {
+    const user = c.get('jwtPayload');
+    const { updates } = await c.req.json<{ updates: { id: string; url: string }[] }>();
+    const service = new SubscriptionService(c.env);
+    try {
+        await service.batchUpdateUrls(user.id, updates);
+        return c.json({ success: true, message: 'Subscription URLs updated successfully.' });
+    } catch (e: any) {
+        return createErrorResponse(e.message, 500);
+    }
+});
+
+subscriptions.post('/clear-failed', async (c) => {
+    const user = c.get('jwtPayload');
+    const { groupId } = await c.req.json<{ groupId: string | null | 'all' }>();
+    const service = new SubscriptionService(c.env);
+    try {
+        const count = await service.clearFailed(user.id, groupId);
+        return c.json({ success: true, message: `Successfully cleared ${count} failed subscriptions.` });
+    } catch (e: any) {
+        return createErrorResponse(e.message, 500);
+    }
+});
+
 export default subscriptions;

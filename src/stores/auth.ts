@@ -20,7 +20,9 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authApi.checkRegistrationStatus();
       if (response.data.success && response.data.data) {
-        isRegistrationAllowed.value = response.data.data.allow_registration === 'true';
+        // Handle both boolean true and string 'true' for compatibility
+        const val = response.data.data.allow_registration;
+        isRegistrationAllowed.value = String(val) === 'true';
       }
     } catch (error) {
       console.error('Failed to check registration status:', error);

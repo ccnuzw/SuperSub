@@ -29,4 +29,10 @@ auth.post('/login', async (c) => {
     return c.json({ success: result.success, message: result.message, data: result.data }, result.status as any);
 });
 
+auth.get('/registration-status', async (c) => {
+    const authService = new AuthService(c.env);
+    const result = await authService.getRegistrationStatus();
+    return c.json(result, result.status as any);
+});
+
 export default auth;

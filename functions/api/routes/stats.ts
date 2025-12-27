@@ -19,4 +19,15 @@ stats.get('/', async (c) => {
     }
 });
 
+stats.get('/user', async (c) => {
+    try {
+        const user = c.get('jwtPayload');
+        const service = new StatsService(c.env);
+        const data = await service.getUserStats(user.id);
+        return c.json({ success: true, data });
+    } catch (e: any) {
+        return createErrorResponse(e.message, 500);
+    }
+});
+
 export default stats;

@@ -30,7 +30,7 @@ client.interceptors.request.use(
         // Cloudflare Pages/Functions doesn't properly handle PUT/DELETE with [[path]].
         // Tunnel these methods through POST using a header.
         const method = config.method?.toUpperCase();
-        if (method === 'PUT' || method === 'DELETE') {
+        if (method === 'PUT' || method === 'DELETE' || method === 'PATCH') {
             config.headers['X-HTTP-Method-Override'] = method;
             config.method = 'POST';
         }

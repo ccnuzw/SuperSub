@@ -448,4 +448,47 @@ export class SubscriptionService {
 
         return { nodes: finalNodes, analysis };
     }
+
+    async batchUpdateGroup(userId: string, subscriptionIds: string[], groupId: string | null) {
+        if (!Array.isArray(subscriptionIds) || subscriptionIds.length === 0) {
+            throw new Error('No subscription IDs provided');
+        }
+
+        const placeholders = subscriptionIds.map(() => '?').join(',');
+        const now = new Date().toISOString();
+        const query = `UPDATE subscriptions SET group_id = ?, updated_at = ? WHERE user_id = ? AND id IN (${placeholders})`;
+        const bindings = [groupId ?? null, now, userId, ...subscriptionIds];
+
+        await this.db.prepare(query).bind(...bindings).run();
+    }
+
+    async batchUpdateUrls(userId: string, updates: { id: string; url: string }[]) {
+        if (!Array.isArray(updates) || updates.length === 0) {
+            throw new Error('No updates provided');
+        }
+
+        const now = new Date().toISOString();
+        const stmts = updates.map(update => {
+            return this.db.prepare(
+                'UPDATE subscriptions SET url = ?, updated_at = ? WHERE id = ? AND user_id = ?'
+            ).bind(update.url, now, update.id, userId);
+        });
+
+        await this.db.batch(stmts);
+    }
+
+    async clearFailed(userId: string, groupId: string | null | 'all') {
+        let query = 'DELETE FROM subscriptions WHERE user_id = ? AND error IS NOT NULL';
+        const bindings: any[] = [userId];
+
+        if (groupId && groupId !== 'all') {
+            query += ' AND group_id = ?';
+            bindings.push(groupId);
+        } else if (groupId === null) {
+            query += ' AND group_id IS NULL';
+        }
+
+        const { meta: { changes } } = await this.db.prepare(query).bind(...bindings).run();
+        return changes || 0;
+    }
 }

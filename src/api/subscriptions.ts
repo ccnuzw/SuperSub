@@ -57,5 +57,31 @@ export const subscriptionsApi = {
     // Preview
     preview: (payload: { url: string; subscription_id?: string; apply_rules?: boolean }) => {
         return client.post<ApiResponse<{ nodes: any[]; analysis: any }>>('/subscriptions/preview', payload, { timeout: 15000 });
+    },
+
+    batchUpdateGroup: (payload: { subscriptionIds: string[]; groupId: string | null }) => {
+        return client.post<ApiResponse<null>>('/subscriptions/batch-update-group', payload);
+    },
+
+    batchUpdateUrls: (payload: { updates: { id: string; url: string }[] }) => {
+        return client.post<ApiResponse<null>>('/subscriptions/batch-update-urls', payload);
+    },
+
+    clearFailed: (groupId: string | null | 'all') => {
+        return client.post<ApiResponse<null>>('/subscriptions/clear-failed', { groupId });
+    },
+
+    // Rules
+    fetchRules: (id: string) => {
+        return client.get<ApiResponse<import('@/types').SubscriptionRule[]>>(`/subscriptions/${id}/rules`);
+    },
+    addRule: (id: string, rule: Partial<import('@/types').SubscriptionRule>) => {
+        return client.post<ApiResponse<import('@/types').SubscriptionRule>>(`/subscriptions/${id}/rules`, rule);
+    },
+    updateRule: (subscriptionId: string, ruleId: number, rule: Partial<import('@/types').SubscriptionRule>) => {
+        return client.put<ApiResponse<import('@/types').SubscriptionRule>>(`/subscriptions/${subscriptionId}/rules/${ruleId}`, rule);
+    },
+    deleteRule: (subscriptionId: string, ruleId: number) => {
+        return client.delete<ApiResponse<null>>(`/subscriptions/${subscriptionId}/rules/${ruleId}`);
     }
 };
