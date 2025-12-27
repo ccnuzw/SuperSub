@@ -35,7 +35,7 @@ const menuItems = computed(() => {
     { label: '仪表盘', name: 'home', icon: HomeIcon },
     { label: '订阅管理', name: 'subscriptions', icon: SubscriptionIcon },
     { label: '节点列表', name: 'nodes', icon: NodeIcon },
-    { label: '个人资料', name: 'profiles', icon: ProfileIcon },
+    { label: '组合订阅', name: 'profiles', icon: ProfileIcon },
   ]
 
   const admin = [

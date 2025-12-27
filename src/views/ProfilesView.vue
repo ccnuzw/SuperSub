@@ -72,12 +72,12 @@ onMounted(() => {
   <div class="space-y-6">
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
-        <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">配置档案</h1>
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">组合订阅</h1>
         <p class="text-slate-500 dark:text-slate-400 mt-1">管理您的订阅转换配置和规则。</p>
       </div>
-      <Button variant="primary" icon @click="createProfile">
-        <n-icon :component="AddIcon" class="mr-2" />
-        新建档案
+      <Button variant="primary" @click="createProfile" class="flex items-center whitespace-nowrap !w-10 !h-10 !p-0 !rounded-full md:!w-auto md:!h-10 md:!px-5 md:!rounded-xl">
+        <n-icon :component="AddIcon" class="md:mr-2" />
+        <span class="hidden md:inline">新建档案</span>
       </Button>
     </div>
 

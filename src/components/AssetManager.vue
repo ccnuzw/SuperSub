@@ -10,15 +10,21 @@
     <div v-if="!isMobile" class="bg-white dark:bg-dark-surface rounded-xl border border-gray-100 dark:border-dark-border overflow-hidden">
       <n-data-table
         :columns="columns"
-        :data="assets"
+        :data="paginatedAssets"
         :loading="loading"
         :row-key="row => row.id"
         :bordered="false"
       />
+      <div v-if="pagination.pageCount > 1" class="flex justify-end p-4 border-t border-gray-100 dark:border-dark-border">
+         <n-pagination
+          v-model:page="pagination.page"
+          :page-count="pagination.pageCount"
+        />
+      </div>
     </div>
 
     <div v-else class="space-y-4">
-      <Card v-for="asset in assets" :key="asset.id" padding="sm" class="flex flex-col gap-3">
+      <Card v-for="asset in paginatedAssets" :key="asset.id" padding="sm" class="flex flex-col gap-3">
         <div class="flex items-start justify-between">
             <div class="flex-1 min-w-0 mr-2">
                 <div class="font-medium text-slate-900 dark:text-white truncate">{{ asset.name }}</div>
@@ -45,6 +51,13 @@
             </n-popconfirm>
         </div>
       </Card>
+      
+      <n-pagination
+        v-if="pagination.pageCount > 1"
+        v-model:page="pagination.page"
+        :page-count="pagination.pageCount"
+        class="flex justify-center mt-4"
+      />
     </div>
 
     <n-modal v-model:show="showModal" preset="card" :style="{ width: isMobile ? '90vw' : '600px' }" :title="modalTitle">
@@ -64,9 +77,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, h } from 'vue';
+import { ref, onMounted, computed, h, reactive } from 'vue';
 import {
-  NDataTable, NModal, NForm, NFormItem, NInput, useMessage, NPopconfirm, NIcon, NTooltip
+  NDataTable, NModal, NForm, NFormItem, NInput, useMessage, NPopconfirm, NIcon, NTooltip, NPagination
 } from 'naive-ui';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
@@ -101,6 +114,19 @@ const loading = ref(true);
 const showModal = ref(false);
 const saveLoading = ref(false);
 const formRef = ref<any>(null);
+
+const pagination = reactive({
+  page: 1,
+  pageSize: 10,
+  itemCount: 0,
+  pageCount: computed(() => Math.ceil(pagination.itemCount / pagination.pageSize)),
+});
+
+const paginatedAssets = computed(() => {
+  const start = (pagination.page - 1) * pagination.pageSize;
+  const end = start + pagination.pageSize;
+  return assets.value.slice(start, end);
+});
 
 const isAdmin = computed(() => authStore.user?.role === 'admin');
 
@@ -141,6 +167,8 @@ const fetchAssets = async () => {
     const response = await assetsApi.fetchAssets(props.assetType);
     if (response.data.success) {
       assets.value = (response.data.data as SubconverterAsset[]) || [];
+      pagination.itemCount = assets.value.length;
+      pagination.page = 1;
       emit('assets-updated', assets.value);
     }
   } catch (error) {

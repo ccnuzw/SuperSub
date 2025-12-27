@@ -68,7 +68,7 @@ const defaultFormState = () => ({
 const formState = reactive(defaultFormState());
 
 const rules = {
-  name: { required: true, message: 'Please enter a name', trigger: ['input', 'blur'] },
+  name: { required: true, message: '请输入名称', trigger: ['input', 'blur'] },
 };
 
 const generatedUrl = computed(() => {
@@ -78,7 +78,7 @@ const generatedUrl = computed(() => {
 
 const copyGeneratedUrl = () => {
   if (generatedUrl.value) {
-    navigator.clipboard.writeText(generatedUrl.value).then(() => message.success('Copied to clipboard'));
+    navigator.clipboard.writeText(generatedUrl.value).then(() => message.success('已复制到剪贴板'));
   }
 };
 
@@ -97,7 +97,7 @@ const fetchAllSources = async () => {
     if (backendRes.data.success) allBackends.value = backendRes.data.data || [];
     if (configRes.data.success) allConfigs.value = configRes.data.data || [];
   } catch (err) {
-    message.error("Failed to fetch resources");
+    message.error("获取资源失败");
   }
 };
 
@@ -134,10 +134,10 @@ const fetchProfileData = async (id: string) => {
       formState.subconverter_config_id = profile.subconverter_config_id || null;
       formState.generation_mode = profile.generation_mode || 'local';
     } else {
-      message.error('Failed to get profile details');
+      message.error('获取配置详情失败');
     }
   } catch (error) {
-    message.error('Request failed');
+    message.error('请求失败');
   } finally {
     loadingData.value = false;
   }
@@ -197,7 +197,7 @@ watch(() => formState.airport_subscription_options.strategy, (strategy) => {
 const handleSave = async () => {
   formRef.value?.validate(async (errors) => {
     if (errors) {
-      message.error('Please fill in required fields');
+      message.error('请填写必填项');
       return;
     }
     saveLoading.value = true;
@@ -238,13 +238,13 @@ const handleSave = async () => {
         : await profilesApi.createProfile(payload);
 
       if (response.data.success) {
-        message.success(props.profileId ? 'Updated successfully' : 'Created successfully');
+        message.success(props.profileId ? '更新成功' : '创建成功');
         emit('save-success');
       } else {
-        message.error(response.data.message || 'Save failed');
+        message.error(response.data.message || '保存失败');
       }
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || err.message || 'Request failed';
+      const errorMsg = err.response?.data?.message || err.message || '请求失败';
       message.error(errorMsg);
     } finally {
       saveLoading.value = false;
@@ -280,14 +280,14 @@ const strategyHelpText = computed(() => {
 
   const descriptions = {
     strategy: {
-      all: 'Merge all selected subscriptions into one. The final config will contain all nodes from all subscriptions.',
-      polling: 'Use one subscription from the list at a time. Good for load balancing or failover between airports.',
-      random: 'Pick one random subscription from each group and combine them. Ensures one exit per group with randomness.'
+      all: '合并所有选中的订阅。最终配置将包含所有订阅中的所有节点。',
+      polling: '一次使用列表中的一个订阅。适用于机场间的负载均衡或故障转移。',
+      random: '从每个组中随机选择一个订阅并合并。确保每个组有一个出口。'
     },
     polling_mode: {
-      hourly: 'Cycles to the next subscription every hour.',
-      request: 'Cycles to the next subscription on every request.',
-      group_request: 'Cycles through subscriptions within each group sequentially. Provides predictable, round-robin failover per group.'
+      hourly: '每小时切换到下一个订阅。',
+      request: '每次请求切换到下一个订阅。',
+      group_request: '按顺序在每个组内循环切换订阅。提供可预测的组内轮询故障转移。'
     }
   };
   
@@ -307,14 +307,14 @@ const strategyHelpText = computed(() => {
       <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
         <!-- Left Column -->
         <div class="md:col-span-2 space-y-6">
-            <Card title="Core Settings">
-              <n-form-item label="Profile Name" path="name">
-                <n-input v-model:value="formState.name" />
+            <Card title="核心设置">
+              <n-form-item label="档案名称" path="name">
+                <n-input v-model:value="formState.name" placeholder="请输入档案名称" />
               </n-form-item>
-              <n-form-item label="Alias">
-                <n-input v-model:value="formState.alias" placeholder="e.g. my-clash-config" />
+              <n-form-item label="别名">
+                <n-input v-model:value="formState.alias" placeholder="例如: my-clash-config" />
               </n-form-item>
-              <n-form-item v-if="generatedUrl" label="Generated URL">
+              <n-form-item v-if="generatedUrl" label="订阅链接">
                 <n-input :value="generatedUrl" readonly>
                   <template #suffix>
                     <n-button text @click="copyGeneratedUrl">
@@ -325,35 +325,35 @@ const strategyHelpText = computed(() => {
               </n-form-item>
             </Card>
 
-            <Card title="Output Target">
-              <n-form-item label="Generation Mode" path="generation_mode">
+            <Card title="输出目标">
+              <n-form-item label="生成模式" path="generation_mode">
                 <n-radio-group v-model:value="formState.generation_mode" name="generation_mode_group">
-                  <n-radio-button value="local" label="Local Parser" />
-                  <n-radio-button value="remote" label="Remote Parser" />
+                  <n-radio-button value="local" label="本地解析" />
+                  <n-radio-button value="remote" label="远程解析" />
                 </n-radio-group>
                 <template #feedback>
-                  Local: Powerful, supports node processing, but limited by local network.<br/>
-                  Remote: Uses backend network, but cannot process nodes.
+                  本地：功能强大，支持节点处理，但受限于本地网络。<br/>
+                  远程：利用后端网络，但无法对节点进行预处理。
                 </template>
               </n-form-item>
-              <n-form-item label="Converter Backend">
-                <n-select v-model:value="formState.subconverter_backend_id" :options="backendOptions" placeholder="Default Backend" clearable />
+              <n-form-item label="转换后端">
+                <n-select v-model:value="formState.subconverter_backend_id" :options="backendOptions" placeholder="默认后端" clearable />
               </n-form-item>
-              <n-form-item label="Converter Config">
-                <n-select v-model:value="formState.subconverter_config_id" :options="configOptions" placeholder="Default Config" clearable />
+              <n-form-item label="转换配置">
+                <n-select v-model:value="formState.subconverter_config_id" :options="configOptions" placeholder="默认配置" clearable />
               </n-form-item>
             </Card>
         </div>
 
         <!-- Right Column -->
         <div class="md:col-span-3">
-          <Card title="Data Sources & Processing" class="h-full">
+          <Card title="数据源与处理" class="h-full">
             <n-tabs type="line" animated>
-              <n-tab-pane name="subscriptions" tab="Subscriptions">
+              <n-tab-pane name="subscriptions" tab="订阅源">
                 <div class="border border-gray-100 dark:border-dark-border rounded-lg p-3 mb-4">
                     <div class="flex justify-between mb-2">
-                         <span class="text-sm font-medium text-gray-500">Filter</span>
-                        <n-input v-model:value="subFilter" size="small" placeholder="Filter Name" clearable style="width: 200px" />
+                         <span class="text-sm font-medium text-gray-500">筛选</span>
+                        <n-input v-model:value="subFilter" size="small" placeholder="输入名称筛选" clearable style="width: 200px" />
                     </div>
                   
                   <n-scrollbar style="max-height: 300px;">
@@ -366,7 +366,7 @@ const strategyHelpText = computed(() => {
                             @update:checked="handleSubscriptionGroupSelectAll(group.subscriptions, $event)"
                             @click.stop
                           >
-                            Select All
+                            全选
                           </n-checkbox>
                         </template>
                         <n-checkbox-group v-model:value="formState.subscription_ids">
@@ -380,13 +380,13 @@ const strategyHelpText = computed(() => {
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <n-form-item label="Strategy" class="mb-0">
+                      <n-form-item label="合并策略" class="mb-0">
                         <n-select
                           v-model:value="formState.airport_subscription_options.strategy"
                           :options="[
-                            { label: 'Use All (Recommended)', value: 'all' },
-                            { label: 'Polling', value: 'polling' },
-                            { label: 'Random Group', value: 'random' },
+                            { label: '使用全部 (推荐)', value: 'all' },
+                            { label: '轮询 (Polling)', value: 'polling' },
+                            { label: '随机分组', value: 'random' },
                           ]"
                         />
                         <template #feedback>
@@ -394,13 +394,13 @@ const strategyHelpText = computed(() => {
                         </template>
                       </n-form-item>
 
-                      <n-form-item v-if="formState.airport_subscription_options.strategy === 'polling'" label="Polling Mode" class="mb-0">
+                      <n-form-item v-if="formState.airport_subscription_options.strategy === 'polling'" label="轮询模式" class="mb-0">
                          <n-select
                           v-model:value="formState.airport_subscription_options.polling_mode"
                           :options="[
-                            { label: 'Hourly', value: 'hourly' },
-                            { label: 'Per Request', value: 'request' },
-                            { label: 'Group Round-Robin', value: 'group_request' },
+                            { label: '每小时', value: 'hourly' },
+                            { label: '每次请求', value: 'request' },
+                            { label: '组内轮询', value: 'group_request' },
                           ]"
                         />
                         <template #feedback>
@@ -408,42 +408,42 @@ const strategyHelpText = computed(() => {
                         </template>
                       </n-form-item>
                       
-                      <n-form-item v-if="formState.airport_subscription_options.strategy === 'polling' && formState.airport_subscription_options.polling_mode === 'group_request'" label="Polling Threshold" class="mb-0">
+                      <n-form-item v-if="formState.airport_subscription_options.strategy === 'polling' && formState.airport_subscription_options.polling_mode === 'group_request'" label="轮询阈值" class="mb-0">
                         <n-input-number
                           v-model:value="formState.airport_subscription_options.polling_threshold"
                           :min="1"
-                          placeholder="Default 5"
+                          placeholder="默认为 5"
                           clearable
                         />
                       </n-form-item>
 
-                      <n-form-item v-if="formState.airport_subscription_options.strategy === 'polling' && formState.airport_subscription_options.polling_mode === 'group_request'" label="Interval (ms)" class="mb-0">
+                      <n-form-item v-if="formState.airport_subscription_options.strategy === 'polling' && formState.airport_subscription_options.polling_mode === 'group_request'" label="间隔 (ms)" class="mb-0">
                         <n-input-number
                           v-model:value="formState.airport_subscription_options.polling_interval"
                           :min="0"
                           :step="100"
-                          placeholder="Default 200"
+                          placeholder="默认为 200"
                           clearable
                         />
                       </n-form-item>
 
-                      <n-form-item label="Timeout (s)" class="mb-0">
+                      <n-form-item label="超时 (秒)" class="mb-0">
                         <n-input-number
                           v-model:value="formState.airport_subscription_options.timeout"
                           :min="1"
                           :max="60"
-                          placeholder="Default 10"
+                          placeholder="默认为 10"
                           clearable
                         />
                       </n-form-item>
                 </div>
               </n-tab-pane>
 
-              <n-tab-pane name="manual-nodes" tab="Manual Nodes">
+              <n-tab-pane name="manual-nodes" tab="手动节点">
                 <div class="border border-gray-100 dark:border-dark-border rounded-lg p-3">
                      <div class="flex justify-between mb-2">
-                         <span class="text-sm font-medium text-gray-500">Filter</span>
-                        <n-input v-model:value="nodeFilter" size="small" placeholder="Filter Name" clearable style="width: 200px" />
+                         <span class="text-sm font-medium text-gray-500">筛选</span>
+                        <n-input v-model:value="nodeFilter" size="small" placeholder="输入名称筛选" clearable style="width: 200px" />
                     </div>
                   <n-scrollbar style="max-height: 300px;">
                     <n-collapse>
@@ -455,7 +455,7 @@ const strategyHelpText = computed(() => {
                             @update:checked="handleNodeGroupSelectAll(nodes, $event)"
                             @click.stop
                           >
-                            Select All
+                            全选
                           </n-checkbox>
                         </template>
                         <n-checkbox-group v-model:value="formState.node_ids">
@@ -469,28 +469,28 @@ const strategyHelpText = computed(() => {
                 </div>
               </n-tab-pane>
 
-              <n-tab-pane name="processing" tab="Node Processing">
+              <n-tab-pane name="processing" tab="节点处理">
                 <div class="space-y-4">
-                    <n-form-item label="Add Subscription Name Prefix">
+                    <n-form-item label="添加订阅名称前缀">
                       <n-switch v-model:value="formState.node_prefix_settings.enable_subscription_prefix" />
-                      <template #feedback>If enabled, node names will be prefixed with "Sub Name - ".</template>
+                      <template #feedback>启用后，节点名称将添加前缀 "订阅名 - "。</template>
                     </n-form-item>
-                    <n-form-item label="Use Group Name as Prefix">
+                    <n-form-item label="使用组名作为前缀">
                       <n-switch v-model:value="formState.node_prefix_settings.enable_group_name_prefix" />
-                      <template #feedback>If enabled, manual nodes use their group name as prefix.</template>
+                      <template #feedback>启用后，手动节点将使用其组名作为前缀。</template>
                     </n-form-item>
-                    <n-form-item label="Manual Nodes First">
+                    <n-form-item label="手动节点排序优先">
                       <n-switch v-model:value="formState.node_prefix_settings.manual_nodes_first" />
-                      <template #feedback>If enabled, manual nodes appear before subscription nodes.</template>
+                      <template #feedback>启用后，手动节点排列在订阅节点之前。</template>
                     </n-form-item>
-                    <n-form-item label="Manual Node Custom Prefix">
+                    <n-form-item label="手动节点自定义前缀">
                       <n-input
                         v-model:value="formState.node_prefix_settings.manual_node_prefix"
-                        placeholder="e.g. MyNodes"
+                        placeholder="例如: MyNodes"
                         clearable
                         :disabled="formState.node_prefix_settings.enable_group_name_prefix"
                       />
-                      <template #feedback>Prefix for manual nodes. Ignored if "Use Group Name as Prefix" is enabled.</template>
+                      <template #feedback>手动节点的前缀。如果启用了"使用组名作为前缀"，则此项忽略。</template>
                     </n-form-item>
                     <n-divider />
                     <profile-rules-manager :profile-id="props.profileId" v-model:modelValue="formState.rules" />
@@ -503,7 +503,7 @@ const strategyHelpText = computed(() => {
     </n-form>
     
     <div class="flex justify-end gap-3 mt-6">
-      <Button variant="secondary" @click="$router.back()">Cancel</Button>
-      <Button variant="primary" :loading="saveLoading" @click="handleSave">Save Profile</Button>
+      <Button variant="secondary" @click="$router.back()">取消</Button>
+      <Button variant="primary" :loading="saveLoading" @click="handleSave">保存配置</Button>
     </div>
 </template>

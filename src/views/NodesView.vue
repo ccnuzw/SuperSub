@@ -40,18 +40,18 @@ const isSorting = ref(false);
 const orderChanged = ref(false);
 const saveOrderLoading = ref(false);
 
-interface MobilePagination {
+interface Pagination {
   page: number;
   pageSize: number;
   itemCount: number;
   pageCount: number;
 }
 
-const mobilePagination: MobilePagination = reactive({
+const pagination: Pagination = reactive({
   page: 1,
   pageSize: 15,
   itemCount: 0,
-  pageCount: computed(() => Math.ceil(mobilePagination.itemCount / mobilePagination.pageSize)),
+  pageCount: computed(() => Math.ceil(pagination.itemCount / pagination.pageSize)),
 });
 
 const handleBatchAction = (action: 'sort' | 'deduplicate' | 'clear') => {
@@ -107,14 +107,14 @@ const filteredNodes = computed(() => {
 });
 
 const paginatedNodes = computed(() => {
-  const start = (mobilePagination.page - 1) * mobilePagination.pageSize;
-  const end = start + mobilePagination.pageSize;
+  const start = (pagination.page - 1) * pagination.pageSize;
+  const end = start + pagination.pageSize;
   return filteredNodes.value.slice(start, end);
 });
 
 watch(filteredNodes, (value) => {
-  mobilePagination.itemCount = value.length;
-  mobilePagination.page = 1;
+  pagination.itemCount = value.length;
+  pagination.page = 1;
 });
 
 const groupCounts = computed(() => {
@@ -517,9 +517,9 @@ onBeforeUnmount(() => {
            <Button v-if="isSorting" variant="secondary" @click="isSorting = false; orderChanged = false; fetchData();">取消排序</Button>
 
            <div v-else class="flex gap-2">
-               <Button variant="primary" @click="openModal(null)" icon>
-                   <n-icon :component="AddOutline" class="mr-2" />
-                   导入
+               <Button variant="primary" @click="openModal(null)" class="flex items-center whitespace-nowrap !w-10 !h-10 !p-0 !rounded-full md:!w-auto md:!h-10 md:!px-5 md:!rounded-xl">
+                   <n-icon :component="AddOutline" class="md:mr-2" />
+                   <span class="hidden md:inline">导入</span>
                </Button>
                <n-dropdown
                     trigger="click"
@@ -548,9 +548,9 @@ onBeforeUnmount(() => {
                       if (key === 'test-current-group') testAllNodes();
                     }"
                 >
-                    <Button variant="secondary" icon>
+                    <Button variant="secondary" class="flex items-center whitespace-nowrap !w-10 !h-10 !p-0 !rounded-full md:!w-auto md:!h-10 md:!px-5 md:!rounded-xl">
                          <n-icon :component="EllipsisHorizontal" />
-                         <span v-if="!isMobile" class="ml-2">操作</span>
+                         <span class="hidden md:inline ml-2">操作</span>
                     </Button>
                 </n-dropdown>
            </div>
@@ -609,13 +609,20 @@ onBeforeUnmount(() => {
         <div class="p-0">
              <NodeTable
               v-if="!isSorting && !isMobile"
-              :nodes="filteredNodes"
+              :nodes="paginatedNodes"
               :loading="loading"
               v-model:checked-row-keys="checkedRowKeys"
               @test="testNode"
               @edit="handleEditNode"
               @delete="handleDeleteNode"
             />
+             <div v-if="!isSorting && !isMobile" class="flex justify-end mt-4 px-4">
+                <n-pagination
+                  v-if="pagination.pageCount > 1"
+                  v-model:page="pagination.page"
+                  :page-count="pagination.pageCount"
+                />
+             </div>
 
             <!-- Mobile List -->
              <div v-else-if="!isSorting && isMobile" class="p-4 space-y-4 bg-gray-50 dark:bg-dark-bg min-h-[300px]">
@@ -650,9 +657,9 @@ onBeforeUnmount(() => {
                      </div>
                  </Card>
                  <n-pagination
-                  v-if="mobilePagination.pageCount > 1"
-                  v-model:page="mobilePagination.page"
-                  :page-count="mobilePagination.pageCount"
+                  v-if="pagination.pageCount > 1"
+                  v-model:page="pagination.page"
+                  :page-count="pagination.pageCount"
                   class="flex justify-center mt-4"
                 />
              </div>

@@ -49,19 +49,19 @@ const showImportModal = ref(false)
 // For batch actions
 const checkedRowKeys = ref<string[]>([])
 
-// For mobile pagination
-interface MobilePagination {
+// For pagination
+interface Pagination {
   page: number;
   pageSize: number;
   itemCount: number;
   pageCount: number;
 }
 
-const mobilePagination: MobilePagination = reactive({
+const pagination: Pagination = reactive({
   page: 1,
-  pageSize: 10,
+  pageSize: 15,
   itemCount: 0,
-  pageCount: computed(() => Math.ceil(mobilePagination.itemCount / mobilePagination.pageSize)),
+  pageCount: computed(() => Math.ceil(pagination.itemCount / pagination.pageSize)),
 });
 
 // For dropdown logic
@@ -145,13 +145,14 @@ const filteredSubscriptions = computed(() => {
 })
 
 const paginatedSubscriptions = computed(() => {
-  const start = (mobilePagination.page - 1) * mobilePagination.pageSize;
-  const end = start + mobilePagination.pageSize;
+  const start = (pagination.page - 1) * pagination.pageSize;
+  const end = start + pagination.pageSize;
   return filteredSubscriptions.value.slice(start, end);
 });
 
 watch(filteredSubscriptions, (value) => {
-  mobilePagination.itemCount = value.length;
+  pagination.itemCount = value.length;
+  pagination.page = 1; 
 });
 
 
@@ -559,9 +560,9 @@ onMounted(() => {
         <p class="text-slate-500 dark:text-slate-400 mt-1">管理您的订阅链接和节点。</p>
       </div>
       <div class="flex gap-2">
-         <Button variant="primary" @click="openModal(null)" icon>
-             <n-icon :component="AddOutline" class="mr-2" />
-             <span v-if="!isMobile">新建订阅</span>
+         <Button variant="primary" @click="openModal(null)" class="flex items-center whitespace-nowrap !w-10 !h-10 !p-0 !rounded-full md:!w-auto md:!h-10 md:!px-5 md:!rounded-xl">
+             <n-icon :component="AddOutline" class="md:mr-2" />
+             <span class="hidden md:inline">新建订阅</span>
          </Button>
          <n-dropdown
             trigger="click"
@@ -586,9 +587,9 @@ onMounted(() => {
                 if (key === 'clear-current-group') handleClearCurrentGroup();
             }"
         >
-            <Button variant="secondary" icon>
+            <Button variant="secondary" class="flex items-center whitespace-nowrap !w-10 !h-10 !p-0 !rounded-full md:!w-auto md:!h-10 md:!px-5 md:!rounded-xl">
                  <n-icon :component="EllipsisHorizontal" />
-                 <span v-if="!isMobile" class="ml-2">操作</span>
+                 <span class="hidden md:inline ml-2">操作</span>
             </Button>
         </n-dropdown>
       </div>
@@ -631,7 +632,7 @@ onMounted(() => {
              <SubscriptionTable
                 v-if="!isMobile"
                 v-model:checked-row-keys="checkedRowKeys"
-                :subscriptions="filteredSubscriptions"
+                :subscriptions="paginatedSubscriptions"
                 :loading="loading"
                 :updating-ids="updatingIds"
                 :updating-id="updatingId"
@@ -641,6 +642,13 @@ onMounted(() => {
                 @preview="onPreviewNodes"
                 @manage-rules="onManageRules"
             />
+             <div v-if="!isMobile" class="flex justify-end mt-4 px-4">
+                <n-pagination
+                  v-if="pagination.pageCount > 1"
+                  v-model:page="pagination.page"
+                  :page-count="pagination.pageCount"
+                />
+             </div>
              <div v-else class="p-4 space-y-4 bg-gray-50 dark:bg-dark-bg min-h-[300px]">
                  <Card v-for="sub in paginatedSubscriptions" :key="sub.id" padding="sm" class="flex flex-col gap-3">
                     <div class="flex flex-col gap-1">
@@ -676,9 +684,9 @@ onMounted(() => {
                  </Card>
                  
                  <n-pagination
-                  v-if="mobilePagination.pageCount > 1"
-                  v-model:page="mobilePagination.page"
-                  :page-count="mobilePagination.pageCount"
+                  v-if="pagination.pageCount > 1"
+                  v-model:page="pagination.page"
+                  :page-count="pagination.pageCount"
                   class="flex justify-center mt-4"
                 />
              </div>
