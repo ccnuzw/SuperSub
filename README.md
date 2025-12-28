@@ -1,6 +1,6 @@
 # SuperSub - 智能订阅转换与管理平台
 
-SuperSub 是一个构建在 Cloudflare 生态系统上的全栈应用程序，旨在提供强大而灵活的代理订阅转换和管理功能。它允许用户聚合、处理和分发适用于不同客户端的定制化配置文件。
+SuperSub 是一个构建在 Cloudflare 生态系统上的全栈应用程序，旨在提供强大而灵活的代理订阅转换和管理功能。它采用现代化的技术栈重构，由 Drizzle ORM 和 Zod 驱动，确保了端到端的类型安全和高效的数据处理。
 
 ## ✨ 核心功能
 
@@ -43,8 +43,10 @@ SuperSub 是一个构建在 Cloudflare 生态系统上的全栈应用程序，�
 - **后端**：
   - [Cloudflare Workers](https://workers.cloudflare.com/)
   - [Hono](https://hono.dev/)
-- **数据库**：
+  - [Zod](https://zod.dev/) (Strict Request Validation)
+- **数据库 & ORM**：
   - [Cloudflare D1](https://developers.cloudflare.com/d1/)
+  - [Drizzle ORM](https://orm.drizzle.team/) (Type-safe SQL)
 - **部署**：
   - [Cloudflare Pages](https://pages.cloudflare.com/)
 
@@ -64,16 +66,10 @@ npm install
 
 ### 3. 初始化数据库
 
-首次运行时，或当数据库结构发生变化时，需要初始化本地 D1 数据库。
+项目使用 **Drizzle Kit** 管理数据库架构。首次运行时，需要将 Schema 推送到本地 D1 数据库。
+
 ```bash
-npm run db:init
-```
-如果遇到数据库相关的错误 (例如 `no such table`)，可以尝试硬重置：
-```bash
-# 删除旧的 Wrangler 状态 (包括 D1 数据库)
-rm -rf .wrangler
-# 重新初始化
-npm run db:init
+npm run db:push:local
 ```
 
 ### 4. 启动开发服务
@@ -98,13 +94,14 @@ Vite 会自动将 `/api` 请求代理到运行在 `8789` 端口的后端服务�
 
 - `npm run start:frontend`: 仅启动 Vite 前端开发服务器。
 - `npm run start:backend`: 仅启动 Wrangler 后端开发服务器。
-- `npm run db:init`: 初始化本地 D1 数据库。
+- `npm run db:push:local`: 将 Drizzle Schema 同步到本地 D1 数据库。
+- `npm run db:generate`: 根据 Schema 生成 SQL 迁移文件。
 - `npm run build`: 构建用于生产环境的前端应用。
 
 
 ## 🚀 部署到 Cloudflare Pages
 
-该项目已完全配置为通过 Cloudflare Pages 进行一体化部署。`functions` 目录下的后端 API 将与前端应用一同部署。
+该项目已完全配置为通过 Cloudflare Pages 进行一体化部署。后端 API 与前端应用将自动部署。
 
 ### 部署流程图
 
@@ -145,38 +142,26 @@ graph TD
         *   **构建输出目录**: `dist`
         *   **根目录**: 留空
 
-4.  **配置兼容性标志 (重要)**:
-    *   项目依赖于 Node.js 的兼容性 API，正如在 `wrangler.toml` 中通过 `nodejs_compat` 标志所声明的。您必须在 Pages 项目中启用此功能。
-    *   导航到 **设置** > **函数** > **兼容性标志**。
+4.  **配置兼容性标志**:
+    *   在 Pages 项目设置中，导航到 **设置** > **函数** > **兼容性标志**。
     *   添加并启用 `nodejs_compat` 标志。
 
 5.  **配置生产环境绑定和变量**:
-    *   项目创建后，进入 Pages 项目的 **设置** > **函数**。
     *   **D1 数据库绑定**:
-        *   您需要先在 Cloudflare 仪表板的 **Workers & Pages > D1** 部分创建一个生产数据库。
-        *   然后回到 Pages 设置页面，在 **D1 数据库绑定** 部分，点击 **添加绑定**。
-        *   **变量名称** 必须为 `DB` (与 `wrangler.toml` 中的 `binding` 字段保持一致)。
-        *   **D1 数据库** 选择您刚刚创建的生产数据库。
-        *   **初始化与迁移生产数据库**:
-            *   **重要**: Cloudflare 不会自动为您创建或更新数据库表结构。您需要手动执行此操作。
-            *   首先，确保您的 `wrangler.toml` 文件中的 `database_name` 与您在 Cloudflare 仪表板创建的生产数据库名称一致。
-            *   然后，在您的项目根目录运行以下命令。这些命令会先创建基础表结构，然后应用所有增量更新：
+        *   在 **设置** > **函数** > **D1 数据库绑定** 中，添加绑定。
+        *   **变量名称** (Variable name): `DB` (必须与代码一致)。
+        *   **D1 数据库** (D1 database): 选择您的生产数据库。
+        *   **初始化生产数据库**:
+            *   本地运行以下命令将 Schema 同步到远端生产数据库：
             ```bash
-            # 1. 应用基础 Schema (仅在首次创建数据库时需要)
-            npx wrangler d1 execute [您的生产数据库名称] --file=./db/schema.sql
-
-            # 2. 应用所有迁移
-            npx wrangler d1 execute [您的生产数据库名称] --file=./migrations/0001_add_profile_rules.sql
-            # ... 如果有更多迁移文件，请继续在这里添加 ...
+            # 确保 wrangler.toml 中的 database_id 是生产环境 ID
+            npm run db:push:prod
             ```
-            *   **注意**: 请将 `[您的生产数据库名称]` 替换为您在 Cloudflare 上创建的真实数据库名称。
-            *   在项目后续的更新中，如果 `migrations` 目录新增了文件，您只需执行新增的迁移命令即可。
+            *(或者使用 Cloudflare Dashboard 的 D1 Console 手动执行 SQL)*
     *   **环境变量**:
         *   导航到 **设置** > **环境变量**。
-        *   添加生产环境所需的环境变量。最重要的是 `JWT_SECRET`。
-        *   **强烈建议**为 `JWT_SECRET` 设置一个长而随机的安全字符串，**不要使用本地开发时的默认值**。
+        *   添加 `JWT_SECRET`，设置为一个强随机字符串。
 
 6.  **部署**:
-    *   保存您的配置。Cloudflare 将自动开始第一次部署。
-    *   后续每次推送到您的 Git 仓库主分支时，Cloudflare 都会自动重新构建和部署您的应用。
-    *   部署成功后，即可通过 `*.pages.dev` 域名访问您的 SuperSub 实例。
+    *   保存配置，Cloudflare 将自动开始构建。
+    *   部署完成后，您的 SuperSub 即刻上线。
