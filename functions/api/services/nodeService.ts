@@ -163,14 +163,21 @@ export class NodeService {
 
         if (values.length > 0) {
             // D1限制: 每个SQL语句最多100个绑定参数
-            // nodes表有12列, 安全起见每个语句插入 6 行 (6*12=72参数,留有余量)
-            // 注意: 不使用batch()API,因为它可能累加参数计数
+            // nodes表有12列, 安全起见每个语句插入 6 行 (6*12=72参数)
             const MAX_ROWS_PER_STATEMENT = 6;
+            // 并行执行多个INSERT (显著提升速度)
+            const CONCURRENT_LIMIT = 5;
 
-            // 顺序执行多行INSERT语句
+            // 将数据分成多个批次
+            const chunks: typeof values[] = [];
             for (let i = 0; i < values.length; i += MAX_ROWS_PER_STATEMENT) {
-                const chunk = values.slice(i, i + MAX_ROWS_PER_STATEMENT);
-                await this.db.insert(nodes).values(chunk);
+                chunks.push(values.slice(i, i + MAX_ROWS_PER_STATEMENT));
+            }
+
+            // 并行执行INSERT语句 (每次最多CONCURRENT_LIMIT个并发)
+            for (let i = 0; i < chunks.length; i += CONCURRENT_LIMIT) {
+                const batch = chunks.slice(i, i + CONCURRENT_LIMIT);
+                await Promise.all(batch.map(chunk => this.db.insert(nodes).values(chunk)));
             }
         }
         return values.length;

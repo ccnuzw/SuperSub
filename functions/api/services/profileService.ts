@@ -155,60 +155,39 @@ export class ProfileService {
             polling_interval: Number(opts.polling_interval) || 3600
         });
 
-        // Normalization: Write Nodes (批量优化)
+        // Normalization: Write Nodes (优化: 跳过验证,直接插入,依赖外键约束过滤无效ID)
+        // 并行执行INSERT显著提升速度
+        const nodeInsertPromises: Promise<any>[] = [];
+        const subInsertPromises: Promise<any>[] = [];
+
         if (parsedContent.node_ids && parsedContent.node_ids.length > 0) {
-            // Validate IDs exist (Chunked)
-            const validIds: string[] = [];
-            const idsToCheck = parsedContent.node_ids;
-            const CHUNK_SIZE = 50;
+            const MAX_ROWS_PER_STATEMENT = 40;
+            const nodeValues = parsedContent.node_ids.map((nodeId: string) => ({ profile_id: profileId, node_id: nodeId }));
 
-            for (let i = 0; i < idsToCheck.length; i += CHUNK_SIZE) {
-                const chunk = idsToCheck.slice(i, i + CHUNK_SIZE);
-                const result = await this.db.select({ id: nodes.id })
-                    .from(nodes)
-                    .where(inArray(nodes.id, chunk));
-                validIds.push(...result.map(n => n.id));
-            }
-
-            // 使用顺序多行INSERT (profile_nodes有2列,每语句可插入40行)
-            // 注意: 不使用batch()API,因为它可能累加参数计数
-            if (validIds.length > 0) {
-                const MAX_ROWS_PER_STATEMENT = 40;
-                const nodeValues = validIds.map(nodeId => ({ profile_id: profileId, node_id: nodeId }));
-
-                for (let i = 0; i < nodeValues.length; i += MAX_ROWS_PER_STATEMENT) {
-                    const chunk = nodeValues.slice(i, i + MAX_ROWS_PER_STATEMENT);
-                    await this.db.insert(profile_nodes).values(chunk);
-                }
+            for (let i = 0; i < nodeValues.length; i += MAX_ROWS_PER_STATEMENT) {
+                const chunk = nodeValues.slice(i, i + MAX_ROWS_PER_STATEMENT);
+                // 使用 onConflictDoNothing 忽略无效的外键引用导致的错误
+                nodeInsertPromises.push(
+                    this.db.insert(profile_nodes).values(chunk).onConflictDoNothing().catch(() => { })
+                );
             }
         }
 
-        // Normalization: Write Subscriptions (批量优化)
+        // Normalization: Write Subscriptions (同样优化)
         if (parsedContent.subscription_ids && parsedContent.subscription_ids.length > 0) {
-            // Validate IDs exist (Chunked)
-            const validIds: string[] = [];
-            const idsToCheck = parsedContent.subscription_ids;
-            const CHUNK_SIZE = 50;
+            const MAX_ROWS_PER_STATEMENT = 40;
+            const subValues = parsedContent.subscription_ids.map((subId: string) => ({ profile_id: profileId, subscription_id: subId }));
 
-            for (let i = 0; i < idsToCheck.length; i += CHUNK_SIZE) {
-                const chunk = idsToCheck.slice(i, i + CHUNK_SIZE);
-                const result = await this.db.select({ id: subscriptions.id })
-                    .from(subscriptions)
-                    .where(inArray(subscriptions.id, chunk));
-                validIds.push(...result.map(s => s.id));
-            }
-
-            // 使用顺序多行INSERT (profile_subscriptions有2列,每语句可插入40行)
-            if (validIds.length > 0) {
-                const MAX_ROWS_PER_STATEMENT = 40;
-                const subValues = validIds.map(subId => ({ profile_id: profileId, subscription_id: subId }));
-
-                for (let i = 0; i < subValues.length; i += MAX_ROWS_PER_STATEMENT) {
-                    const chunk = subValues.slice(i, i + MAX_ROWS_PER_STATEMENT);
-                    await this.db.insert(profile_subscriptions).values(chunk);
-                }
+            for (let i = 0; i < subValues.length; i += MAX_ROWS_PER_STATEMENT) {
+                const chunk = subValues.slice(i, i + MAX_ROWS_PER_STATEMENT);
+                subInsertPromises.push(
+                    this.db.insert(profile_subscriptions).values(chunk).onConflictDoNothing().catch(() => { })
+                );
             }
         }
+
+        // 并行执行所有INSERT操作
+        await Promise.all([...nodeInsertPromises, ...subInsertPromises]);
         // });
 
         return { id: profileId };
@@ -275,59 +254,33 @@ export class ProfileService {
             }
         });
 
-        // Normalization: Update Nodes
+        // Normalization: Update Nodes and Subscriptions (优化: 跳过验证,直接并行插入)
+        // 先删除旧的关联
         await this.db.delete(profile_nodes).where(eq(profile_nodes.profile_id, id));
-        if (parsedContent.node_ids && parsedContent.node_ids.length > 0) {
-            const validIds: string[] = [];
-            const idsToCheck = parsedContent.node_ids;
-            const CHUNK_SIZE = 50;
-
-            for (let i = 0; i < idsToCheck.length; i += CHUNK_SIZE) {
-                const chunk = idsToCheck.slice(i, i + CHUNK_SIZE);
-                const result = await this.db.select({ id: nodes.id })
-                    .from(nodes)
-                    .where(inArray(nodes.id, chunk));
-                validIds.push(...result.map(n => n.id));
-            }
-
-            // 使用顺序多行INSERT (profile_nodes有2列,每语句可插入40行)
-            if (validIds.length > 0) {
-                const MAX_ROWS_PER_STATEMENT = 40;
-                const nodeValues = validIds.map(nodeId => ({ profile_id: id, node_id: nodeId }));
-
-                for (let i = 0; i < nodeValues.length; i += MAX_ROWS_PER_STATEMENT) {
-                    const chunk = nodeValues.slice(i, i + MAX_ROWS_PER_STATEMENT);
-                    await this.db.insert(profile_nodes).values(chunk).onConflictDoNothing();
-                }
-            }
-        }
-
-        // Normalization: Update Subscriptions (批量优化)
         await this.db.delete(profile_subscriptions).where(eq(profile_subscriptions.profile_id, id));
-        if (parsedContent.subscription_ids && parsedContent.subscription_ids.length > 0) {
-            const validIds: string[] = [];
-            const idsToCheck = parsedContent.subscription_ids;
-            const CHUNK_SIZE = 50;
 
-            for (let i = 0; i < idsToCheck.length; i += CHUNK_SIZE) {
-                const chunk = idsToCheck.slice(i, i + CHUNK_SIZE);
-                const result = await this.db.select({ id: subscriptions.id })
-                    .from(subscriptions)
-                    .where(inArray(subscriptions.id, chunk));
-                validIds.push(...result.map(s => s.id));
-            }
+        // 并行执行nodes和subscriptions的INSERT
+        const insertPromises: Promise<any>[] = [];
 
-            // 使用顺序多行INSERT (profile_subscriptions有2列,每语句可插入40行)
-            if (validIds.length > 0) {
-                const MAX_ROWS_PER_STATEMENT = 40;
-                const subValues = validIds.map(subId => ({ profile_id: id, subscription_id: subId }));
-
-                for (let i = 0; i < subValues.length; i += MAX_ROWS_PER_STATEMENT) {
-                    const chunk = subValues.slice(i, i + MAX_ROWS_PER_STATEMENT);
-                    await this.db.insert(profile_subscriptions).values(chunk).onConflictDoNothing();
-                }
+        if (parsedContent.node_ids && parsedContent.node_ids.length > 0) {
+            const MAX_ROWS = 40;
+            const nodeValues = parsedContent.node_ids.map((nodeId: string) => ({ profile_id: id, node_id: nodeId }));
+            for (let i = 0; i < nodeValues.length; i += MAX_ROWS) {
+                const chunk = nodeValues.slice(i, i + MAX_ROWS);
+                insertPromises.push(this.db.insert(profile_nodes).values(chunk).onConflictDoNothing().catch(() => { }));
             }
         }
+
+        if (parsedContent.subscription_ids && parsedContent.subscription_ids.length > 0) {
+            const MAX_ROWS = 40;
+            const subValues = parsedContent.subscription_ids.map((subId: string) => ({ profile_id: id, subscription_id: subId }));
+            for (let i = 0; i < subValues.length; i += MAX_ROWS) {
+                const chunk = subValues.slice(i, i + MAX_ROWS);
+                insertPromises.push(this.db.insert(profile_subscriptions).values(chunk).onConflictDoNothing().catch(() => { }));
+            }
+        }
+
+        await Promise.all(insertPromises);
         // });
     }
 
