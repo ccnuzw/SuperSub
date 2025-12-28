@@ -155,7 +155,7 @@ export class ProfileService {
             polling_interval: Number(opts.polling_interval) || 3600
         });
 
-        // Normalization: Write Nodes
+        // Normalization: Write Nodes (批量优化)
         if (parsedContent.node_ids && parsedContent.node_ids.length > 0) {
             // Validate IDs exist (Chunked)
             const validIds: string[] = [];
@@ -170,12 +170,20 @@ export class ProfileService {
                 validIds.push(...result.map(n => n.id));
             }
 
-            for (const nodeId of validIds) {
-                await this.db.insert(profile_nodes).values({ profile_id: profileId, node_id: nodeId });
+            // 使用顺序多行INSERT (profile_nodes有2列,每语句可插入40行)
+            // 注意: 不使用batch()API,因为它可能累加参数计数
+            if (validIds.length > 0) {
+                const MAX_ROWS_PER_STATEMENT = 40;
+                const nodeValues = validIds.map(nodeId => ({ profile_id: profileId, node_id: nodeId }));
+
+                for (let i = 0; i < nodeValues.length; i += MAX_ROWS_PER_STATEMENT) {
+                    const chunk = nodeValues.slice(i, i + MAX_ROWS_PER_STATEMENT);
+                    await this.db.insert(profile_nodes).values(chunk);
+                }
             }
         }
 
-        // Normalization: Write Subscriptions
+        // Normalization: Write Subscriptions (批量优化)
         if (parsedContent.subscription_ids && parsedContent.subscription_ids.length > 0) {
             // Validate IDs exist (Chunked)
             const validIds: string[] = [];
@@ -190,8 +198,15 @@ export class ProfileService {
                 validIds.push(...result.map(s => s.id));
             }
 
-            for (const subId of validIds) {
-                await this.db.insert(profile_subscriptions).values({ profile_id: profileId, subscription_id: subId });
+            // 使用顺序多行INSERT (profile_subscriptions有2列,每语句可插入40行)
+            if (validIds.length > 0) {
+                const MAX_ROWS_PER_STATEMENT = 40;
+                const subValues = validIds.map(subId => ({ profile_id: profileId, subscription_id: subId }));
+
+                for (let i = 0; i < subValues.length; i += MAX_ROWS_PER_STATEMENT) {
+                    const chunk = subValues.slice(i, i + MAX_ROWS_PER_STATEMENT);
+                    await this.db.insert(profile_subscriptions).values(chunk);
+                }
             }
         }
         // });
@@ -275,12 +290,19 @@ export class ProfileService {
                 validIds.push(...result.map(n => n.id));
             }
 
-            for (const nodeId of validIds) {
-                await this.db.insert(profile_nodes).values({ profile_id: id, node_id: nodeId }).onConflictDoNothing();
+            // 使用顺序多行INSERT (profile_nodes有2列,每语句可插入40行)
+            if (validIds.length > 0) {
+                const MAX_ROWS_PER_STATEMENT = 40;
+                const nodeValues = validIds.map(nodeId => ({ profile_id: id, node_id: nodeId }));
+
+                for (let i = 0; i < nodeValues.length; i += MAX_ROWS_PER_STATEMENT) {
+                    const chunk = nodeValues.slice(i, i + MAX_ROWS_PER_STATEMENT);
+                    await this.db.insert(profile_nodes).values(chunk).onConflictDoNothing();
+                }
             }
         }
 
-        // Normalization: Update Subscriptions
+        // Normalization: Update Subscriptions (批量优化)
         await this.db.delete(profile_subscriptions).where(eq(profile_subscriptions.profile_id, id));
         if (parsedContent.subscription_ids && parsedContent.subscription_ids.length > 0) {
             const validIds: string[] = [];
@@ -295,8 +317,15 @@ export class ProfileService {
                 validIds.push(...result.map(s => s.id));
             }
 
-            for (const subId of validIds) {
-                await this.db.insert(profile_subscriptions).values({ profile_id: id, subscription_id: subId }).onConflictDoNothing();
+            // 使用顺序多行INSERT (profile_subscriptions有2列,每语句可插入40行)
+            if (validIds.length > 0) {
+                const MAX_ROWS_PER_STATEMENT = 40;
+                const subValues = validIds.map(subId => ({ profile_id: id, subscription_id: subId }));
+
+                for (let i = 0; i < subValues.length; i += MAX_ROWS_PER_STATEMENT) {
+                    const chunk = subValues.slice(i, i + MAX_ROWS_PER_STATEMENT);
+                    await this.db.insert(profile_subscriptions).values(chunk).onConflictDoNothing();
+                }
             }
         }
         // });

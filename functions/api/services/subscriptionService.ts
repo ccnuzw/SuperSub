@@ -330,10 +330,17 @@ export class SubscriptionService {
             created_at: now
         }));
 
-        const CHUNK_SIZE = 5;
-        for (let i = 0; i < values.length; i += CHUNK_SIZE) {
-            await this.db.insert(subscriptions).values(values.slice(i, i + CHUNK_SIZE));
+        // D1限制: 每个SQL语句最多100个绑定参数
+        // subscriptions表insert时有7列, 安全起见每语句插入10行 (10*7=70参数)
+        // 注意: 不使用batch()API,因为它可能累加参数计数
+        const MAX_ROWS_PER_STATEMENT = 10;
+
+        // 顺序执行多行INSERT语句
+        for (let i = 0; i < values.length; i += MAX_ROWS_PER_STATEMENT) {
+            const chunk = values.slice(i, i + MAX_ROWS_PER_STATEMENT);
+            await this.db.insert(subscriptions).values(chunk);
         }
+
         return subs.length;
     }
 

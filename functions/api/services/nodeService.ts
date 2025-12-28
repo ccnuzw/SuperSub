@@ -148,7 +148,7 @@ export class NodeService {
             return {
                 id: crypto.randomUUID(),
                 user_id: userId,
-                group_id: groupId, // Drizzle handles null correctly
+                group_id: groupId,
                 name: node.name || 'Unknown Node',
                 link: regenerateLink(node),
                 protocol: node.protocol || 'unknown',
@@ -161,17 +161,16 @@ export class NodeService {
             };
         });
 
-        // SQLite has limit on number of variables. Drizzle might handle batching internally or not?
-        // Safe bet is to chunk it ourselves if list is huge, but let's trust simple batch insert for reasonable sizes first,
-        // or just slice it. The D1 limit is 100 statements or something.
-        // Actually Drizzle's .values(array) creates one big INSERT statement. SQLite limit is 32766 params.
-        // With 12 columns, we can safely insert ~2700 rows.
-
         if (values.length > 0) {
-            // For safety against large imports, simple chunking
-            const CHUNK_SIZE = 1;
-            for (let i = 0; i < values.length; i += CHUNK_SIZE) {
-                await this.db.insert(nodes).values(values.slice(i, i + CHUNK_SIZE));
+            // D1限制: 每个SQL语句最多100个绑定参数
+            // nodes表有12列, 安全起见每个语句插入 6 行 (6*12=72参数,留有余量)
+            // 注意: 不使用batch()API,因为它可能累加参数计数
+            const MAX_ROWS_PER_STATEMENT = 6;
+
+            // 顺序执行多行INSERT语句
+            for (let i = 0; i < values.length; i += MAX_ROWS_PER_STATEMENT) {
+                const chunk = values.slice(i, i + MAX_ROWS_PER_STATEMENT);
+                await this.db.insert(nodes).values(chunk);
             }
         }
         return values.length;
