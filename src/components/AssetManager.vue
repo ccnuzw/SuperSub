@@ -15,10 +15,10 @@
         :row-key="row => row.id"
         :bordered="false"
       />
-      <div v-if="pagination.pageCount > 1" class="flex justify-end p-4 border-t border-gray-100 dark:border-dark-border">
+      <div v-if="pageCount > 1" class="flex justify-end p-4 border-t border-gray-100 dark:border-dark-border">
          <n-pagination
           v-model:page="pagination.page"
-          :page-count="pagination.pageCount"
+          :page-count="pageCount"
         />
       </div>
     </div>
@@ -53,9 +53,9 @@
       </Card>
       
       <n-pagination
-        v-if="pagination.pageCount > 1"
+        v-if="pageCount > 1"
         v-model:page="pagination.page"
-        :page-count="pagination.pageCount"
+        :page-count="pageCount"
         class="flex justify-center mt-4"
       />
     </div>
@@ -119,8 +119,9 @@ const pagination = reactive({
   page: 1,
   pageSize: 10,
   itemCount: 0,
-  pageCount: computed(() => Math.ceil(pagination.itemCount / pagination.pageSize)),
 });
+
+const pageCount = computed(() => Math.ceil(pagination.itemCount / pagination.pageSize));
 
 const paginatedAssets = computed(() => {
   const start = (pagination.page - 1) * pagination.pageSize;
