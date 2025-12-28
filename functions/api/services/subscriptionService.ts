@@ -1,4 +1,5 @@
 import type { Env } from '../utils/types';
+import { createInClause } from '../utils/db';
 import { ParsedNode } from '../../../src/utils/nodeParser';
 import { parseSubscriptionContent, applySubscriptionRules } from '../utils/subscriptionUtils';
 
@@ -167,7 +168,7 @@ export class SubscriptionService {
                 subscriptions: grouped[groupName],
             }));
     }
-    
+
     async getSubscriptionSelectors(userId: string) {
         const { results } = await this.db.prepare('SELECT id, name FROM subscriptions WHERE user_id = ?').bind(userId).all();
         return results;
@@ -306,7 +307,7 @@ export class SubscriptionService {
 
         for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
             const chunk = ids.slice(i, i + CHUNK_SIZE);
-            const placeholders = chunk.map(() => '?').join(',');
+            const placeholders = createInClause(chunk.length);
             const query = `DELETE FROM subscriptions WHERE user_id = ? AND id IN (${placeholders})`;
             const bindings = [userId, ...chunk];
             const { meta } = await this.db.prepare(query).bind(...bindings).run();
@@ -326,7 +327,7 @@ export class SubscriptionService {
 
         for (let i = 0; i < idsToDelete.length; i += CHUNK_SIZE) {
             const chunk = idsToDelete.slice(i, i + CHUNK_SIZE);
-            const placeholders = chunk.map(() => '?').join(',');
+            const placeholders = createInClause(chunk.length);
             const query = `DELETE FROM subscriptions WHERE user_id = ? AND id IN (${placeholders})`;
             const bindings = [userId, ...chunk];
             const { meta: { changes } } = await this.db.prepare(query).bind(...bindings).run();
@@ -352,7 +353,7 @@ export class SubscriptionService {
 
         for (let i = 0; i < idsToDelete.length; i += CHUNK_SIZE) {
             const chunk = idsToDelete.slice(i, i + CHUNK_SIZE);
-            const placeholders = chunk.map(() => '?').join(',');
+            const placeholders = createInClause(chunk.length);
             const deleteQuery = `DELETE FROM subscriptions WHERE user_id = ? AND id IN (${placeholders})`;
             const bindings = [userId, ...chunk];
             const { meta: { changes } } = await this.db.prepare(deleteQuery).bind(...bindings).run();
@@ -463,7 +464,7 @@ export class SubscriptionService {
             throw new Error('No subscription IDs provided');
         }
 
-        const placeholders = subscriptionIds.map(() => '?').join(',');
+        const placeholders = createInClause(subscriptionIds.length);
         const now = new Date().toISOString();
         const query = `UPDATE subscriptions SET group_id = ?, updated_at = ? WHERE user_id = ? AND id IN (${placeholders})`;
         const bindings = [groupId ?? null, now, userId, ...subscriptionIds];

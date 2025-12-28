@@ -1,5 +1,6 @@
 import { fetchWithTimeout } from '../utils/network';
 import type { Env } from '../utils/types';
+import { createInClause } from '../utils/db';
 import { parseNodeLinks, ParsedNode, regenerateLink } from '../../../src/utils/nodeParser';
 
 type Node = {
@@ -162,7 +163,7 @@ export class NodeService {
 
     async batchUpdateGroup(userId: string, nodeIds: string[], groupId: string | null) {
         const now = new Date().toISOString();
-        const placeholders = nodeIds.map(() => '?').join(',');
+        const placeholders = createInClause(nodeIds.length);
 
         await this.db.prepare(
             `UPDATE nodes
@@ -176,7 +177,7 @@ export class NodeService {
         let totalDeleted = 0;
         for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
             const chunk = ids.slice(i, i + CHUNK_SIZE);
-            const placeholders = chunk.map(() => '?').join(',');
+            const placeholders = createInClause(chunk.length);
             const query = `DELETE FROM nodes WHERE id IN (${placeholders}) AND user_id = ?`;
             const bindings = [...chunk, userId];
             const { meta: { changes } } = await this.db.prepare(query).bind(...bindings).run();
@@ -401,7 +402,7 @@ export class NodeService {
                 }
 
                 // 2. Fetch node info
-                const placeholders = batchNodeIds.map(() => '?').join(',');
+                const placeholders = createInClause(batchNodeIds.length);
                 const nodesInBatch = await this.db.prepare(
                     `SELECT id, server, port FROM nodes WHERE id IN (${placeholders}) AND user_id = ?`
                 ).bind(...batchNodeIds, userId).all<{ id: string; server: string; port: number }>();

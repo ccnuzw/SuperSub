@@ -3,6 +3,7 @@ import { Logger } from '../utils/logger';
 import { parseNodeLinks, ParsedNode, regenerateLink } from '../../../src/utils/nodeParser';
 import { fetchSubscriptionContent } from '../utils/network';
 import { applySubscriptionRules, parseSubscriptionContent } from '../utils/subscriptionUtils';
+import { createInClause } from '../utils/db';
 
 interface SelectedSource {
     type: 'subscription';
@@ -179,7 +180,7 @@ export class ProfileService {
                 const groupCountsQuery = `
                     SELECT group_id, COUNT(*) as total
                     FROM subscriptions
-                    WHERE id IN (${chunk.map(() => '?').join(',')}) AND user_id = ?
+                    WHERE id IN (${createInClause(chunk.length)}) AND user_id = ?
                     GROUP BY group_id
                 `;
                 const { results: chunkGroupCounts } = await this.db.prepare(groupCountsQuery).bind(...chunk, userId).all();
@@ -262,7 +263,7 @@ export class ProfileService {
         let allSubs: any[] = [];
         for (let i = 0; i < subIds.length; i += CHUNK_SIZE) {
             const chunk = subIds.slice(i, i + CHUNK_SIZE);
-            const query = `SELECT * FROM subscriptions WHERE id IN (${chunk.map(() => '?').join(',')}) AND user_id = ?`;
+            const query = `SELECT * FROM subscriptions WHERE id IN (${createInClause(chunk.length)}) AND user_id = ?`;
             const { results: subsInChunk } = await this.db.prepare(query).bind(...chunk, userId).all();
             if (subsInChunk) {
                 allSubs = allSubs.concat(subsInChunk);
@@ -400,99 +401,9 @@ export class ProfileService {
                 if (regularPollingState && regularPollingState.polling_index !== undefined) {
                     updatedPollingState = regularPollingState;
                 }
-                logger.info(`准备获取 ${selectedSources.length} 个选定订阅的内容...`);
-                const fetchPromises = selectedSources.map(async (source: any) => {
-                    if (source.type === 'subscription') {
-                        logger.info(`正在获取 "${source.sub.name}" (${source.sub.url})...`);
-                        const content = await fetchSubscriptionContent(source.sub.url, timeout);
-                        if (content) {
-                            logger.success(`成功获取 "${source.sub.name}" 的内容。`);
-                            return { ...source, content };
-                        } else {
-                            logger.warn(`获取 "${source.sub.name}" 的内容为空。`);
-                        }
-                    }
-                    return null;
-                });
-
-                const fetchedSources = (await Promise.all(fetchPromises)).filter(Boolean);
-
-                // Collect IDs for batch pre-fetching rules
-                const fetchedSubIds: string[] = [];
-                const fetchedGroupIds: string[] = [];
-                fetchedSources.forEach((s: any) => {
-                    if (s.sub.id) fetchedSubIds.push(s.sub.id);
-                    if (s.sub.group_id) fetchedGroupIds.push(s.sub.group_id);
-                });
-
-                // Batch fetch group rules
-                let groupRulesMap = new Map<string, any[]>();
-                if (fetchedGroupIds.length > 0) {
-                    const uniqueGroupIds = [...new Set(fetchedGroupIds)];
-                    const chunkSize = 50;
-                    for (let i = 0; i < uniqueGroupIds.length; i += chunkSize) {
-                        const chunk = uniqueGroupIds.slice(i, i + chunkSize);
-                        const query = `SELECT * FROM subscription_group_rules WHERE group_id IN (${chunk.map(() => '?').join(',')}) AND user_id = ? AND enabled = 1 ORDER BY sort_order ASC`;
-                        const { results } = await this.db.prepare(query).bind(...chunk, userId).all<any>();
-                        if (results) {
-                            results.forEach((rule: any) => {
-                                const list = groupRulesMap.get(rule.group_id) || [];
-                                list.push(rule);
-                                groupRulesMap.set(rule.group_id, list);
-                            });
-                        }
-                    }
-                }
-
-                // Batch fetch subscription rules
-                let subRulesMap = new Map<string, any[]>();
-                if (fetchedSubIds.length > 0) {
-                    const uniqueSubIds = [...new Set(fetchedSubIds)];
-                    const chunkSize = 50;
-                    for (let i = 0; i < uniqueSubIds.length; i += chunkSize) {
-                        const chunk = uniqueSubIds.slice(i, i + chunkSize);
-                        const query = `SELECT * FROM subscription_rules WHERE subscription_id IN (${chunk.map(() => '?').join(',')}) AND user_id = ? AND enabled = 1 ORDER BY sort_order ASC`;
-                        const { results } = await this.db.prepare(query).bind(...chunk, userId).all<any>();
-                        if (results) {
-                            results.forEach((rule: any) => {
-                                const list = subRulesMap.get(rule.subscription_id) || [];
-                                list.push(rule);
-                                subRulesMap.set(rule.subscription_id, list);
-                            });
-                        }
-                    }
-                }
-
-                for (const source of fetchedSources as any[]) {
-                    if (source && source.content) {
-                        let nodes = parseSubscriptionContent(source.content);
-                        logger.info(`解析 "${source.sub.name}" 成功，获得 ${nodes.length} 个节点。`);
-                        let combinedRules: any[] = [];
-
-                        if (source.sub.group_id) {
-                            const groupRules = groupRulesMap.get(source.sub.group_id);
-                            if (groupRules && groupRules.length > 0) {
-                                logger.info(`"${source.sub.name}" 所在分组有 ${groupRules.length} 条规则，准备应用...`);
-                                combinedRules.push(...groupRules);
-                            }
-                        }
-
-                        const subRules = subRulesMap.get(source.sub.id);
-                        if (subRules && subRules.length > 0) {
-                            logger.info(`"${source.sub.name}" 自身有 ${subRules.length} 条规则，准备应用...`);
-                            combinedRules.push(...subRules);
-                        }
-
-                        if (combinedRules.length > 0) {
-                            const initialCount = nodes.length;
-                            nodes = applySubscriptionRules(nodes, combinedRules);
-                            logger.success(`订阅/分组规则应用完毕，节点数变化: ${initialCount} -> ${nodes.length}`);
-                        }
-
-                        const nodesWithSubName = nodes.map((node: any) => ({ ...node, subscriptionName: source.sub.name }));
-                        allNodes.push(...nodesWithSubName);
-                    }
-                }
+                const fetchedSources = await this.fetchSubscriptionContentBatch(selectedSources, timeout, logger);
+                const sourceNodes = await this.applySourceRules(userId, fetchedSources, logger);
+                allNodes.push(...sourceNodes);
             }
 
             if (Object.keys(updatedPollingState).length > 0) {
@@ -525,42 +436,8 @@ export class ProfileService {
         }
 
         if (content.node_ids && content.node_ids.length > 0) {
-            logger.info(`准备合并 ${content.node_ids.length} 个手动添加的节点...`);
-
-            const CHUNK_SIZE = 50;
-            let manualNodes: any[] = [];
-            const nodeIds = content.node_ids;
-
-            for (let i = 0; i < nodeIds.length; i += CHUNK_SIZE) {
-                const chunk = nodeIds.slice(i, i + CHUNK_SIZE);
-                logger.info(`正在获取第 ${i + 1} 到 ${i + chunk.length} 个手动节点...`);
-                const { results: nodesInChunk } = await this.db.prepare(`
-                    SELECT n.*, g.name as group_name FROM nodes n
-                    LEFT JOIN node_groups g ON n.group_id = g.id
-                    WHERE n.id IN (${chunk.map(() => '?').join(',')}) AND n.user_id = ?
-                `).bind(...chunk, userId).all<any>();
-
-                if (nodesInChunk) {
-                    manualNodes = manualNodes.concat(nodesInChunk);
-                }
-            }
-
-            const parsedManualNodes = manualNodes.map((n: any) => ({
-                ...parseNodeLinks(n.link)[0],
-                id: n.id,
-                raw: n.link,
-                group_name: n.group_name,
-                isManual: true,
-            }));
-            const nodePrefixSettings = content.node_prefix_settings || {};
-            if (nodePrefixSettings.manual_nodes_first) {
-                allNodes.unshift(...parsedManualNodes);
-                logger.info('排序规则: 手动节点优先，已置于列表开头。');
-            } else {
-                allNodes.push(...parsedManualNodes);
-                logger.info('排序规则: 订阅节点优先，手动节点已添加至列表末尾。');
-            }
-            logger.success(`成功合并 ${parsedManualNodes.length} 个手动节点。`);
+            const prefixSettings = content.node_prefix_settings || {};
+            allNodes = await this.mergeManualNodes(userId, content.node_ids, prefixSettings, logger, allNodes);
         }
 
         allNodes = await this.applyAllRules(userId, profile.id, allNodes, logger);
@@ -592,5 +469,143 @@ export class ProfileService {
         }
 
         return allNodes;
+    }
+
+    async fetchSubscriptionContentBatch(selectedSources: SelectedSource[], timeout: number, logger: Logger): Promise<any[]> {
+        logger.info(`准备获取 ${selectedSources.length} 个选定订阅的内容...`);
+        const fetchPromises = selectedSources.map(async (source: any) => {
+            if (source.type === 'subscription') {
+                logger.info(`正在获取 "${source.sub.name}" (${source.sub.url})...`);
+                const content = await fetchSubscriptionContent(source.sub.url, timeout);
+                if (content) {
+                    logger.success(`成功获取 "${source.sub.name}" 的内容。`);
+                    return { ...source, content };
+                } else {
+                    logger.warn(`获取 "${source.sub.name}" 的内容为空。`);
+                }
+            }
+            return null;
+        });
+        return (await Promise.all(fetchPromises)).filter(Boolean);
+    }
+
+    async applySourceRules(userId: string, fetchedSources: any[], logger: Logger): Promise<(ParsedNode & { id: string; raw: string; subscriptionName?: string; })[]> {
+        const fetchedSubIds: string[] = [];
+        const fetchedGroupIds: string[] = [];
+        fetchedSources.forEach((s: any) => {
+            if (s.sub.id) fetchedSubIds.push(s.sub.id);
+            if (s.sub.group_id) fetchedGroupIds.push(s.sub.group_id);
+        });
+
+        // Batch fetch group rules
+        let groupRulesMap = new Map<string, any[]>();
+        if (fetchedGroupIds.length > 0) {
+            const uniqueGroupIds = [...new Set(fetchedGroupIds)];
+            const chunkSize = 50;
+            for (let i = 0; i < uniqueGroupIds.length; i += chunkSize) {
+                const chunk = uniqueGroupIds.slice(i, i + chunkSize);
+                const query = `SELECT * FROM subscription_group_rules WHERE group_id IN (${createInClause(chunk.length)}) AND user_id = ? AND enabled = 1 ORDER BY sort_order ASC`;
+                const { results } = await this.db.prepare(query).bind(...chunk, userId).all<any>();
+                if (results) {
+                    results.forEach((rule: any) => {
+                        const list = groupRulesMap.get(rule.group_id) || [];
+                        list.push(rule);
+                        groupRulesMap.set(rule.group_id, list);
+                    });
+                }
+            }
+        }
+
+        // Batch fetch subscription rules
+        let subRulesMap = new Map<string, any[]>();
+        if (fetchedSubIds.length > 0) {
+            const uniqueSubIds = [...new Set(fetchedSubIds)];
+            const chunkSize = 50;
+            for (let i = 0; i < uniqueSubIds.length; i += chunkSize) {
+                const chunk = uniqueSubIds.slice(i, i + chunkSize);
+                const query = `SELECT * FROM subscription_rules WHERE subscription_id IN (${createInClause(chunk.length)}) AND user_id = ? AND enabled = 1 ORDER BY sort_order ASC`;
+                const { results } = await this.db.prepare(query).bind(...chunk, userId).all<any>();
+                if (results) {
+                    results.forEach((rule: any) => {
+                        const list = subRulesMap.get(rule.subscription_id) || [];
+                        list.push(rule);
+                        subRulesMap.set(rule.subscription_id, list);
+                    });
+                }
+            }
+        }
+
+        let allNodes: any[] = [];
+        for (const source of fetchedSources) {
+            if (source && source.content) {
+                let nodes = parseSubscriptionContent(source.content);
+                logger.info(`解析 "${source.sub.name}" 成功，获得 ${nodes.length} 个节点。`);
+                let combinedRules: any[] = [];
+
+                if (source.sub.group_id) {
+                    const groupRules = groupRulesMap.get(source.sub.group_id);
+                    if (groupRules && groupRules.length > 0) {
+                        logger.info(`"${source.sub.name}" 所在分组有 ${groupRules.length} 条规则，准备应用...`);
+                        combinedRules.push(...groupRules);
+                    }
+                }
+
+                const subRules = subRulesMap.get(source.sub.id);
+                if (subRules && subRules.length > 0) {
+                    logger.info(`"${source.sub.name}" 自身有 ${subRules.length} 条规则，准备应用...`);
+                    combinedRules.push(...subRules);
+                }
+
+                if (combinedRules.length > 0) {
+                    const initialCount = nodes.length;
+                    nodes = applySubscriptionRules(nodes, combinedRules);
+                    logger.success(`订阅/分组规则应用完毕，节点数变化: ${initialCount} -> ${nodes.length}`);
+                }
+
+                const nodesWithSubName = nodes.map((node: any) => ({ ...node, subscriptionName: source.sub.name }));
+                allNodes.push(...nodesWithSubName);
+            }
+        }
+        return allNodes;
+    }
+
+    async mergeManualNodes(userId: string, nodeIds: string[], nodePrefixSettings: any, logger: Logger, existingNodes: any[]): Promise<any[]> {
+        logger.info(`准备合并 ${nodeIds.length} 个手动添加的节点...`);
+        const CHUNK_SIZE = 50;
+        let manualNodes: any[] = [];
+
+        for (let i = 0; i < nodeIds.length; i += CHUNK_SIZE) {
+            const chunk = nodeIds.slice(i, i + CHUNK_SIZE);
+            logger.info(`正在获取第 ${i + 1} 到 ${i + chunk.length} 个手动节点...`);
+            const query = `
+                SELECT n.*, g.name as group_name FROM nodes n
+                LEFT JOIN node_groups g ON n.group_id = g.id
+                WHERE n.id IN (${createInClause(chunk.length)}) AND n.user_id = ?
+            `;
+            const { results: nodesInChunk } = await this.db.prepare(query).bind(...chunk, userId).all<any>();
+
+            if (nodesInChunk) {
+                manualNodes = manualNodes.concat(nodesInChunk);
+            }
+        }
+
+        const parsedManualNodes = manualNodes.map((n: any) => ({
+            ...parseNodeLinks(n.link)[0],
+            id: n.id,
+            raw: n.link,
+            group_name: n.group_name,
+            isManual: true,
+        }));
+
+        let result = [...existingNodes];
+        if (nodePrefixSettings.manual_nodes_first) {
+            result.unshift(...parsedManualNodes);
+            logger.info('排序规则: 手动节点优先，已置于列表开头。');
+        } else {
+            result.push(...parsedManualNodes);
+            logger.info('排序规则: 订阅节点优先，手动节点已添加至列表末尾。');
+        }
+        logger.success(`成功合并 ${parsedManualNodes.length} 个手动节点。`);
+        return result;
     }
 }
