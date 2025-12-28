@@ -94,9 +94,18 @@ export const clearFailedSchema = z.object({
 export const createProfileSchema = z.object({
     name: z.string().min(1, 'Profile name is required'),
     alias: z.string().optional().nullable(),
-    content: z.record(z.string(), z.any()).optional(), // Loose validation for content JSON for now
+    content: z.union([z.record(z.string(), z.any()), z.string()]).optional(), // Allow both object and string for content
     rules: z.array(z.any()).optional(),
 });
 
 export const updateProfileSchema = createProfileSchema;
+
+export type NodePayload = z.infer<typeof nodeSchema>;
+export type BatchImportPayload = z.infer<typeof batchImportSchema>;
+export type BatchActionPayload = z.infer<typeof batchActionSchema>;
+export type CreateSubscriptionPayload = z.infer<typeof createSubscriptionSchema>;
+export type UpdateSubscriptionPayload = z.infer<typeof updateSubscriptionSchema>;
+export type SubscriptionRulePayload = z.infer<typeof subscriptionRuleSchema>;
+export type CreateProfilePayload = z.infer<typeof createProfileSchema>;
+export type UpdateProfilePayload = z.infer<typeof updateProfileSchema>;
 

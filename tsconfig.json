@@ -10,13 +10,25 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,
-    "lib": ["ESNext", "WebWorker"],
+    "lib": [
+      "ESNext",
+      "WebWorker"
+    ],
     "skipLibCheck": true,
     "noEmit": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@api/*": [
+        "./functions/api/*"
+      ]
     },
-    "types": ["vite/client", "@cloudflare/workers-types", "node"]
+    "types": [
+      "vite/client",
+      "@cloudflare/workers-types",
+      "node"
+    ]
   },
   "include": [
     "src/**/*.ts",
@@ -25,5 +37,9 @@
     "src/**/*.vue",
     "functions/**/*.ts"
   ],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
 }

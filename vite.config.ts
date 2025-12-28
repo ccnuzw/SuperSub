@@ -16,7 +16,8 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@api': fileURLToPath(new URL('./functions/api', import.meta.url))
     }
   },
   css: {

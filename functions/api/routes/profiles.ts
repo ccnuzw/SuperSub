@@ -95,6 +95,7 @@ profiles.put('/:id', zValidator('json', updateProfileSchema), async (c) => {
 
         return c.json({ success: true });
     } catch (e: any) {
+        console.error('Update profile error:', e);
         return createErrorResponse(e.message, 500);
     }
 });

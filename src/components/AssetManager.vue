@@ -81,6 +81,7 @@ import { ref, onMounted, computed, h, reactive } from 'vue';
 import {
   NDataTable, NModal, NForm, NFormItem, NInput, useMessage, NPopconfirm, NIcon, NTooltip, NPagination
 } from 'naive-ui';
+import type { FormInst } from 'naive-ui';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import { Star as StarIcon, StarOutline as StarOutlineIcon } from '@vicons/ionicons5';
@@ -113,7 +114,7 @@ const userDefaults = ref<UserDefaults>({});
 const loading = ref(true);
 const showModal = ref(false);
 const saveLoading = ref(false);
-const formRef = ref<any>(null);
+const formRef = ref<FormInst | null>(null);
 
 const pagination = reactive({
   page: 1,
@@ -131,7 +132,7 @@ const paginatedAssets = computed(() => {
 
 const isAdmin = computed(() => authStore.user?.role === 'admin');
 
-const defaultAsset: Omit<SubconverterAsset, 'id'> = {
+const defaultAsset: Pick<SubconverterAsset, 'name' | 'url' | 'type'> = {
   name: '',
   url: '',
   type: props.assetType,
@@ -193,10 +194,10 @@ const handleSave = async () => {
   saveLoading.value = true;
   try {
     if (currentAsset.value.id) {
-      await assetsApi.updateAsset(currentAsset.value.id, currentAsset.value as any);
+      await assetsApi.updateAsset(currentAsset.value.id, currentAsset.value);
       message.success('更新成功');
     } else {
-      await assetsApi.createAsset(currentAsset.value as any);
+      await assetsApi.createAsset(currentAsset.value);
       message.success('创建成功');
     }
     showModal.value = false;
@@ -219,7 +220,7 @@ const handleDelete = async (id: number) => {
 };
 
 const handleSetDefault = async (id: number) => {
-  const payload: any = {};
+  const payload: Partial<UserDefaults> = {};
   if (props.assetType === 'backend') {
     payload.default_backend_id = id;
   } else {

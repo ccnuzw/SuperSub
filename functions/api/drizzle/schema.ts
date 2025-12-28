@@ -1,5 +1,5 @@
 import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
-import { sql } from 'drizzle-orm';
+import { sql, type InferSelectModel, type InferInsertModel } from 'drizzle-orm';
 
 export const users = sqliteTable('users', {
     id: text('id').primaryKey(),
@@ -23,7 +23,7 @@ export const nodes = sqliteTable('nodes', {
     port: integer('port'),
     password: text('password'),
     type: text('type'),
-    params: text('params'),
+
     created_at: text('created_at').notNull(),
     updated_at: text('updated_at').notNull(),
     sort_order: integer('sort_order'),
@@ -155,6 +155,25 @@ export const profile_subscriptions = sqliteTable('profile_subscriptions', {
 }));
 
 
+export const profile_options = sqliteTable('profile_options', {
+    profile_id: text('profile_id').primaryKey().references(() => profiles.id, { onDelete: 'cascade' }),
+
+    // Node Prefix Settings
+    enable_subscription_prefix: integer('enable_subscription_prefix', { mode: 'boolean' }).default(false),
+    manual_node_prefix: text('manual_node_prefix'),
+    enable_group_name_prefix: integer('enable_group_name_prefix', { mode: 'boolean' }).default(false),
+    manual_nodes_first: integer('manual_nodes_first', { mode: 'boolean' }).default(false),
+
+    // Airport Subscription Options
+    strategy: text('strategy').default('all'),
+    polling_mode: text('polling_mode').default('hourly'),
+    use_all: integer('use_all', { mode: 'boolean' }).default(false),
+    random: integer('random', { mode: 'boolean' }).default(false),
+    timeout: integer('timeout').default(2000),
+    polling_threshold: integer('polling_threshold').default(3),
+    polling_interval: integer('polling_interval').default(3600),
+});
+
 export const profile_rules = sqliteTable('profile_rules', {
     id: integer('id').primaryKey({ autoIncrement: true }),
     user_id: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -228,3 +247,30 @@ export const subscription_access_logs = sqliteTable('subscription_access_logs', 
     city: text('city'),
     accessed_at: text('accessed_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export type User = InferSelectModel<typeof users>;
+export type NewUser = InferInsertModel<typeof users>;
+
+export type Node = InferSelectModel<typeof nodes>;
+export type NewNode = InferInsertModel<typeof nodes>;
+
+export type Subscription = InferSelectModel<typeof subscriptions>;
+export type NewSubscription = InferInsertModel<typeof subscriptions>;
+
+export type SubscriptionGroup = InferSelectModel<typeof subscription_groups>;
+export type NewSubscriptionGroup = InferInsertModel<typeof subscription_groups>;
+
+export type Profile = InferSelectModel<typeof profiles>;
+export type NewProfile = InferInsertModel<typeof profiles>;
+
+export type Setting = InferSelectModel<typeof settings>;
+export type NewSetting = InferInsertModel<typeof settings>;
+
+export type SubconverterAsset = InferSelectModel<typeof subconverter_assets>;
+export type ProfileRule = InferSelectModel<typeof profile_rules>;
+export type SubscriptionRule = InferSelectModel<typeof subscription_rules>;
+export type NodeGroup = InferSelectModel<typeof node_groups>;
+export type ProcessingLog = InferSelectModel<typeof subscription_processing_logs>;
+export type ProfileOption = InferSelectModel<typeof profile_options>;
+export type ProfileNode = InferSelectModel<typeof profile_nodes>;
+export type ProfileSubscription = InferSelectModel<typeof profile_subscriptions>;

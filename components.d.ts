@@ -23,6 +23,7 @@ declare module 'vue' {
     Layout: typeof import('./src/components/Layout.vue')['default']
     ModernLayout: typeof import('./src/components/layout/ModernLayout.vue')['default']
     MoveToGroupModal: typeof import('./src/components/subscriptions/modals/MoveToGroupModal.vue')['default']
+    NButton: typeof import('naive-ui')['NButton']
     NodeFormModal: typeof import('./src/components/nodes/modals/NodeFormModal.vue')['default']
     NodeGroupFormModal: typeof import('./src/components/nodes/modals/NodeGroupFormModal.vue')['default']
     NodeImportModal: typeof import('./src/components/nodes/modals/NodeImportModal.vue')['default']

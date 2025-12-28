@@ -3,10 +3,10 @@ import type { User, ApiResponse } from '@/types';
 
 export const usersApi = {
     fetchDefaults: () => {
-        return client.get<ApiResponse<{ default_backend_id?: string; default_config_id?: string }>>('/user/defaults');
+        return client.get<ApiResponse<{ default_backend_id?: number; default_config_id?: number }>>('/user/defaults');
     },
 
-    updateDefaults: (defaults: { default_backend_id?: string; default_config_id?: string }) => {
+    updateDefaults: (defaults: { default_backend_id?: number; default_config_id?: number }) => {
         return client.put<ApiResponse<null>>('/user/defaults', defaults);
     },
 

@@ -31,7 +31,12 @@ const props = defineProps({
 
 const message = useMessage();
 const nodeGroupStore = useNodeGroupStore();
-const previewData = ref<any>(null);
+
+type PreviewData = 
+  | { mode: 'local'; nodes: Node[]; analysis: any; urls?: never }
+  | { mode: 'remote'; urls: string[]; analysis: any; nodes?: never };
+
+const previewData = ref<PreviewData | null>(null);
 const loading = ref(false);
 const importLoading = ref(false);
 const applyRules = ref(true);
@@ -103,8 +108,8 @@ const fetchPreview = async () => {
     if (props.profileId) {
       const response = await profilesApi.previewNodes(props.profileId);
       // Ensure response.data is treated as ApiResponse object
-      const data = response.data as ApiResponse<any>;
-      if (typeof data !== 'string' && data.success) {
+      const data = response.data as ApiResponse<PreviewData>;
+      if (typeof data !== 'string' && data.success && data.data) {
         previewData.value = data.data;
       } else {
         throw new Error(typeof data !== 'string' ? data.message : 'Invalid response format');
@@ -124,8 +129,8 @@ const fetchPreview = async () => {
         throw new Error(response.data.message || '获取节点预览失败');
       }
     }
-  } catch (err: any) {
-    const errorMessage = err.message || '请求失败，请检查网络连接或订阅地址。';
+  } catch (err: unknown) {
+    const errorMessage = (err instanceof Error ? err.message : String(err)) || '请求失败，请检查网络连接或订阅地址。';
     error.value = errorMessage;
     message.error(errorMessage);
   } finally {

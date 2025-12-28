@@ -1,3 +1,15 @@
+import type {
+  Node as DbNode,
+  Subscription as DbSubscription,
+  Profile as DbProfile,
+  User as DbUser,
+  SubscriptionRule as DbSubscriptionRule,
+  SubscriptionGroup as DbSubscriptionGroup,
+  NodeGroup as DbNodeGroup,
+  SubconverterAsset as DbSubconverterAsset,
+  ProcessingLog as DbProcessingLog
+} from '@api/drizzle/schema';
+
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -5,79 +17,46 @@ export interface ApiResponse<T = any> {
   error?: string;
 }
 
-export interface User {
-  id: string;
-  username: string;
-  role: 'admin' | 'user';
-  sub_token?: string;
-  created_at: string;
-  updated_at: string;
-}
+export interface User extends DbUser { }
 
-export interface Subscription {
-  id: string;
-  user_id: string;
-  group_id: string | null;
-  name: string;
-  url: string;
-  node_count?: number;
-  is_enabled: number | boolean; // Backend uses is_enabled
-  enabled?: number | boolean; // Legacy/Frontend compat
-  created_at: string;
-  updated_at: string;
-  last_updated?: string | null;
+export interface Subscription extends Omit<DbSubscription, 'enabled' | 'error' | 'node_count' | 'subscription_info'> {
+  // Frontend/Legacy optional fields or overrides
+  is_enabled: number | boolean; // Mapped from DB 'enabled' (which is integer 0/1)
+  enabled?: number | boolean;
+
+  // Computed/joined fields not in raw DB table
+  node_count?: number; // Actually in DB now as default 0
   error?: string | null;
-  expires_at?: string | null;
   subscription_info?: string | null;
-  remaining_traffic?: number | null;
-  remaining_days?: number | null;
-  profile_id?: string | null;
 }
 
-export interface Node {
-  id: string;
-  user_id: string;
-  group_id: string;
-  name: string;
-
-  // New core fields for protocol-aware structure
-  link: string;
-  protocol: string;
+export interface Node extends Omit<DbNode, 'protocol_params' | 'params' | 'status' | 'error' | 'last_checked' | 'latency'> {
+  // Protocol params are JSON strings in DB, but possibly parsed in frontend usage
+  // For strictness we should treat them as any or define a parsed type
   protocol_params: any;
+  params: any;
 
-  raw?: string; // Raw node link, for import purposes
-
-  // Legacy fields for backward compatibility during transition
-  server?: string;
-  port?: number;
-  type?: string;
-  password?: string;
-  params?: any;
-
-  // Metadata
-  sort_order?: number;
-  created_at: string;
-  updated_at: string;
-
-  // Health check fields
+  // Frontend-specific fields
+  raw?: string;
   status?: 'pending' | 'testing' | 'healthy' | 'unhealthy';
   latency?: number | null;
-  last_checked?: string | null;
-  error?: string | null;
+  last_checked?: string | null; // This exists in DB
+  error?: string | null; // This exists in DB
 }
 
-export interface Profile {
-  id: string;
-  user_id: string;
-  name: string;
+export interface Profile extends Omit<DbProfile, 'content' | 'generation_mode' | 'template_id' | 'subconverter_backend_id' | 'subconverter_config_id' | 'alias' | 'polling_index'> {
+  // DB overrides (optional in frontend vs null in DB)
+  content?: string | null;
   alias?: string | null;
-  content?: string; // The raw JSON string from the DB
+  polling_index?: number | null;
+  generation_mode?: 'local' | 'remote';
+  template_id?: number | null;
+  subconverter_backend_id?: number | null;
+  subconverter_config_id?: number | null;
 
-  // Data sources
+  // Parsed fields from content JSON (Frontend convenience)
   subscription_ids?: string[];
   node_ids?: string[];
-
-  // Node processing
   node_prefix_settings?: {
     enable_subscription_prefix?: boolean;
     manual_node_prefix?: string;
@@ -94,31 +73,12 @@ export interface Profile {
     polling_interval?: number;
   };
 
-  // Generation mode fields
-  generation_mode?: 'local' | 'remote';
-  template_id?: number | null;
-  subconverter_backend_id?: number | null;
-  subconverter_config_id?: number | null;
 
-  created_at: string;
-  updated_at: string;
-  polling_index?: number;
 }
 
-export interface SubscriptionRule {
-  id: number;
-  subscription_id: string;
-  name: string;
-  type: 'filter_by_name_keyword' | 'filter_by_name_regex' | 'rename_by_regex' | 'exclude_by_name_keyword';
-  value: string; // JSON string
-  enabled: number; // 0 or 1
-  created_at: string;
-  updated_at: string;
-}
-
+export interface SubscriptionRule extends DbSubscriptionRule { }
 
 export type ClientType = 'CLASH' | 'SURGE' | 'V2RAYN' | 'QUANTUMULT_X' | 'GENERIC';
-
 
 export interface ProcessingChain {
   id: string;
@@ -150,25 +110,11 @@ export interface HealthStatus {
   error?: string | null;
 }
 
-export interface ProcessingLog {
-  id: number;
-  run_id: string;
-  profile_id: string;
-  step_name: string;
-  step_order: number;
-  input_count: number;
-  output_count: number;
-  details: any; // Parsed JSON object
-  created_at: string;
+export interface ProcessingLog extends DbProcessingLog {
+  details: any; // DB has 'details: string | null', frontend wants parsed
 }
 
-export interface SubconverterAsset {
-  id: number;
-  name: string;
-  url: string;
-  type: 'backend' | 'config';
-  is_default?: 0 | 1;
-}
+export interface SubconverterAsset extends DbSubconverterAsset { }
 
 
 export type LogLevel = 'STEP' | 'INFO' | 'SUCCESS' | 'WARN' | 'ERROR' | 'DEBUG';
@@ -180,23 +126,6 @@ export interface LogEntry {
   step?: string;
   data?: any;
 }
-export interface NodeGroup {
-  id: string;
-  name: string;
-  user_id: string;
-  is_enabled: boolean;
-  order_index?: number;
-  created_at: string;
-  updated_at: string;
-}
+export interface NodeGroup extends DbNodeGroup { }
 
-export interface SubscriptionGroup {
-  id: string;
-  name: string;
-  description?: string | null;
-  user_id: string;
-  is_enabled: boolean;
-  order_index?: number;
-  created_at: string;
-  updated_at: string;
-}
+export interface SubscriptionGroup extends DbSubscriptionGroup { }
