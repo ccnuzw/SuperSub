@@ -1,5 +1,6 @@
 import { fetchWithTimeout } from '../utils/network';
 import type { Env } from '../utils/types';
+import type { CreateNodeBody, BatchImportNodesBody, NodeHealthCheckResult } from '../utils/apiTypes';
 import { getDb, DrizzleDB } from '../utils/db';
 import { nodes, node_groups, node_statuses } from '../drizzle/schema';
 import { eq, and, asc, inArray, isNull, sql } from 'drizzle-orm';
@@ -67,7 +68,7 @@ export class NodeService {
         return result[0] || null;
     }
 
-    async createNode(userId: string, body: any) {
+    async createNode(userId: string, body: CreateNodeBody) {
         const id = crypto.randomUUID();
         const now = new Date().toISOString();
         await this.db.insert(nodes).values({
@@ -75,11 +76,11 @@ export class NodeService {
             user_id: userId,
             name: body.name,
             link: body.link,
-            protocol: body.protocol,
-            protocol_params: JSON.stringify(body.protocol_params),
+            protocol: body.protocol || 'unknown',
+            protocol_params: JSON.stringify(body.protocol_params || {}),
             server: body.protocol_params?.add || '',
             port: Number(body.protocol_params?.port || 0),
-            type: body.protocol,
+            type: body.protocol || 'unknown',
             created_at: now,
             updated_at: now,
         });
@@ -128,7 +129,7 @@ export class NodeService {
         await this.db.delete(nodes).where(and(eq(nodes.id, id), eq(nodes.user_id, userId)));
     }
 
-    async batchImport(userId: string, body: { links?: string; nodes?: ParsedNode[]; groupId?: string }) {
+    async batchImport(userId: string, body: BatchImportNodesBody) {
         let nodesToImport: ParsedNode[] = [];
 
         if (body.nodes && Array.isArray(body.nodes)) {
@@ -213,7 +214,7 @@ export class NodeService {
             this.db.update(nodes).set({ sort_order: index }).where(and(eq(nodes.id, id), eq(nodes.user_id, userId)))
         );
         if (batch.length > 0) {
-            await this.db.batch(batch as any); // Type assertion might be needed if batch array is dynamic
+            await (this.db.batch as Function)(batch); // D1 batch API
         }
     }
 
@@ -264,12 +265,10 @@ export class NodeService {
         }
 
         nodesToSort.sort((a, b) => {
-            const statusOrder = { 'healthy': 1, 'testing': 2, 'unhealthy': 3 };
+            const statusOrder: Record<string, number> = { 'healthy': 1, 'testing': 2, 'unhealthy': 3 };
             const aStatus = a.status || 'unhealthy';
             const bStatus = b.status || 'unhealthy';
-            // @ts-ignore
             const aStatusOrder = statusOrder[aStatus] || 4;
-            // @ts-ignore
             const bStatusOrder = statusOrder[bStatus] || 4;
 
             if (aStatusOrder !== bStatusOrder) {
@@ -283,7 +282,7 @@ export class NodeService {
         );
 
         if (batch.length > 0) {
-            await this.db.batch(batch as any);
+            await (this.db.batch as Function)(batch);
         }
 
         return nodesToSort.length;
@@ -364,8 +363,8 @@ export class NodeService {
             const DELAY_BETWEEN_BATCHES = 2000;
             const CONCURRENCY_LIMIT = 10;
 
-            const executeInParallel = async (tasks: (() => Promise<any>)[]) => {
-                const executing = new Set<Promise<any>>();
+            const executeInParallel = async (tasks: (() => Promise<unknown>)[]) => {
+                const executing = new Set<Promise<unknown>>();
                 for (const task of tasks) {
                     const promise = task().finally(() => executing.delete(promise));
                     executing.add(promise);
@@ -376,7 +375,7 @@ export class NodeService {
                 await Promise.all(executing);
             };
 
-            const testNodeAndSave = async (node: { id: string; server: string; port: number }) => {
+            const testNodeAndSave = async (node: NodeHealthCheckResult) => {
                 const healthCheckUrl = 'https://www.google.com/generate_204';
                 const timeout = 5000;
                 let status: 'healthy' | 'unhealthy' = 'unhealthy';
@@ -387,9 +386,9 @@ export class NodeService {
                     try {
                         const resp = await fetchWithTimeout(healthCheckUrl, {
                             method: 'HEAD',
-                            // @ts-ignore-next-line
-                            connect: { hostname: node.server, port: node.port },
-                        }, timeout);
+                            // connect option is non-standard but may be used by some runtimes
+                            ...(node.server && node.port ? { connect: { hostname: node.server, port: node.port } } : {}),
+                        } as RequestInit, timeout);
                         latency = Date.now() - startTime;
                         if (resp.status >= 200 && resp.status < 400) {
                             status = 'healthy';
@@ -452,7 +451,7 @@ export class NodeService {
                 );
 
                 if (batch.length > 0) {
-                    await this.db.batch(batch as any);
+                    await (this.db.batch as Function)(batch);
                 }
 
                 // 2. Fetch node info
@@ -465,7 +464,7 @@ export class NodeService {
                 }
 
                 // 3. Test in parallel
-                const testTasks = nodesInBatch.map(node => () => testNodeAndSave(node as any));
+                const testTasks = nodesInBatch.map(node => () => testNodeAndSave(node as NodeHealthCheckResult));
                 await executeInParallel(testTasks);
 
                 // 4. Delay

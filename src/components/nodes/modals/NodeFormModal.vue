@@ -24,8 +24,7 @@ watch(
   (newNode) => {
     if (newNode) {
       formState.name = newNode.name
-      // @ts-ignore
-      formState.link = newNode.link || ''
+      formState.link = newNode.link ?? ''
     } else {
       formState.name = ''
       formState.link = ''

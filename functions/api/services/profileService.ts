@@ -1,5 +1,6 @@
 import { getDb, DrizzleDB } from '../utils/db';
 import type { Env } from '../utils/types';
+import type { CreateProfileBody, UpdateProfileBody, ProfileContent, ProfileWithContent, RuleBody } from '../utils/apiTypes';
 import { profiles, profile_rules, subscriptions, subscription_groups, subscription_rules, subscription_group_rules, nodes, node_groups, profile_options, profile_nodes, profile_subscriptions } from '../drizzle/schema';
 import { eq, and, asc, desc, inArray, sql, count, isNull, getTableColumns } from 'drizzle-orm';
 import { Logger } from '../utils/logger';
@@ -88,7 +89,7 @@ export class ProfileService {
         }
     }
 
-    async createProfile(userId: string, body: any) {
+    async createProfile(userId: string, body: CreateProfileBody) {
         const profileId = crypto.randomUUID();
         const now = new Date().toISOString();
         const name = body.name.trim();
@@ -119,7 +120,7 @@ export class ProfileService {
         });
 
         if (rules.length > 0) {
-            const ruleValues = rules.map((rule: any, index: number) => ({
+            const ruleValues = (body.rules || []).map((rule: RuleBody, index: number) => ({
                 user_id: userId,
                 profile_id: profileId,
                 name: rule.name.trim(),
@@ -157,8 +158,8 @@ export class ProfileService {
 
         // Normalization: Write Nodes (优化: 跳过验证,直接插入,依赖外键约束过滤无效ID)
         // 并行执行INSERT显著提升速度
-        const nodeInsertPromises: Promise<any>[] = [];
-        const subInsertPromises: Promise<any>[] = [];
+        const nodeInsertPromises: Promise<unknown>[] = [];
+        const subInsertPromises: Promise<unknown>[] = [];
 
         if (parsedContent.node_ids && parsedContent.node_ids.length > 0) {
             const MAX_ROWS_PER_STATEMENT = 40;
@@ -193,7 +194,7 @@ export class ProfileService {
         return { id: profileId };
     }
 
-    async updateProfile(id: string, userId: string, body: any) {
+    async updateProfile(id: string, userId: string, body: UpdateProfileBody) {
         const now = new Date().toISOString();
         const name = body.name.trim();
         const alias = body.alias || null;
@@ -260,7 +261,7 @@ export class ProfileService {
         await this.db.delete(profile_subscriptions).where(eq(profile_subscriptions.profile_id, id));
 
         // 并行执行nodes和subscriptions的INSERT
-        const insertPromises: Promise<any>[] = [];
+        const insertPromises: Promise<unknown>[] = [];
 
         if (parsedContent.node_ids && parsedContent.node_ids.length > 0) {
             const MAX_ROWS = 40;
@@ -288,11 +289,11 @@ export class ProfileService {
         await this.db.delete(profiles).where(and(eq(profiles.id, id), eq(profiles.user_id, userId)));
     }
 
-    async generateProfileNodes(profile: any, isDryRun: boolean = false, logger: Logger, executionCtx?: ExecutionContext): Promise<(ParsedNode & { id: string; raw: string; subscriptionName?: string; isManual?: boolean; group_name?: string; })[]> {
+    async generateProfileNodes(profile: ProfileWithContent, isDryRun: boolean = false, logger: Logger, executionCtx?: ExecutionContext): Promise<(ParsedNode & { id: string; raw: string; subscriptionName?: string; isManual?: boolean; group_name?: string; })[]> {
         return this.nodeProcessor.generateProfileNodes(profile, isDryRun, logger, executionCtx);
     }
 
-    async selectSourcesByStrategy(userId: string, profile: any, isDryRun: boolean = false, logger: Logger): Promise<StrategyResult> {
+    async selectSourcesByStrategy(userId: string, profile: ProfileWithContent, isDryRun: boolean = false, logger: Logger): Promise<StrategyResult> {
         return this.nodeProcessor.selectSourcesByStrategy(userId, profile, isDryRun, logger);
     }
 

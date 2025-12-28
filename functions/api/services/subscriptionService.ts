@@ -3,6 +3,7 @@ import { subscriptions, subscription_groups, profile_subscriptions, subscription
 import { eq, and, asc, desc, inArray, isNull, isNotNull, sql } from 'drizzle-orm';
 import { parseNodeLinks, ParsedNode, regenerateLink } from '../../../src/utils/nodeParser';
 import type { Env } from '../utils/types';
+import type { BatchImportSubscription, RuleBody, RuleUpdateBody, SubscriptionUserInfo } from '../utils/apiTypes';
 import { parseSubscriptionContent, applySubscriptionRules } from '../utils/subscriptionUtils';
 
 export const userAgents = [
@@ -92,7 +93,7 @@ export class SubscriptionService {
         }
 
         if (userInfoHeader) {
-            const info: any = {};
+            const info: SubscriptionUserInfo = {};
             userInfoHeader.split(';').forEach(part => {
                 const [key, value] = part.split('=').map(s => s.trim());
                 if (key && value) {
@@ -307,14 +308,14 @@ export class SubscriptionService {
         await this.db.delete(subscriptions).where(and(eq(subscriptions.id, id), eq(subscriptions.user_id, userId)));
     }
 
-    async updateSubscription(id: string, userId: string, body: any) {
+    async updateSubscription(id: string, userId: string, body: { name: string; url: string }) {
         const now = new Date().toISOString();
         await this.db.update(subscriptions)
             .set({ name: body.name, url: body.url, updated_at: now })
             .where(and(eq(subscriptions.id, id), eq(subscriptions.user_id, userId)));
     }
 
-    async batchImport(userId: string, subs: any[], groupId?: string) {
+    async batchImport(userId: string, subs: BatchImportSubscription[], groupId?: string) {
         if (!Array.isArray(subs) || subs.length === 0) {
             throw new Error('No subscriptions to import');
         }
@@ -383,7 +384,7 @@ export class SubscriptionService {
             .orderBy(asc(subscription_rules.sort_order));
     }
 
-    async createSubscriptionRule(subscriptionId: string, userId: string, body: any) {
+    async createSubscriptionRule(subscriptionId: string, userId: string, body: RuleBody) {
         const now = new Date().toISOString();
         await this.db.insert(subscription_rules).values({
             subscription_id: subscriptionId,
@@ -397,7 +398,7 @@ export class SubscriptionService {
         });
     }
 
-    async updateSubscriptionRule(ruleId: string, userId: string, body: any) {
+    async updateSubscriptionRule(ruleId: string, userId: string, body: RuleUpdateBody) {
         const now = new Date().toISOString();
         const id = Number(ruleId); if (isNaN(id)) throw new Error('Invalid rule ID');
 

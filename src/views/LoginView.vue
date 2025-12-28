@@ -6,6 +6,7 @@ import { useMessage } from 'naive-ui';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
+import { getApiErrorMessage } from '@/utils/errors';
 
 const username = ref('');
 const password = ref('');
@@ -23,9 +24,9 @@ const handleLogin = async () => {
   try {
     await authStore.login({ username: username.value, password: password.value });
     router.push('/'); // Redirect to dashboard after login
-  } catch (error: any) {
+  } catch (error) {
     console.error('Login failed:', error);
-    message.error(error.response?.data?.message || '登录失败。请检查您的凭据。');
+    message.error(getApiErrorMessage(error, '登录失败。请检查您的凭据。'));
   } finally {
     loading.value = false;
   }

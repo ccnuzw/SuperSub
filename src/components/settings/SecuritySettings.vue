@@ -69,7 +69,7 @@ import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import { usersApi } from '@/api/users';
 import { useAuthStore } from '@/stores/auth';
-import { LogoutInProgressError } from '@/utils/errors';
+import { LogoutInProgressError, getApiErrorMessage } from '@/utils/errors';
 
 const message = useMessage();
 const authStore = useAuthStore();
@@ -100,7 +100,7 @@ const fetchSubToken = async () => {
     }
   } catch (error) {
     if (error instanceof LogoutInProgressError) {
-      console.log('Logout in progress, skipping sub token fetch.');
+      // Silently ignore - logout is in progress
       return;
     }
     message.error('获取订阅 Token 失败');
@@ -138,8 +138,8 @@ const saveToken = async () => {
       authStore.updateTokenAndUser(response.data.data);
       message.success('Token 保存成功');
     }
-  } catch (error: any) {
-    message.error(error.response?.data?.message || '保存 Token 失败');
+  } catch (error) {
+    message.error(getApiErrorMessage(error, '保存 Token 失败'));
   } finally {
     saveTokenLoading.value = false;
   }
@@ -153,8 +153,8 @@ const handlePasswordChange = async () => {
         await usersApi.updatePassword(passwordFormState.value.password);
         message.success('密码更新成功');
         passwordFormState.value.password = ''; // Clear password field
-      } catch (error: any) {
-        message.error(error.response?.data?.message || '更新密码失败');
+      } catch (error) {
+        message.error(getApiErrorMessage(error, '更新密码失败'));
       } finally {
         passwordChangeLoading.value = false;
       }

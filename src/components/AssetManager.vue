@@ -91,6 +91,7 @@ import { assetsApi } from '@/api/assets';
 import { usersApi } from '@/api/users';
 import { useAuthStore } from '@/stores/auth';
 import type { SubconverterAsset } from '@/types';
+import { getApiErrorMessage } from '@/utils/errors';
 
 
 type UserDefaults = {
@@ -202,8 +203,8 @@ const handleSave = async () => {
     }
     showModal.value = false;
     await fetchAssets();
-  } catch (error: any) {
-    message.error(error.response?.data?.message || '保存失败');
+  } catch (error) {
+    message.error(getApiErrorMessage(error, '保存失败'));
   } finally {
     saveLoading.value = false;
   }
@@ -214,8 +215,8 @@ const handleDelete = async (id: number) => {
     await assetsApi.deleteAsset(id);
     message.success('删除成功');
     await fetchAssets();
-  } catch (error: any) {
-    message.error(error.response?.data?.message || '删除失败');
+  } catch (error) {
+    message.error(getApiErrorMessage(error, '删除失败'));
   }
 };
 

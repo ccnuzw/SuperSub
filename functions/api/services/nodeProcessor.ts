@@ -276,7 +276,6 @@ export class NodeProcessor {
                     .offset(effectiveStartIndex);
 
                 if (candidates && candidates.length > 0) {
-                    // @ts-ignore
                     logger.success(`已为分组 "${groupId}" 获取 ${candidates.length} 个候选订阅。`, { candidates: candidates.map(c => c.name) });
                     candidateSets.push([groupId, {
                         candidates,

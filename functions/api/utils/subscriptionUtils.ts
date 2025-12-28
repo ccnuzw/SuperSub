@@ -29,7 +29,7 @@ export function parseSubscriptionContent(content: string): (ParsedNode & { id: s
             }
         }
     } catch (e) {
-        // console.log("YAML parsing failed, trying as plain text.");
+        // YAML parsing failed, continue with base64 decoding
     }
 
     if (!isYaml) {

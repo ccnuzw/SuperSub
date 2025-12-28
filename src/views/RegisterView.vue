@@ -6,6 +6,7 @@ import { useMessage } from 'naive-ui';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
+import { getApiErrorMessage } from '@/utils/errors';
 
 const username = ref('');
 const password = ref('');
@@ -36,13 +37,14 @@ const handleRegister = async () => {
     await authStore.register({ username: username.value, password: password.value });
     message.success('注册成功！请登录。');
     router.push('/login');
-  } catch (error: any) {
+  } catch (error) {
     console.error('Registration failed:', error);
-    if (error.response && error.response.status === 409) {
+    // Check for 409 conflict status
+    const err = error as { response?: { status?: number } };
+    if (err.response && err.response.status === 409) {
       message.error('用户名已存在。请选择其他用户名或登录。');
     } else {
-      const errorMessage = error.response?.data?.message || '注册失败。请重试。';
-      message.error(errorMessage);
+      message.error(getApiErrorMessage(error, '注册失败。请重试。'));
     }
   } finally {
     loading.value = false;

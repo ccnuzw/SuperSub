@@ -101,9 +101,8 @@ user.post('/sub-token/reset', async (c) => {
   await c.env.DB.prepare('UPDATE users SET sub_token = ? WHERE id = ?').bind(newSubToken, userPayload.id).run();
 
   // Re-sign the JWT with the new sub_token
-  const newPayload = { ...userPayload, sub_token: newSubToken, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) };
-  // @ts-ignore
-  delete newPayload.iat;
+  const { iat, ...payloadWithoutIat } = userPayload as Record<string, unknown>;
+  const newPayload = { ...payloadWithoutIat, sub_token: newSubToken, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) };
   const newJwt = await sign(newPayload, c.env.JWT_SECRET);
 
   return c.json({ success: true, data: { token: newSubToken, jwt: newJwt, user: newPayload } });
@@ -123,9 +122,8 @@ user.put('/sub-token', async (c) => {
     await c.env.DB.prepare('UPDATE users SET sub_token = ? WHERE id = ?').bind(token, userPayload.id).run();
 
     // Re-sign the JWT with the new sub_token
-    const newPayload = { ...userPayload, sub_token: token, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) };
-    // @ts-ignore
-    delete newPayload.iat;
+    const { iat, ...payloadWithoutIat } = userPayload as Record<string, unknown>;
+    const newPayload = { ...payloadWithoutIat, sub_token: token, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) };
     const newJwt = await sign(newPayload, c.env.JWT_SECRET);
 
     return c.json({ success: true, message: 'Subscription token updated successfully.', data: { jwt: newJwt, user: newPayload } });

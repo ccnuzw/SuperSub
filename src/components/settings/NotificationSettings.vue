@@ -45,6 +45,7 @@ import Button from '@/components/ui/Button.vue';
 import { settingsApi } from '@/api/settings';
 import { adminApi } from '@/api/admin';
 import { useAuthStore } from '@/stores/auth';
+import { getApiErrorMessage } from '@/utils/errors';
 
 const message = useMessage();
 const authStore = useAuthStore();
@@ -111,8 +112,8 @@ const handleTestTelegram = async () => {
   try {
     await adminApi.testTelegram();
     message.success('测试消息已发送，请检查您的 Telegram');
-  } catch (error: any) {
-    message.error(error.response?.data?.message || '发送测试消息失败');
+  } catch (error) {
+    message.error(getApiErrorMessage(error, '发送测试消息失败'));
     console.error('Failed to send test message:', error);
   } finally {
     testLoading.value = false;
