@@ -13,7 +13,6 @@
             class="flex-1 font-mono text-sm" 
             v-model:value="subToken" 
             placeholder="加载中..." 
-            readonly 
             size="large"
           />
           <div class="flex gap-2 w-full sm:w-auto">
