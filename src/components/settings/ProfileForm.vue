@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useMessage, NSpace, NForm, NFormItem, NInput, NIcon, NSelect, NDivider, NCheckboxGroup, NCheckbox, NScrollbar, NTabs, NTabPane, NCollapse, NCollapseItem, NSwitch, NInputNumber, NRadioGroup, NRadioButton } from 'naive-ui';
-import { CopyOutline as CopyIcon } from '@vicons/ionicons5';
+import { CopyOutline as CopyIcon, AddOutline as AddIcon } from '@vicons/ionicons5';
 import { useIsMobile } from '@/composables/useMediaQuery';
 import type { FormInst } from 'naive-ui';
 import type { Profile, Subscription } from '@/types';
@@ -28,6 +28,7 @@ const isMobile = useIsMobile();
 const formRef = ref<FormInst | null>(null);
 const saveLoading = ref(false);
 const loadingData = ref(false);
+const rulesManagerRef = ref<any>(null);
 
 const allGroupedSubscriptions = ref<{ group_name: string; subscriptions: { id: string; name: string }[] }[]>([]);
 const allManualNodes = ref<Record<string, { id: string; name: string }[]>>({});
@@ -347,7 +348,7 @@ const strategyHelpText = computed(() => {
 
         <!-- Right Column -->
         <div class="md:col-span-3">
-          <Card title="数据源与处理" class="h-full">
+          <Card title="数据源与处理">
             <n-tabs type="line" animated>
               <n-tab-pane name="subscriptions" tab="订阅源">
                 <div class="border border-gray-100 dark:border-dark-border rounded-lg p-3 mb-4">
@@ -492,12 +493,29 @@ const strategyHelpText = computed(() => {
                       />
                       <template #feedback>手动节点的前缀。如果启用了"使用组名作为前缀"，则此项忽略。</template>
                     </n-form-item>
-                    <n-divider />
-                    <profile-rules-manager :profile-id="props.profileId" v-model:modelValue="formState.rules" />
+                </div>
+
+              </n-tab-pane>
+
+              <n-tab-pane name="rules" tab="配置规则">
+                <div class="h-full">
+                  <profile-rules-manager 
+                    :profile-id="props.profileId" 
+                    v-model:modelValue="formState.rules" 
+                    :hide-header="true"
+                    ref="rulesManagerRef"
+                  />
+                  <div class="mt-4 flex justify-end">
+                     <Button @click="() => rulesManagerRef?.openAddModal()" size="sm" class="flex items-center whitespace-nowrap !w-8 !h-8 !p-0 !rounded-full md:!w-auto md:!h-8 md:!px-3 md:!rounded-xl">
+                      <n-icon :component="AddIcon" class="md:mr-1" /> <span class="hidden md:inline">添加规则</span>
+                    </Button>
+                  </div>
                 </div>
               </n-tab-pane>
             </n-tabs>
           </Card>
+
+
         </div>
       </div>
     </n-form>

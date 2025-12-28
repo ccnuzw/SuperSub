@@ -95,16 +95,16 @@ groups.patch('/:id/toggle', manualAuthMiddleware, async (c) => {
 });
 
 // POST /api/groups/update-order - 更新分组排序
-groups.post('/update-order', manualAuthMiddleware, async (c) => {
+groups.post('/reorder', manualAuthMiddleware, async (c) => {
     try {
         const user = c.get('jwtPayload');
-        const { groupIds } = await c.req.json<{ groupIds: string[] }>();
+        const { ids } = await c.req.json<{ ids: string[] }>();
 
-        if (!groupIds || !Array.isArray(groupIds)) {
+        if (!ids || !Array.isArray(ids)) {
             return createErrorResponse('无效的排序数据', 400);
         }
 
-        const stmts = groupIds.map((id, index) =>
+        const stmts = ids.map((id, index) =>
             c.env.DB.prepare('UPDATE node_groups SET sort_order = ? WHERE id = ? AND user_id = ?').bind(index, id, user.id)
         );
 

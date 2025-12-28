@@ -53,19 +53,19 @@ nodes.post('/batch-import', manualAuthMiddleware, async (c) => {
     }
 });
 
-nodes.post('/health-check', manualAuthMiddleware, async (c) => {
+nodes.post('/check-health', manualAuthMiddleware, async (c) => {
     const user = c.get('jwtPayload');
-    const { nodeIds } = await c.req.json<{ nodeIds: string[] }>();
+    const { ids } = await c.req.json<{ ids: string[] }>();
 
-    if (!nodeIds || nodeIds.length === 0) {
+    if (!ids || ids.length === 0) {
         return createErrorResponse('No nodes selected for health check', 400);
     }
 
     const nodeService = new NodeService(c.env);
-    const task = nodeService.getHealthCheckTask(user.id, nodeIds);
+    const task = nodeService.getHealthCheckTask(user.id, ids);
     c.executionCtx.waitUntil(task());
 
-    return c.json({ success: true, message: `Health check started for ${nodeIds.length} nodes.` });
+    return c.json({ success: true, message: `Health check started for ${ids.length} nodes.` });
 });
 
 nodes.post('/batch-update-group', manualAuthMiddleware, async (c) => {

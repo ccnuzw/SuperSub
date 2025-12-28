@@ -19,6 +19,7 @@ const props = defineProps<{
   loading: boolean
   updatingIds: Set<string>
   updatingId: string | null
+  checkedRowKeys?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -27,7 +28,7 @@ const emit = defineEmits<{
   (e: 'delete', sub: Subscription): void
   (e: 'preview', sub: Subscription): void
   (e: 'manage-rules', sub: Subscription): void
-  (e: 'update:checked-row-keys', keys: string[]): void
+  (e: 'update:checkedRowKeys', keys: string[]): void
 }>()
 
 const formatBytes = (bytes: number, decimals = 2) => {
@@ -75,6 +76,9 @@ const getExpiryStatus = (row: Subscription) => {
     :data="subscriptions"
     :loading="loading"
     row-key="id"
+    checkable
+    :checked-row-keys="checkedRowKeys"
+    @update:checked-row-keys="keys => emit('update:checkedRowKeys', keys)"
   >
     <!-- Name -->
     <template #name="{ row }">

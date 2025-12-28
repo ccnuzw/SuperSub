@@ -52,6 +52,9 @@ const getLatencyStatus = (latency?: number | null) => {
     :data="nodes"
     :loading="loading"
     row-key="id"
+    checkable
+    :checked-row-keys="checkedRowKeys"
+    @update:checked-row-keys="keys => emit('update:checkedRowKeys', keys)"
   >
     <!-- Status -->
     <template #status="{ row }">

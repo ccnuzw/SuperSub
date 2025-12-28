@@ -10,6 +10,7 @@ import { AddOutline } from '@vicons/ionicons5';
 const props = defineProps<{
   profileId?: string | null;
   modelValue: any[];
+  hideHeader?: boolean;
 }>();
 
 const emit = defineEmits(['update:modelValue']);
@@ -241,6 +242,13 @@ const columns = computed<DataTableColumns<any>>(() => [
   },
 ]);
 
+// Expose openAddModal (same as handleAdd) for parent components
+const openAddModal = handleAdd;
+
+defineExpose({
+  openAddModal
+});
+
 onMounted(() => {
   if (!isLocalMode.value) {
     fetchRules();
@@ -249,8 +257,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="rounded-lg border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg p-4">
-    <div class="flex justify-between items-center mb-4">
+  <div :class="{'rounded-lg border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg p-4': !hideHeader}">
+    <div v-if="!hideHeader" class="flex justify-between items-center mb-4">
       <h3 class="text-base font-medium text-slate-800 dark:text-gray-200">配置规则</h3>
       <Button @click="handleAdd" size="sm" class="flex items-center whitespace-nowrap !w-8 !h-8 !p-0 !rounded-full md:!w-auto md:!h-8 md:!px-3 md:!rounded-xl">
         <n-icon :component="AddOutline" class="md:mr-1" /> <span class="hidden md:inline">添加规则</span>
