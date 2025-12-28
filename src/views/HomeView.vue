@@ -49,7 +49,7 @@ onMounted(async () => {
       stats.value = {
         subscriptions: data.total_subscriptions || 0,
         nodes: data.total_nodes || 0,
-        profiles: 0 
+        profiles: data.total_profiles || 0
       };
     } else {
       throw new Error('无法获取统计数据');

@@ -20,16 +20,16 @@ export class StatsService {
             const result = await this.db.prepare(query).bind(userId, userId, userId).first<{ subscriptions: number; nodes: number; profiles: number }>();
 
             return {
-                subscriptions: result?.subscriptions ?? 0,
-                nodes: result?.nodes ?? 0,
-                profiles: result?.profiles ?? 0
+                total_subscriptions: result?.subscriptions ?? 0,
+                total_nodes: result?.nodes ?? 0,
+                total_profiles: result?.profiles ?? 0
             };
         } catch (error) {
             console.error('Failed to fetch user stats:', error);
             return {
-                subscriptions: 0,
-                nodes: 0,
-                profiles: 0
+                total_subscriptions: 0,
+                total_nodes: 0,
+                total_profiles: 0
             };
         }
     }

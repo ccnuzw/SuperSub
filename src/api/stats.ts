@@ -4,6 +4,7 @@ import type { ApiResponse } from '@/types';
 export interface UserStats {
     total_subscriptions: number;
     total_nodes: number;
+    total_profiles: number;
     total_traffic: number;
     used_traffic: number;
     today_traffic: number;
