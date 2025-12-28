@@ -4,6 +4,8 @@ import { manualAuthMiddleware } from '../middleware/auth';
 import { NodeService } from '../services/nodeService';
 
 import { createErrorResponse } from '../utils/errors';
+import { zValidator } from '@hono/zod-validator';
+import { nodeSchema, batchImportSchema, idListSchema, batchUpdateGroupSchema, batchActionSchema, updateOrderSchema, updateNodeSchema } from '../schema';
 
 const nodes = new Hono<{ Bindings: Env }>();
 
@@ -29,10 +31,10 @@ nodes.get('/', manualAuthMiddleware, async (c) => {
     }
 });
 
-nodes.post('/', manualAuthMiddleware, async (c) => {
+nodes.post('/', manualAuthMiddleware, zValidator('json', nodeSchema), async (c) => {
     try {
         const user = c.get('jwtPayload');
-        const body = await c.req.json<any>();
+        const body = c.req.valid('json');
         const nodeService = new NodeService(c.env);
         const result = await nodeService.createNode(user.id, body);
         return c.json({ success: true, data: result }, 201);
@@ -41,25 +43,25 @@ nodes.post('/', manualAuthMiddleware, async (c) => {
     }
 });
 
-nodes.post('/batch-import', manualAuthMiddleware, async (c) => {
+nodes.post('/batch-import', manualAuthMiddleware, zValidator('json', batchImportSchema), async (c) => {
     const user = c.get('jwtPayload');
-    const body = await c.req.json<any>();
+    const body = c.req.valid('json');
     const nodeService = new NodeService(c.env);
+    const normalizedBody = {
+        ...body,
+        groupId: body.groupId === null ? undefined : body.groupId
+    };
     try {
-        const count = await nodeService.batchImport(user.id, body);
+        const count = await nodeService.batchImport(user.id, normalizedBody);
         return c.json({ success: true, message: `Successfully imported ${count} nodes.` });
     } catch (e: any) {
         return createErrorResponse(e.message, 400);
     }
 });
 
-nodes.post('/check-health', manualAuthMiddleware, async (c) => {
+nodes.post('/check-health', manualAuthMiddleware, zValidator('json', idListSchema), async (c) => {
     const user = c.get('jwtPayload');
-    const { ids } = await c.req.json<{ ids: string[] }>();
-
-    if (!ids || ids.length === 0) {
-        return createErrorResponse('No nodes selected for health check', 400);
-    }
+    const { ids } = c.req.valid('json');
 
     const nodeService = new NodeService(c.env);
     const task = nodeService.getHealthCheckTask(user.id, ids);
@@ -68,13 +70,10 @@ nodes.post('/check-health', manualAuthMiddleware, async (c) => {
     return c.json({ success: true, message: `Health check started for ${ids.length} nodes.` });
 });
 
-nodes.post('/batch-update-group', manualAuthMiddleware, async (c) => {
+nodes.post('/batch-update-group', manualAuthMiddleware, zValidator('json', batchUpdateGroupSchema), async (c) => {
     try {
         const user = c.get('jwtPayload');
-        const body = await c.req.json<any>();
-        if (!body.nodeIds || body.nodeIds.length === 0) {
-            return createErrorResponse('No nodes selected', 400);
-        }
+        const body = c.req.valid('json');
         const nodeService = new NodeService(c.env);
         await nodeService.batchUpdateGroup(user.id, body.nodeIds, body.groupId || null);
         return c.json({ success: true, message: 'Nodes moved successfully' });
@@ -83,13 +82,10 @@ nodes.post('/batch-update-group', manualAuthMiddleware, async (c) => {
     }
 });
 
-nodes.post('/batch-delete', manualAuthMiddleware, async (c) => {
+nodes.post('/batch-delete', manualAuthMiddleware, zValidator('json', idListSchema), async (c) => {
     try {
         const user = c.get('jwtPayload');
-        const { ids } = await c.req.json<{ ids: string[] }>();
-        if (!ids || ids.length === 0) {
-            return createErrorResponse('No nodes selected for deletion', 400);
-        }
+        const { ids } = c.req.valid('json');
         const nodeService = new NodeService(c.env);
         const count = await nodeService.batchDelete(user.id, ids);
         return c.json({ success: true, message: `Successfully deleted ${count} nodes.` });
@@ -98,9 +94,9 @@ nodes.post('/batch-delete', manualAuthMiddleware, async (c) => {
     }
 });
 
-nodes.post('/batch-actions', manualAuthMiddleware, async (c) => {
+nodes.post('/batch-actions', manualAuthMiddleware, zValidator('json', batchActionSchema), async (c) => {
     const user = c.get('jwtPayload');
-    const { action, groupId } = await c.req.json<{ action: string; groupId: string }>();
+    const { action, groupId } = c.req.valid('json');
     const nodeService = new NodeService(c.env);
 
     try {
@@ -124,13 +120,10 @@ nodes.post('/batch-actions', manualAuthMiddleware, async (c) => {
     }
 });
 
-nodes.post('/update-order', manualAuthMiddleware, async (c) => {
+nodes.post('/update-order', manualAuthMiddleware, zValidator('json', updateOrderSchema), async (c) => {
     try {
         const user = c.get('jwtPayload');
-        const { nodeIds } = await c.req.json<{ nodeIds: string[] }>();
-        if (!nodeIds || !Array.isArray(nodeIds) || nodeIds.length === 0) {
-            return createErrorResponse('Invalid node IDs provided', 400);
-        }
+        const { nodeIds } = c.req.valid('json');
         const nodeService = new NodeService(c.env);
         await nodeService.updateOrder(user.id, nodeIds);
         return c.json({ success: true, message: 'Node order updated successfully.' });
@@ -152,10 +145,10 @@ nodes.get('/:id', manualAuthMiddleware, async (c) => {
     }
 });
 
-nodes.put('/:id', manualAuthMiddleware, async (c) => {
+nodes.put('/:id', manualAuthMiddleware, zValidator('json', updateNodeSchema), async (c) => {
     const user = c.get('jwtPayload');
     const { id } = c.req.param();
-    const body = await c.req.json<{ name: string; link: string }>();
+    const body = c.req.valid('json');
     const nodeService = new NodeService(c.env);
     try {
         await nodeService.updateNode(id, user.id, body);

@@ -4,6 +4,20 @@ import { manualAuthMiddleware } from '../middleware/auth';
 import { SubscriptionService } from '../services/subscriptionService';
 
 import { createErrorResponse } from '../utils/errors';
+import { zValidator } from '@hono/zod-validator';
+import {
+    createSubscriptionSchema,
+    batchImportSubscriptionsSchema,
+    previewSubscriptionSchema,
+    subscriptionRuleSchema,
+    updateSubscriptionRuleSchema,
+    updateSubscriptionSchema,
+    idListSchema, // Reused from generic
+    clearByGroupSchema,
+    batchUpdateSubscriptionGroupSchema,
+    batchUpdateUrlsSchema,
+    clearFailedSchema
+} from '../schema';
 
 const subscriptions = new Hono<{ Bindings: Env }>();
 subscriptions.use('*', manualAuthMiddleware);
@@ -41,10 +55,10 @@ subscriptions.get('/grouped', async (c) => {
     }
 });
 
-subscriptions.post('/', async (c) => {
+subscriptions.post('/', zValidator('json', createSubscriptionSchema), async (c) => {
     try {
         const user = c.get('jwtPayload');
-        const body = await c.req.json<any>();
+        const body = c.req.valid('json');
         const service = new SubscriptionService(c.env);
         const result = await service.createSubscription(user.id, body);
         return c.json({ success: true, data: result }, 201);
@@ -53,9 +67,9 @@ subscriptions.post('/', async (c) => {
     }
 });
 
-subscriptions.post('/batch-import', async (c) => {
+subscriptions.post('/batch-import', zValidator('json', batchImportSubscriptionsSchema), async (c) => {
     const user = c.get('jwtPayload');
-    const { subscriptions: subs, groupId } = await c.req.json<{ subscriptions: any[], groupId?: string }>();
+    const { subscriptions: subs, groupId } = c.req.valid('json');
     const service = new SubscriptionService(c.env);
     try {
         const count = await service.batchImport(user.id, subs, groupId);
@@ -76,13 +90,9 @@ subscriptions.post('/update-all', async (c) => {
     }
 });
 
-subscriptions.post('/preview', async (c) => {
+subscriptions.post('/preview', zValidator('json', previewSubscriptionSchema), async (c) => {
     const user = c.get('jwtPayload');
-    const { url, subscription_id, apply_rules } = await c.req.json<{ url: string, subscription_id?: string, apply_rules?: boolean }>();
-
-    if (!url) {
-        return createErrorResponse('Missing subscription URL', 400);
-    }
+    const { url, subscription_id, apply_rules } = c.req.valid('json');
 
     const service = new SubscriptionService(c.env);
     try {
@@ -131,11 +141,11 @@ subscriptions.get('/:id/rules', async (c) => {
     }
 });
 
-subscriptions.post('/:id/rules', async (c) => {
+subscriptions.post('/:id/rules', zValidator('json', subscriptionRuleSchema), async (c) => {
     try {
         const user = c.get('jwtPayload');
         const { id: subscription_id } = c.req.param();
-        const body = await c.req.json<any>();
+        const body = c.req.valid('json');
         const service = new SubscriptionService(c.env);
         await service.createSubscriptionRule(subscription_id, user.id, body);
         return c.json({ success: true }, 201);
@@ -144,11 +154,11 @@ subscriptions.post('/:id/rules', async (c) => {
     }
 });
 
-subscriptions.put('/:id/rules/:ruleId', async (c) => {
+subscriptions.put('/:id/rules/:ruleId', zValidator('json', updateSubscriptionRuleSchema), async (c) => {
     try {
         const user = c.get('jwtPayload');
         const { ruleId } = c.req.param();
-        const body = await c.req.json<any>();
+        const body = c.req.valid('json');
         const service = new SubscriptionService(c.env);
         await service.updateSubscriptionRule(ruleId, user.id, body);
         return c.json({ success: true });
@@ -169,11 +179,11 @@ subscriptions.delete('/:id/rules/:ruleId', async (c) => {
     }
 });
 
-subscriptions.put('/:id', async (c) => {
+subscriptions.put('/:id', zValidator('json', updateSubscriptionSchema), async (c) => {
     try {
         const user = c.get('jwtPayload');
         const { id } = c.req.param();
-        const body = await c.req.json<any>();
+        const body = c.req.valid('json');
         const service = new SubscriptionService(c.env);
         await service.updateSubscription(id, user.id, body);
         return c.json({ success: true });
@@ -194,9 +204,9 @@ subscriptions.delete('/:id', async (c) => {
     }
 });
 
-subscriptions.post('/batch-delete', async (c) => {
+subscriptions.post('/batch-delete', zValidator('json', idListSchema), async (c) => {
     const user = c.get('jwtPayload');
-    const { ids } = await c.req.json<{ ids: string[] }>();
+    const { ids } = c.req.valid('json');
     const service = new SubscriptionService(c.env);
     try {
         const count = await service.batchDelete(user.id, ids);
@@ -217,9 +227,9 @@ subscriptions.post('/clear-all', async (c) => {
     }
 });
 
-subscriptions.post('/clear-by-group', async (c) => {
+subscriptions.post('/clear-by-group', zValidator('json', clearByGroupSchema), async (c) => {
     const user = c.get('jwtPayload');
-    const { groupId } = await c.req.json<{ groupId: string | null }>();
+    const { groupId } = c.req.valid('json');
     const service = new SubscriptionService(c.env);
     try {
         const count = await service.clearSubscriptionsByGroup(user.id, groupId);
@@ -231,9 +241,9 @@ subscriptions.post('/clear-by-group', async (c) => {
 
 
 
-subscriptions.post('/batch-update-group', async (c) => {
+subscriptions.post('/batch-update-group', zValidator('json', batchUpdateSubscriptionGroupSchema), async (c) => {
     const user = c.get('jwtPayload');
-    const { subscriptionIds, groupId } = await c.req.json<{ subscriptionIds: string[], groupId: string | null }>();
+    const { subscriptionIds, groupId } = c.req.valid('json');
     const service = new SubscriptionService(c.env);
     try {
         await service.batchUpdateGroup(user.id, subscriptionIds, groupId);
@@ -243,9 +253,9 @@ subscriptions.post('/batch-update-group', async (c) => {
     }
 });
 
-subscriptions.post('/batch-update-urls', async (c) => {
+subscriptions.post('/batch-update-urls', zValidator('json', batchUpdateUrlsSchema), async (c) => {
     const user = c.get('jwtPayload');
-    const { updates } = await c.req.json<{ updates: { id: string; url: string }[] }>();
+    const { updates } = c.req.valid('json');
     const service = new SubscriptionService(c.env);
     try {
         await service.batchUpdateUrls(user.id, updates);
@@ -255,9 +265,9 @@ subscriptions.post('/batch-update-urls', async (c) => {
     }
 });
 
-subscriptions.post('/clear-failed', async (c) => {
+subscriptions.post('/clear-failed', zValidator('json', clearFailedSchema), async (c) => {
     const user = c.get('jwtPayload');
-    const { groupId } = await c.req.json<{ groupId: string | null | 'all' }>();
+    const { groupId } = c.req.valid('json');
     const service = new SubscriptionService(c.env);
     try {
         const count = await service.clearFailed(user.id, groupId);

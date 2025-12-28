@@ -1,21 +1,25 @@
 import { hash, compare } from 'bcrypt-ts';
 import { sign } from 'hono/jwt';
 import type { Env } from '../utils/types';
+import { getDb, DrizzleDB } from '../utils/db';
+import { users, system_settings } from '../drizzle/schema';
+import { eq, ne, count } from 'drizzle-orm';
 
 export class AuthService {
-    private db: D1Database;
+    private db: DrizzleDB;
     private jwtSecret: string;
 
     constructor(env: Env) {
-        this.db = env.DB;
+        this.db = getDb(env.DB);
         this.jwtSecret = env.JWT_SECRET;
     }
 
     async register(username: string, password: string): Promise<{ success: boolean; message?: string; data?: any; status: number }> {
         // Check if registration is allowed
-        const allowRegistrationSetting = await this.db.prepare(
-            `SELECT value FROM system_settings WHERE key = 'allow_registration'`
-        ).first<{ value: string }>();
+        const allowRegistrationSetting = await this.db.select({ value: system_settings.value })
+            .from(system_settings)
+            .where(eq(system_settings.key, 'allow_registration'))
+            .get();
 
         // Default to 'true' if the setting is not found
         const isRegistrationAllowed = allowRegistrationSetting?.value !== 'false';
@@ -24,12 +28,12 @@ export class AuthService {
             return { success: false, message: 'User registration is currently disabled by the administrator.', status: 403 };
         }
 
-        const existingUser = await this.db.prepare('SELECT id FROM users WHERE username = ?').bind(username).first();
+        const existingUser = await this.db.select({ id: users.id }).from(users).where(eq(users.username, username)).get();
         if (existingUser) {
             return { success: false, message: 'Username already exists', status: 409 };
         }
 
-        const userCountResult = await this.db.prepare("SELECT COUNT(*) as count FROM users WHERE role != 'system'").first<{ count: number }>();
+        const userCountResult = await this.db.select({ count: count() }).from(users).where(ne(users.role, 'system')).get();
         const userCount = userCountResult?.count ?? 0;
         let role = userCount === 0 ? 'admin' : 'user';
 
@@ -38,13 +42,21 @@ export class AuthService {
         const subToken = crypto.randomUUID();
         const now = new Date().toISOString();
 
-        await this.db.prepare('INSERT INTO users (id, username, password, role, sub_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, username, hashedPassword, role, subToken, now, now).run();
+        await this.db.insert(users).values({
+            id: id,
+            username: username,
+            password: hashedPassword,
+            role: role,
+            sub_token: subToken,
+            created_at: now,
+            updated_at: now
+        });
 
         return { success: true, data: { id, username, role }, status: 201 };
     }
 
     async login(username: string, password: string): Promise<{ success: boolean; message?: string; data?: any; status: number }> {
-        const user = await this.db.prepare('SELECT * FROM users WHERE username = ?').bind(username).first<any>();
+        const user = await this.db.select().from(users).where(eq(users.username, username)).get();
         if (!user) {
             return { success: false, message: 'User not found', status: 404 };
         }
@@ -61,9 +73,10 @@ export class AuthService {
     }
 
     async getRegistrationStatus(): Promise<{ success: boolean; data: { allow_registration: boolean }; status: number }> {
-        const allowRegistrationSetting = await this.db.prepare(
-            `SELECT value FROM system_settings WHERE key = 'allow_registration'`
-        ).first<{ value: string }>();
+        const allowRegistrationSetting = await this.db.select({ value: system_settings.value })
+            .from(system_settings)
+            .where(eq(system_settings.key, 'allow_registration'))
+            .get();
 
         // Default to 'true' if the setting is not found
         const isRegistrationAllowed = allowRegistrationSetting?.value !== 'false';

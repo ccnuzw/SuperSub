@@ -1,28 +1,28 @@
 import type { Env } from '../utils/types';
 
+import { getDb, DrizzleDB } from '../utils/db';
+import { subscriptions, nodes, profiles } from '../drizzle/schema';
+import { eq, count } from 'drizzle-orm';
+
 export class StatsService {
-    private db: D1Database;
+    private db: DrizzleDB;
 
     constructor(env: Env) {
-        this.db = env.DB;
+        this.db = getDb(env.DB);
     }
 
     async getUserStats(userId: string) {
-
-        const query = `
-            SELECT
-                (SELECT COUNT(*) FROM subscriptions WHERE user_id = ?) as subscriptions,
-                (SELECT COUNT(*) FROM nodes WHERE user_id = ?) as nodes,
-                (SELECT COUNT(*) FROM profiles WHERE user_id = ?) as profiles
-        `;
-
         try {
-            const result = await this.db.prepare(query).bind(userId, userId, userId).first<{ subscriptions: number; nodes: number; profiles: number }>();
+            const [subsCountResult, nodesCountResult, profilesCountResult] = await Promise.all([
+                this.db.select({ count: count() }).from(subscriptions).where(eq(subscriptions.user_id, userId)),
+                this.db.select({ count: count() }).from(nodes).where(eq(nodes.user_id, userId)),
+                this.db.select({ count: count() }).from(profiles).where(eq(profiles.user_id, userId))
+            ]);
 
             return {
-                total_subscriptions: result?.subscriptions ?? 0,
-                total_nodes: result?.nodes ?? 0,
-                total_profiles: result?.profiles ?? 0
+                total_subscriptions: subsCountResult[0]?.count ?? 0,
+                total_nodes: nodesCountResult[0]?.count ?? 0,
+                total_profiles: profilesCountResult[0]?.count ?? 0
             };
         } catch (error) {
             console.error('Failed to fetch user stats:', error);

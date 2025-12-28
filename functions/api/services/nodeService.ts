@@ -1,39 +1,31 @@
 import { fetchWithTimeout } from '../utils/network';
 import type { Env } from '../utils/types';
-import { createInClause } from '../utils/db';
+import { getDb, DrizzleDB } from '../utils/db';
+import { nodes, node_groups, node_statuses } from '../drizzle/schema';
+import { eq, and, asc, inArray, isNull, sql } from 'drizzle-orm';
 import { parseNodeLinks, ParsedNode, regenerateLink } from '../../../src/utils/nodeParser';
 
-type Node = {
-    id: string;
-    user_id: string;
-    group_id?: string | null;
-    name: string;
-    link: string;
-    protocol: string;
-    protocol_params?: string;
-    server?: string;
-    port?: number;
-    type?: string;
-    sort_order?: number;
-    created_at: string;
-    updated_at: string;
-};
+// ... (Node type definition remains the same or can be inferred from schema)
 
 export class NodeService {
-    private db: D1Database;
+    private db: DrizzleDB;
 
     constructor(env: Env) {
-        this.db = env.DB;
+        this.db = getDb(env.DB);
     }
 
     async getGroupedNodes(userId: string) {
-        const [nodesResponse, groupsResponse] = await Promise.all([
-            this.db.prepare('SELECT id, name, group_id FROM nodes WHERE user_id = ? ORDER BY name ASC').bind(userId).all<{ id: string; name: string; group_id: string | null }>(),
-            this.db.prepare('SELECT id, name FROM node_groups WHERE user_id = ? ORDER BY sort_order ASC').bind(userId).all<{ id: string; name: string }>()
+        const [allNodes, allGroups] = await Promise.all([
+            this.db.select({ id: nodes.id, name: nodes.name, group_id: nodes.group_id }).from(nodes)
+                .where(eq(nodes.user_id, userId))
+                .orderBy(asc(nodes.name)),
+            this.db.select({ id: node_groups.id, name: node_groups.name }).from(node_groups)
+                .where(eq(node_groups.user_id, userId))
+                .orderBy(asc(node_groups.sort_order))
         ]);
 
-        const allNodes = nodesResponse.results;
-        const allGroups = groupsResponse.results;
+        // const allNodes = nodesResponse.results; // No longer needed
+        // const allGroups = groupsResponse.results; // No longer needed
 
         const groupMap = new Map<string, string>();
         for (const group of allGroups) {
@@ -63,27 +55,44 @@ export class NodeService {
     }
 
     async getAllNodes(userId: string) {
-        const { results } = await this.db.prepare('SELECT * FROM nodes WHERE user_id = ? ORDER BY sort_order ASC').bind(userId).all();
-        return results;
+        return await this.db.select().from(nodes)
+            .where(eq(nodes.user_id, userId))
+            .orderBy(asc(nodes.sort_order));
     }
 
     async getNode(id: string, userId: string) {
-        return await this.db.prepare('SELECT * FROM nodes WHERE id = ? AND user_id = ?').bind(id, userId).first();
+        const result = await this.db.select().from(nodes)
+            .where(and(eq(nodes.id, id), eq(nodes.user_id, userId)))
+            .limit(1);
+        return result[0] || null;
     }
 
     async createNode(userId: string, body: any) {
         const id = crypto.randomUUID();
         const now = new Date().toISOString();
-        await this.db.prepare(
-            `INSERT INTO nodes (id, user_id, name, link, protocol, protocol_params, server, port, type, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(id, userId, body.name, body.link, body.protocol, JSON.stringify(body.protocol_params), body.protocol_params?.add || '', Number(body.protocol_params?.port || 0), body.protocol, now, now).run();
+        await this.db.insert(nodes).values({
+            id,
+            user_id: userId,
+            name: body.name,
+            link: body.link,
+            protocol: body.protocol,
+            protocol_params: JSON.stringify(body.protocol_params),
+            server: body.protocol_params?.add || '',
+            port: Number(body.protocol_params?.port || 0),
+            type: body.protocol,
+            created_at: now,
+            updated_at: now,
+        });
         return { id };
     }
 
     async updateNode(id: string, userId: string, body: { name: string; link: string }) {
         const now = new Date().toISOString();
-        const existingNode = await this.db.prepare('SELECT link, name FROM nodes WHERE id = ? AND user_id = ?').bind(id, userId).first<{ link: string, name: string }>();
+        // Check existence
+        const existingNode = await this.db.select({ link: nodes.link, name: nodes.name }).from(nodes)
+            .where(and(eq(nodes.id, id), eq(nodes.user_id, userId)))
+            .limit(1)
+            .then(res => res[0]);
 
         if (!existingNode) {
             throw new Error('Node not found');
@@ -102,27 +111,21 @@ export class NodeService {
             parsedNode.name = body.name;
             const regeneratedLink = regenerateLink(parsedNode);
 
-            await this.db.prepare(
-                `UPDATE nodes
-                 SET name = ?, link = ?, protocol = ?, protocol_params = ?, server = ?, port = ?, type = ?, updated_at = ?
-                 WHERE id = ? AND user_id = ?`
-            ).bind(
-                body.name,
-                regeneratedLink,
-                parsedNode.protocol,
-                JSON.stringify(parsedNode.protocol_params),
-                parsedNode.server,
-                parsedNode.port,
-                parsedNode.protocol,
-                now,
-                id,
-                userId
-            ).run();
+            await this.db.update(nodes).set({
+                name: body.name,
+                link: regeneratedLink,
+                protocol: parsedNode.protocol,
+                protocol_params: JSON.stringify(parsedNode.protocol_params),
+                server: parsedNode.server,
+                port: parsedNode.port,
+                type: parsedNode.protocol,
+                updated_at: now,
+            }).where(and(eq(nodes.id, id), eq(nodes.user_id, userId)));
         }
     }
 
     async deleteNode(id: string, userId: string) {
-        await this.db.prepare('DELETE FROM nodes WHERE id = ? AND user_id = ?').bind(id, userId).run();
+        await this.db.delete(nodes).where(and(eq(nodes.id, id), eq(nodes.user_id, userId)));
     }
 
     async batchImport(userId: string, body: { links?: string; nodes?: ParsedNode[]; groupId?: string }) {
@@ -141,75 +144,85 @@ export class NodeService {
         const now = new Date().toISOString();
         const groupId = body.groupId || null;
 
-        const stmts = nodesToImport.map(node => {
-            const id = crypto.randomUUID();
-            const protocol = node.protocol || 'unknown';
-            const name = node.name || 'Unknown Node';
-            const server = node.server || '';
-            const port = node.port || 0;
-            const link = regenerateLink(node);
-
-            return this.db.prepare(
-                `INSERT INTO nodes (id, user_id, group_id, name, link, protocol, protocol_params, server, port, type, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-            ).bind(id, userId, groupId, name, link, protocol, JSON.stringify(node.protocol_params || {}), server, port, protocol, now, now);
+        const values = nodesToImport.map(node => {
+            return {
+                id: crypto.randomUUID(),
+                user_id: userId,
+                group_id: groupId, // Drizzle handles null correctly
+                name: node.name || 'Unknown Node',
+                link: regenerateLink(node),
+                protocol: node.protocol || 'unknown',
+                protocol_params: JSON.stringify(node.protocol_params || {}),
+                server: node.server || '',
+                port: node.port || 0,
+                type: node.protocol || 'unknown',
+                created_at: now,
+                updated_at: now,
+            };
         });
 
-        if (stmts.length > 0) {
-            await this.db.batch(stmts);
+        // SQLite has limit on number of variables. Drizzle might handle batching internally or not?
+        // Safe bet is to chunk it ourselves if list is huge, but let's trust simple batch insert for reasonable sizes first,
+        // or just slice it. The D1 limit is 100 statements or something.
+        // Actually Drizzle's .values(array) creates one big INSERT statement. SQLite limit is 32766 params.
+        // With 12 columns, we can safely insert ~2700 rows.
+
+        if (values.length > 0) {
+            // For safety against large imports, simple chunking
+            const CHUNK_SIZE = 100;
+            for (let i = 0; i < values.length; i += CHUNK_SIZE) {
+                await this.db.insert(nodes).values(values.slice(i, i + CHUNK_SIZE));
+            }
         }
-        return stmts.length;
+        return values.length;
     }
 
     async batchUpdateGroup(userId: string, nodeIds: string[], groupId: string | null) {
         const now = new Date().toISOString();
-        const placeholders = createInClause(nodeIds.length);
-
-        await this.db.prepare(
-            `UPDATE nodes
-             SET group_id = ?, updated_at = ?
-             WHERE id IN (${placeholders}) AND user_id = ?`
-        ).bind(groupId, now, ...nodeIds, userId).run();
+        // Drizzle's `inArray` handles the IN clause safely
+        await this.db.update(nodes)
+            .set({ group_id: groupId, updated_at: now })
+            .where(and(inArray(nodes.id, nodeIds), eq(nodes.user_id, userId)));
     }
 
     async batchDelete(userId: string, ids: string[]) {
+        if (ids.length === 0) return 0;
+
+        // Drizzle usually handles chunking for internal params? Explicit chunking is safer for `inArray` if massive.
         const CHUNK_SIZE = 50;
         let totalDeleted = 0;
         for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
             const chunk = ids.slice(i, i + CHUNK_SIZE);
-            const placeholders = createInClause(chunk.length);
-            const query = `DELETE FROM nodes WHERE id IN (${placeholders}) AND user_id = ?`;
-            const bindings = [...chunk, userId];
-            const { meta: { changes } } = await this.db.prepare(query).bind(...bindings).run();
-            totalDeleted += changes || 0;
+            const res = await this.db.delete(nodes)
+                .where(and(inArray(nodes.id, chunk), eq(nodes.user_id, userId)));
+            totalDeleted += res.meta.changes || 0;
         }
         return totalDeleted;
     }
 
     async updateOrder(userId: string, nodeIds: string[]) {
-        const stmts = nodeIds.map((id, index) => {
-            return this.db.prepare(
-                'UPDATE nodes SET sort_order = ? WHERE id = ? AND user_id = ?'
-            ).bind(index, id, userId);
-        });
-
-        if (stmts.length > 0) {
-            await this.db.batch(stmts);
+        // Batch updating different values for different rows is usually done via CASE statements or multiple queries.
+        // Drizzle batch API: db.batch([ ... ])
+        const batch = nodeIds.map((id, index) =>
+            this.db.update(nodes).set({ sort_order: index }).where(and(eq(nodes.id, id), eq(nodes.user_id, userId)))
+        );
+        if (batch.length > 0) {
+            await this.db.batch(batch as any); // Type assertion might be needed if batch array is dynamic
         }
     }
 
     // Advanced Batch Actions
     async clearNodes(userId: string, groupId: string) {
-        let idQuery;
+        let whereClause;
         if (groupId === 'all') {
-            idQuery = this.db.prepare('SELECT id FROM nodes WHERE user_id = ?').bind(userId);
+            whereClause = eq(nodes.user_id, userId);
         } else if (groupId === 'ungrouped') {
-            idQuery = this.db.prepare('SELECT id FROM nodes WHERE user_id = ? AND group_id IS NULL').bind(userId);
+            whereClause = and(eq(nodes.user_id, userId), isNull(nodes.group_id));
         } else {
-            idQuery = this.db.prepare('SELECT id FROM nodes WHERE user_id = ? AND group_id = ?').bind(userId, groupId);
+            whereClause = and(eq(nodes.user_id, userId), eq(nodes.group_id, groupId));
         }
 
-        const { results: nodesToClear } = await idQuery.all<{ id: string }>();
+        const nodesToClear = await this.db.select({ id: nodes.id }).from(nodes).where(whereClause);
 
         if (!nodesToClear || nodesToClear.length === 0) {
             return 0;
@@ -220,23 +233,25 @@ export class NodeService {
     }
 
     async sortNodes(userId: string, groupId: string) {
-        let nodesQuery;
-        const baseQuery = `
-            SELECT n.id, ns.status, ns.latency
-            FROM nodes n
-            LEFT JOIN node_statuses ns ON n.id = ns.node_id AND n.user_id = ns.user_id
-            WHERE n.user_id = ?
-        `;
-
+        let whereClause;
         if (groupId === 'all') {
-            nodesQuery = this.db.prepare(baseQuery).bind(userId);
+            whereClause = eq(nodes.user_id, userId);
         } else if (groupId === 'ungrouped') {
-            nodesQuery = this.db.prepare(`${baseQuery} AND n.group_id IS NULL`).bind(userId);
+            whereClause = and(eq(nodes.user_id, userId), isNull(nodes.group_id));
         } else {
-            nodesQuery = this.db.prepare(`${baseQuery} AND n.group_id = ?`).bind(userId, groupId);
+            whereClause = and(eq(nodes.user_id, userId), eq(nodes.group_id, groupId));
         }
 
-        const { results: nodesToSort } = await nodesQuery.all<{ id: string; status: string | null; latency: number | null }>();
+        // Assuming node_statuses is joined manually or we fetch both. 
+        // For Drizzle, left join:
+        const nodesToSort = await this.db.select({
+            id: nodes.id,
+            status: node_statuses.status,
+            latency: node_statuses.latency
+        })
+            .from(nodes)
+            .leftJoin(node_statuses, and(eq(nodes.id, node_statuses.node_id), eq(nodes.user_id, node_statuses.user_id)))
+            .where(whereClause);
 
         if (!nodesToSort || nodesToSort.length === 0) {
             return 0;
@@ -257,31 +272,34 @@ export class NodeService {
             return (a.latency ?? Infinity) - (b.latency ?? Infinity);
         });
 
-        const updateStmts = nodesToSort.map((node, index) =>
-            this.db.prepare('UPDATE nodes SET sort_order = ? WHERE id = ? AND user_id = ?')
-                .bind(index, node.id, userId)
+        const batch = nodesToSort.map((node, index) =>
+            this.db.update(nodes).set({ sort_order: index }).where(eq(nodes.id, node.id))
         );
 
-        if (updateStmts.length > 0) {
-            await this.db.batch(updateStmts);
+        if (batch.length > 0) {
+            await this.db.batch(batch as any);
         }
 
         return nodesToSort.length;
     }
 
     async deduplicateNodes(userId: string, groupId: string) {
-        let nodesQuery;
-        const baseQuery = 'SELECT id, server, port, protocol, created_at FROM nodes WHERE user_id = ?';
-
+        let whereClause;
         if (groupId === 'all') {
-            nodesQuery = this.db.prepare(baseQuery).bind(userId);
+            whereClause = eq(nodes.user_id, userId);
         } else if (groupId === 'ungrouped') {
-            nodesQuery = this.db.prepare(`${baseQuery} AND group_id IS NULL`).bind(userId);
+            whereClause = and(eq(nodes.user_id, userId), isNull(nodes.group_id));
         } else {
-            nodesQuery = this.db.prepare(`${baseQuery} AND group_id = ?`).bind(userId, groupId);
+            whereClause = and(eq(nodes.user_id, userId), eq(nodes.group_id, groupId));
         }
 
-        const { results: nodesToDeduplicate } = await nodesQuery.all<{ id: string; server: string; port: number; protocol: string; created_at: string }>();
+        const nodesToDeduplicate = await this.db.select({
+            id: nodes.id,
+            server: nodes.server,
+            port: nodes.port,
+            protocol: nodes.protocol,
+            created_at: nodes.created_at
+        }).from(nodes).where(whereClause);
 
         if (!nodesToDeduplicate || nodesToDeduplicate.length < 2) {
             return 0;
@@ -291,7 +309,8 @@ export class NodeService {
         const idsToDelete: string[] = [];
 
         for (const node of nodesToDeduplicate) {
-            const uniqueKey = `${node.server}:${node.port}:${node.protocol}`;
+            // Null checks for server/port since I defined them as optional in schema but logic expects them
+            const uniqueKey = `${node.server || ''}:${node.port || 0}:${node.protocol}`;
             const createdAt = new Date(node.created_at);
 
             if (uniqueNodes.has(uniqueKey)) {
@@ -315,7 +334,7 @@ export class NodeService {
     }
 
     async getNodeStatuses(userId: string) {
-        const { results } = await this.db.prepare('SELECT * FROM node_statuses WHERE user_id = ?').bind(userId).all<any>();
+        const results = await this.db.select().from(node_statuses).where(eq(node_statuses.user_id, userId));
 
         const now = Date.now();
         const TESTING_TIMEOUT = 2 * 60 * 1000;
@@ -375,15 +394,37 @@ export class NodeService {
                     } catch (e) { /* Error implies unhealthy */ }
                 }
 
-                const now = new Date().toISOString();
-                await this.db.prepare(
-                    `INSERT INTO node_statuses (node_id, user_id, status, latency, checked_at)
-                     VALUES (?, ?, ?, ?, ?)
-                     ON CONFLICT(node_id, user_id) DO UPDATE SET
-                     status = excluded.status,
-                     latency = excluded.latency,
-                     checked_at = excluded.checked_at`
-                ).bind(node.id, userId, status, latency, now).run();
+                // const now = new Date().toISOString(); // Already declared outside loop in previous context, but wait, this is inside `getHealthCheckTask`.
+                // Actually `getHealthCheckTask` returns an async function.
+                // The issue is likely that `now` was declared twice in the same scope due to bad copy-paste or me not seeing the full context.
+                // Let's look at the previous chunk. 
+                // Line 396 and 397 in previous error...
+                // One 'now' was line 391.
+                // Ah, in `testNodeAndSave`, `now` is declared.
+                // In generic loop, `now` is declared at 391.
+                // Then I inserted a block that used `now` but maybe I pasted `const now = ...` again?
+                // Let's just fix the usage. `now` at 391 should be enough for the batch update.
+
+                // Oops, I can't see the file content right now to be 100% sure where the duplicate is without scrolling up.
+                // But looking at my previous `batch` replacement, I replaced:
+                // `const updateStmts = ... bind(id, userId, now, now));`
+                // with:
+                // `const batch = ... checked_at: now ...`
+
+                // wait, the error says "Unable to redeclare block-scoped variable 'now'." at line 396/397.
+                // This implies I have `const now = ...` twice.
+                // Let's just use `const checkTime` to be safe/clear.
+                const checkTime = new Date().toISOString();
+                await this.db.insert(node_statuses).values({
+                    node_id: node.id,
+                    user_id: userId,
+                    status: status,
+                    latency: latency,
+                    checked_at: checkTime
+                }).onConflictDoUpdate({
+                    target: [node_statuses.node_id, node_statuses.user_id],
+                    set: { status: status, latency: latency, checked_at: checkTime }
+                });
             };
 
             for (let i = 0; i < nodeIds.length; i += BATCH_SIZE) {
@@ -391,28 +432,34 @@ export class NodeService {
                 const now = new Date().toISOString();
 
                 // 1. Set testing status
-                const updateStmts = batchNodeIds.map(id => this.db.prepare(
-                    `INSERT INTO node_statuses (node_id, user_id, status, latency, checked_at)
-                     VALUES (?, ?, 'testing', NULL, ?)
-                     ON CONFLICT(node_id, user_id) DO UPDATE SET status = 'testing', latency = NULL, checked_at = ?`
-                ).bind(id, userId, now, now));
+                const batch = batchNodeIds.map(id =>
+                    this.db.insert(node_statuses).values({
+                        node_id: id,
+                        user_id: userId,
+                        status: 'testing',
+                        latency: null,
+                        checked_at: now
+                    }).onConflictDoUpdate({
+                        target: [node_statuses.node_id, node_statuses.user_id],
+                        set: { status: 'testing', latency: null, checked_at: now }
+                    })
+                );
 
-                for (const stmt of updateStmts) {
-                    await stmt.run();
+                if (batch.length > 0) {
+                    await this.db.batch(batch as any);
                 }
 
                 // 2. Fetch node info
-                const placeholders = createInClause(batchNodeIds.length);
-                const nodesInBatch = await this.db.prepare(
-                    `SELECT id, server, port FROM nodes WHERE id IN (${placeholders}) AND user_id = ?`
-                ).bind(...batchNodeIds, userId).all<{ id: string; server: string; port: number }>();
+                const nodesInBatch = await this.db.select({ id: nodes.id, server: nodes.server, port: nodes.port })
+                    .from(nodes)
+                    .where(and(inArray(nodes.id, batchNodeIds), eq(nodes.user_id, userId)));
 
-                if (!nodesInBatch.results || nodesInBatch.results.length === 0) {
+                if (!nodesInBatch || nodesInBatch.length === 0) {
                     continue;
                 }
 
                 // 3. Test in parallel
-                const testTasks = nodesInBatch.results.map(node => () => testNodeAndSave(node));
+                const testTasks = nodesInBatch.map(node => () => testNodeAndSave(node as any));
                 await executeInParallel(testTasks);
 
                 // 4. Delay

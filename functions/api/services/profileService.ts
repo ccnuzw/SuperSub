@@ -1,9 +1,11 @@
+import { getDb, DrizzleDB } from '../utils/db';
 import type { Env } from '../utils/types';
+import { profiles, profile_rules, subscriptions, subscription_groups, subscription_rules, subscription_group_rules, nodes, node_groups } from '../drizzle/schema';
+import { eq, and, asc, desc, inArray, sql, count, isNull, getTableColumns } from 'drizzle-orm';
 import { Logger } from '../utils/logger';
-import { parseNodeLinks, ParsedNode, regenerateLink } from '../../../src/utils/nodeParser';
+import { parseNodeLinks, ParsedNode } from '../../../src/utils/nodeParser';
 import { fetchSubscriptionContent } from '../utils/network';
 import { applySubscriptionRules, parseSubscriptionContent } from '../utils/subscriptionUtils';
-import { createInClause } from '../utils/db';
 
 interface SelectedSource {
     type: 'subscription';
@@ -28,14 +30,14 @@ export type StrategyResult = {
 });
 
 export class ProfileService {
-    private db: D1Database;
+    private db: DrizzleDB;
 
     constructor(env: Env) {
-        this.db = env.DB;
+        this.db = getDb(env.DB);
     }
 
     async getProfiles(userId: string) {
-        const { results } = await this.db.prepare('SELECT * FROM profiles WHERE user_id = ?').bind(userId).all<any>();
+        const results = await this.db.select().from(profiles).where(eq(profiles.user_id, userId));
 
         return results.map(profile => {
             try {
@@ -49,7 +51,11 @@ export class ProfileService {
     }
 
     async getProfile(id: string, userId: string) {
-        const profile: any = await this.db.prepare('SELECT * FROM profiles WHERE id = ? AND user_id = ?').bind(id, userId).first();
+        const profile = await this.db.select().from(profiles)
+            .where(and(eq(profiles.id, id), eq(profiles.user_id, userId)))
+            .limit(1)
+            .then(res => res[0]);
+
         if (!profile) return null;
 
         try {
@@ -79,37 +85,38 @@ export class ProfileService {
             generation_mode: content.generation_mode || 'local',
         };
 
-        const statements = [];
-        statements.push(
-            this.db.prepare(
-                `INSERT INTO profiles (id, user_id, name, alias, content, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`
-            ).bind(profileId, userId, name, alias, JSON.stringify(contentPayload), now, now)
-        );
+        await this.db.transaction(async (tx) => {
+            await tx.insert(profiles).values({
+                id: profileId,
+                user_id: userId,
+                name: name,
+                alias: alias,
+                content: JSON.stringify(contentPayload),
+                created_at: now,
+                updated_at: now
+            });
 
-        if (rules.length > 0) {
-            const ruleInsertStm = this.db.prepare(
-                `INSERT INTO profile_rules (user_id, profile_id, name, type, value, enabled, sort_order, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-            );
-            for (const [index, rule] of rules.entries()) {
-                statements.push(
-                    ruleInsertStm.bind(
-                        userId,
-                        profileId,
-                        rule.name.trim(),
-                        rule.type,
-                        rule.value,
-                        rule.enabled === 1 ? 1 : 0,
-                        rule.sort_order ?? index,
-                        now,
-                        now
-                    )
-                );
+            if (rules.length > 0) {
+                const ruleValues = rules.map((rule: any, index: number) => ({
+                    user_id: userId,
+                    profile_id: profileId,
+                    name: rule.name.trim(),
+                    type: rule.type,
+                    value: rule.value,
+                    enabled: rule.enabled === 1 ? 1 : 0,
+                    sort_order: rule.sort_order ?? index,
+                    created_at: now,
+                    updated_at: now
+                }));
+
+                // Chunk inserts to be safe
+                const CHUNK_SIZE = 50;
+                for (let i = 0; i < ruleValues.length; i += CHUNK_SIZE) {
+                    await tx.insert(profile_rules).values(ruleValues.slice(i, i + CHUNK_SIZE));
+                }
             }
-        }
+        });
 
-        await this.db.batch(statements);
         return { id: profileId };
     }
 
@@ -129,14 +136,18 @@ export class ProfileService {
             generation_mode: content.generation_mode || 'local',
         };
 
-        await this.db.prepare(
-            `UPDATE profiles SET name = ?, alias = ?, content = ?, updated_at = ?
-             WHERE id = ? AND user_id = ?`
-        ).bind(name, alias, JSON.stringify(contentPayload), now, id, userId).run();
+        await this.db.update(profiles)
+            .set({
+                name: name,
+                alias: alias,
+                content: JSON.stringify(contentPayload),
+                updated_at: now
+            })
+            .where(and(eq(profiles.id, id), eq(profiles.user_id, userId)));
     }
 
     async deleteProfile(id: string, userId: string) {
-        await this.db.prepare('DELETE FROM profiles WHERE id = ? AND user_id = ?').bind(id, userId).run();
+        await this.db.delete(profiles).where(and(eq(profiles.id, id), eq(profiles.user_id, userId)));
     }
 
     async selectSourcesByStrategy(userId: string, profile: any, isDryRun: boolean = false, logger: Logger): Promise<StrategyResult> {
@@ -166,29 +177,30 @@ export class ProfileService {
             logger.info(`执行 "分组轮询" 策略，每组探测 ${pollingThreshold} 个候选。`);
 
             // 1. Get all subscription groups in their specified order
-            const { results: sortedGroups } = await this.db.prepare(
-                'SELECT id FROM subscription_groups WHERE user_id = ? ORDER BY sort_order ASC'
-            ).bind(userId).all();
+            const sortedGroups = await this.db.select({ id: subscription_groups.id })
+                .from(subscription_groups)
+                .where(eq(subscription_groups.user_id, userId))
+                .orderBy(asc(subscription_groups.sort_order));
 
-            const orderedGroupIds = sortedGroups ? (sortedGroups as { id: string }[]).map(g => g.id) : [];
+            const orderedGroupIds = sortedGroups.map(g => g.id);
             logger.info('已获取有序的分组列表。', { orderedGroupIds });
 
             // 2. Get group counts for all *selected* subscriptions
             const groupCountsMap = new Map<string, number>();
             for (let i = 0; i < subIds.length; i += CHUNK_SIZE) {
                 const chunk = subIds.slice(i, i + CHUNK_SIZE);
-                const groupCountsQuery = `
-                    SELECT group_id, COUNT(*) as total
-                    FROM subscriptions
-                    WHERE id IN (${createInClause(chunk.length)}) AND user_id = ?
-                    GROUP BY group_id
-                `;
-                const { results: chunkGroupCounts } = await this.db.prepare(groupCountsQuery).bind(...chunk, userId).all();
-                if (chunkGroupCounts) {
-                    for (const row of chunkGroupCounts as any[]) {
-                        const groupId = row.group_id || 'ungrouped';
-                        groupCountsMap.set(groupId, (groupCountsMap.get(groupId) || 0) + row.total);
-                    }
+                // SELECT group_id, COUNT(*) as total FROM subscriptions WHERE id IN (...) AND user_id = ... GROUP BY group_id
+                const chunkGroupCounts = await this.db.select({
+                    group_id: subscriptions.group_id,
+                    total: count(subscriptions.id)
+                })
+                    .from(subscriptions)
+                    .where(and(inArray(subscriptions.id, chunk), eq(subscriptions.user_id, userId)))
+                    .groupBy(subscriptions.group_id);
+
+                for (const row of chunkGroupCounts) {
+                    const groupId = row.group_id || 'ungrouped';
+                    groupCountsMap.set(groupId, (groupCountsMap.get(groupId) || 0) + row.total);
                 }
             }
             logger.info('已统计所有订阅的分组情况。', { groupCounts: Object.fromEntries(groupCountsMap) });
@@ -223,24 +235,28 @@ export class ProfileService {
                 const effectiveStartIndex = startIndex % totalInGroup;
                 logger.info(`为分组 "${groupId}" 准备候选集...`, { totalInGroup, startIndex: effectiveStartIndex });
 
-                const candidatesQuery = `
-                    SELECT id, name, url, group_id
-                    FROM subscriptions
-                    WHERE user_id = ? AND ${groupId === 'ungrouped' ? 'group_id IS NULL' : 'group_id = ?'}
-                    ORDER BY id
-                    LIMIT ? OFFSET ?
-                `;
-
-                const queryParams: any[] = [userId];
-                if (groupId !== 'ungrouped') {
-                    queryParams.push(groupId);
+                let whereClause;
+                if (groupId === 'ungrouped') {
+                    whereClause = and(eq(subscriptions.user_id, userId), isNull(subscriptions.group_id));
+                } else {
+                    whereClause = and(eq(subscriptions.user_id, userId), eq(subscriptions.group_id, groupId));
                 }
-                queryParams.push(pollingThreshold, effectiveStartIndex);
 
-                const { results: candidates } = await this.db.prepare(candidatesQuery).bind(...queryParams).all();
+                const candidates = await this.db.select({
+                    id: subscriptions.id,
+                    name: subscriptions.name,
+                    url: subscriptions.url,
+                    group_id: subscriptions.group_id
+                })
+                    .from(subscriptions)
+                    .where(whereClause)
+                    .orderBy(asc(subscriptions.id))
+                    .limit(pollingThreshold)
+                    .offset(effectiveStartIndex);
 
                 if (candidates && candidates.length > 0) {
-                    logger.success(`已为分组 "${groupId}" 获取 ${candidates.length} 个候选订阅。`, { candidates: candidates.map((c: any) => c.name) });
+                    // @ts-ignore
+                    logger.success(`已为分组 "${groupId}" 获取 ${candidates.length} 个候选订阅。`, { candidates: candidates.map(c => c.name) });
                     candidateSets.push([groupId, {
                         candidates,
                         totalInGroup,
@@ -263,8 +279,7 @@ export class ProfileService {
         let allSubs: any[] = [];
         for (let i = 0; i < subIds.length; i += CHUNK_SIZE) {
             const chunk = subIds.slice(i, i + CHUNK_SIZE);
-            const query = `SELECT * FROM subscriptions WHERE id IN (${createInClause(chunk.length)}) AND user_id = ?`;
-            const { results: subsInChunk } = await this.db.prepare(query).bind(...chunk, userId).all();
+            const subsInChunk = await this.db.select().from(subscriptions).where(and(inArray(subscriptions.id, chunk), eq(subscriptions.user_id, userId)));
             if (subsInChunk) {
                 allSubs = allSubs.concat(subsInChunk);
             }
@@ -318,9 +333,9 @@ export class ProfileService {
         let processedNodes = [...nodes];
         logger.info(`准备应用配置文件全局规则，当前节点数: ${processedNodes.length}`);
 
-        const { results: profileRules } = await this.db.prepare(
-            'SELECT * FROM profile_rules WHERE profile_id = ? AND user_id = ? AND enabled = 1 ORDER BY sort_order ASC'
-        ).bind(profileId, userId).all<any>();
+        const profileRules = await this.db.select().from(profile_rules)
+            .where(and(eq(profile_rules.profile_id, profileId), eq(profile_rules.user_id, userId), eq(profile_rules.enabled, 1)))
+            .orderBy(asc(profile_rules.sort_order));
 
         if (profileRules && profileRules.length > 0) {
             logger.info(`找到 ${profileRules.length} 条启用的全局规则。`);
@@ -418,17 +433,16 @@ export class ProfileService {
                     bindings.push(JSON.stringify(updatedPollingState.group_polling_indices));
                 }
 
-                if (setClauses.length > 0) {
-                    const query = `UPDATE profiles SET ${setClauses.join(', ')} WHERE id = ?`;
-                    bindings.push(profile.id);
-                    logger.info('正在更新数据库中的轮询状态...', { state: updatedPollingState });
-                    if (executionCtx) {
-                        executionCtx.waitUntil(this.db.prepare(query).bind(...bindings).run());
-                    } else {
-                        // If no execution context, run usage without blocking? or just await.
-                        // Safe to await as this isn't high latency usually, but let's await to ensure consistency.
-                        await this.db.prepare(query).bind(...bindings).run();
-                    }
+                if (executionCtx) {
+                    executionCtx.waitUntil(
+                        this.db.update(profiles)
+                            .set(updatedPollingState as any) // Drizzle might complain about partial types, casting generally safe if shape matches
+                            .where(eq(profiles.id, profile.id))
+                    );
+                } else {
+                    await this.db.update(profiles)
+                        .set(updatedPollingState as any)
+                        .where(eq(profiles.id, profile.id));
                 }
             }
         } else {
@@ -504,8 +518,14 @@ export class ProfileService {
             const chunkSize = 50;
             for (let i = 0; i < uniqueGroupIds.length; i += chunkSize) {
                 const chunk = uniqueGroupIds.slice(i, i + chunkSize);
-                const query = `SELECT * FROM subscription_group_rules WHERE group_id IN (${createInClause(chunk.length)}) AND user_id = ? AND enabled = 1 ORDER BY sort_order ASC`;
-                const { results } = await this.db.prepare(query).bind(...chunk, userId).all<any>();
+                const results = await this.db.select().from(subscription_group_rules)
+                    .where(and(
+                        inArray(subscription_group_rules.group_id, chunk),
+                        eq(subscription_group_rules.user_id, userId),
+                        eq(subscription_group_rules.enabled, 1)
+                    ))
+                    .orderBy(asc(subscription_group_rules.sort_order));
+
                 if (results) {
                     results.forEach((rule: any) => {
                         const list = groupRulesMap.get(rule.group_id) || [];
@@ -523,8 +543,14 @@ export class ProfileService {
             const chunkSize = 50;
             for (let i = 0; i < uniqueSubIds.length; i += chunkSize) {
                 const chunk = uniqueSubIds.slice(i, i + chunkSize);
-                const query = `SELECT * FROM subscription_rules WHERE subscription_id IN (${createInClause(chunk.length)}) AND user_id = ? AND enabled = 1 ORDER BY sort_order ASC`;
-                const { results } = await this.db.prepare(query).bind(...chunk, userId).all<any>();
+                const results = await this.db.select().from(subscription_rules)
+                    .where(and(
+                        inArray(subscription_rules.subscription_id, chunk),
+                        eq(subscription_rules.user_id, userId),
+                        eq(subscription_rules.enabled, 1)
+                    ))
+                    .orderBy(asc(subscription_rules.sort_order));
+
                 if (results) {
                     results.forEach((rule: any) => {
                         const list = subRulesMap.get(rule.subscription_id) || [];
@@ -577,12 +603,15 @@ export class ProfileService {
         for (let i = 0; i < nodeIds.length; i += CHUNK_SIZE) {
             const chunk = nodeIds.slice(i, i + CHUNK_SIZE);
             logger.info(`正在获取第 ${i + 1} 到 ${i + chunk.length} 个手动节点...`);
-            const query = `
-                SELECT n.*, g.name as group_name FROM nodes n
-                LEFT JOIN node_groups g ON n.group_id = g.id
-                WHERE n.id IN (${createInClause(chunk.length)}) AND n.user_id = ?
-            `;
-            const { results: nodesInChunk } = await this.db.prepare(query).bind(...chunk, userId).all<any>();
+
+            // Join nodes and node_groups
+            const nodesInChunk = await this.db.select({
+                ...getTableColumns(nodes),
+                group_name: node_groups.name
+            })
+                .from(nodes)
+                .leftJoin(node_groups, eq(nodes.group_id, node_groups.id))
+                .where(and(inArray(nodes.id, chunk), eq(nodes.user_id, userId)));
 
             if (nodesInChunk) {
                 manualNodes = manualNodes.concat(nodesInChunk);

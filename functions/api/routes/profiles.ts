@@ -6,6 +6,8 @@ import { Logger } from '../utils/logger';
 import { ProfileService } from '../services/profileService';
 
 import { createErrorResponse } from '../utils/errors';
+import { zValidator } from '@hono/zod-validator';
+import { createProfileSchema, updateProfileSchema } from '../schema';
 
 const profiles = new Hono<{ Bindings: Env }>();
 
@@ -52,16 +54,13 @@ profiles.get('/', async (c) => {
     }
 });
 
-profiles.post('/', async (c) => {
+profiles.post('/', zValidator('json', createProfileSchema), async (c) => {
     try {
         const user = c.get('jwtPayload');
-        const body = await c.req.json<any>();
+        const body = c.req.valid('json');
         const service = new ProfileService(c.env);
 
-        if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
-            return createErrorResponse('Profile name is required.', 400);
-        }
-
+        // Validation is now handled by Zod, removing manual check
         const result = await service.createProfile(user.id, body);
         return c.json({ success: true, data: result }, 201);
     } catch (e: any) {
@@ -85,18 +84,14 @@ profiles.get('/:id', async (c) => {
     }
 });
 
-profiles.put('/:id', async (c) => {
+profiles.put('/:id', zValidator('json', updateProfileSchema), async (c) => {
     try {
         const user = c.get('jwtPayload');
         const { id } = c.req.param();
-        const body = await c.req.json<any>();
+        const body = c.req.valid('json');
         const service = new ProfileService(c.env);
 
-        if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
-            return createErrorResponse('Profile name is required.', 400);
-        }
-
-        await service.updateProfile(id, user.id, body);
+        const result = await service.updateProfile(id, user.id, body);
 
         return c.json({ success: true });
     } catch (e: any) {
