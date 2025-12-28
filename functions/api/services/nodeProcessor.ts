@@ -370,21 +370,44 @@ export class NodeProcessor {
     }
 
     async fetchSubscriptionContentBatch(selectedSources: SelectedSource[], timeout: number, logger: Logger): Promise<any[]> {
-        logger.info(`准备获取 ${selectedSources.length} 个选定订阅的内容...`);
-        const fetchPromises = selectedSources.map(async (source: any) => {
-            if (source.type === 'subscription') {
+        logger.info(`准备获取 ${selectedSources.length} 个选定订阅的内容 (并发限制: 5)...`);
+
+        const MAX_CONCURRENT = 5;
+        const results: any[] = [];
+        const executing = new Set<Promise<void>>();
+
+        for (const source of selectedSources) {
+            if (source.type !== 'subscription') continue;
+
+            const task = (async () => {
                 logger.info(`正在获取 "${source.sub.name}" (${source.sub.url})...`);
-                const content = await fetchSubscriptionContent(source.sub.url, timeout);
-                if (content) {
-                    logger.success(`成功获取 "${source.sub.name}" 的内容。`);
-                    return { ...source, content };
-                } else {
-                    logger.warn(`获取 "${source.sub.name}" 的内容为空。`);
+                try {
+                    const content = await fetchSubscriptionContent(source.sub.url, timeout);
+                    if (content) {
+                        logger.success(`成功获取 "${source.sub.name}" 的内容。`);
+                        results.push({ ...source, content });
+                    } else {
+                        logger.warn(`获取 "${source.sub.name}" 的内容为空。`);
+                    }
+                } catch (error) {
+                    logger.error(`获取 "${source.sub.name}" 失败。`, { error });
                 }
+            })();
+
+            const wrappedTask = task.then(() => { executing.delete(wrappedTask); });
+            executing.add(wrappedTask);
+
+            // When concurrency limit reached, wait for one to complete
+            if (executing.size >= MAX_CONCURRENT) {
+                await Promise.race(executing);
             }
-            return null;
-        });
-        return (await Promise.all(fetchPromises)).filter(Boolean);
+        }
+
+        // Wait for remaining tasks
+        await Promise.all(executing);
+
+        logger.success(`订阅内容获取完成，成功 ${results.length}/${selectedSources.length} 个。`);
+        return results;
     }
 
     async applySourceRules(userId: string, fetchedSources: any[], logger: Logger): Promise<(ParsedNode & { id: string; raw: string; subscriptionName?: string; })[]> {

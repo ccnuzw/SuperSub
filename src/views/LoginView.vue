@@ -11,6 +11,7 @@ import { getApiErrorMessage } from '@/utils/errors';
 const username = ref('');
 const password = ref('');
 const loading = ref(false);
+const errorMessage = ref('');
 const router = useRouter();
 const authStore = useAuthStore();
 const message = useMessage();
@@ -20,13 +21,20 @@ onMounted(() => {
 });
 
 const handleLogin = async () => {
+  if (!username.value.trim() || !password.value) {
+    errorMessage.value = '请输入用户名和密码';
+    return;
+  }
+  
   loading.value = true;
+  errorMessage.value = '';
+  
   try {
     await authStore.login({ username: username.value, password: password.value });
-    router.push('/'); // Redirect to dashboard after login
+    router.push('/');
   } catch (error) {
-    console.error('Login failed:', error);
-    message.error(getApiErrorMessage(error, '登录失败。请检查您的凭据。'));
+    // Extract error message from response
+    errorMessage.value = getApiErrorMessage(error, '登录失败，请稍后重试');
   } finally {
     loading.value = false;
   }
@@ -66,7 +74,12 @@ const handleLogin = async () => {
             />
         </div>
 
-        <Button variant="glow" block size="lg" :loading="loading" @click="handleLogin" class="mt-8">
+        <!-- Error Message -->
+        <div v-if="errorMessage" class="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+          <p class="text-sm text-red-600 dark:text-red-400 text-center">{{ errorMessage }}</p>
+        </div>
+
+        <Button variant="glow" block size="lg" :loading="loading" @click="handleLogin" class="mt-4">
             登录
         </Button>
       </form>

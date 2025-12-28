@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
+import axios from 'axios';
 import { useAuthStore } from '@/stores/auth';
 import { useNodeStatusStore } from '@/stores/nodeStatus';
 import { statsApi } from '@/api/stats';
@@ -58,9 +59,13 @@ onMounted(async () => {
     if (logSummaryResponse.data.success && logSummaryResponse.data.data) {
       logSummary.value = logSummaryResponse.data.data;
     }
-  } catch (err: any) {
-    console.error('Dashboard load error:', err);
-    error.value = err.message || '无法加载仪表盘数据';
+  } catch (err: unknown) {
+    // Silently ignore cancellation errors during logout
+    if (axios.isCancel(err)) {
+      return;
+    }
+    const message = err instanceof Error ? err.message : '无法加载仪表盘数据';
+    error.value = message;
   } finally {
     loading.value = false;
   }

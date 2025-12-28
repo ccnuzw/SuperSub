@@ -181,7 +181,7 @@ subscriptionGroups.delete('/:id', manualAuthMiddleware, async (c) => {
             return createErrorResponse('分组不存在或无权删除', 404);
         }
 
-        return c.body(null, 204);
+        return c.json({ success: true, message: '分组删除成功' });
     } catch (e: any) {
         return createErrorResponse(e.message, 500);
     }

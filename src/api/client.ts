@@ -13,17 +13,20 @@ client.interceptors.request.use(
     (config) => {
         const authStore = useAuthStore();
 
-        // If the app is in the process of logging out, cancel all outgoing requests.
-        if (authStore.isLoggingOut) {
+        // Auth routes should never be cancelled during logout
+        const isAuthRoute = config.url?.startsWith('/auth/');
+
+        // If the app is in the process of logging out, cancel all outgoing requests EXCEPT auth routes.
+        if (authStore.isLoggingOut && !isAuthRoute) {
             return {
                 ...config,
                 cancelToken: new axios.CancelToken((cancel) => cancel('Logout in progress')),
             };
         }
 
-        // Add token to headers
+        // Add token to headers (skip for login/register)
         const token = authStore.token;
-        if (token) {
+        if (token && !isAuthRoute) {
             config.headers.Authorization = `Bearer ${token}`;
         }
 
@@ -45,11 +48,15 @@ client.interceptors.request.use(
 client.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response && error.response.status === 401) {
+        // Don't trigger logout for auth routes (login/register failures)
+        const isAuthRoute = error.config?.url?.startsWith('/auth/');
+
+        if (error.response && error.response.status === 401 && !isAuthRoute) {
             const authStore = useAuthStore();
-            // Only logout if not already logging out or on login page to avoid loops
-            // But simple calls here are usually safe due to actions guards
-            authStore.logout();
+            // Only logout if not already logging out
+            if (!authStore.isLoggingOut) {
+                authStore.logout();
+            }
         }
         return Promise.reject(error);
     }

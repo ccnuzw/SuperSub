@@ -58,12 +58,12 @@ export class AuthService {
     async login(username: string, password: string): Promise<{ success: boolean; message?: string; data?: any; status: number }> {
         const user = await this.db.select().from(users).where(eq(users.username, username)).get();
         if (!user) {
-            return { success: false, message: 'User not found', status: 404 };
+            return { success: false, message: '用户不存在', status: 404 };
         }
 
         const isPasswordValid = await compare(password, user.password as string);
         if (!isPasswordValid) {
-            return { success: false, message: 'Invalid password', status: 401 };
+            return { success: false, message: '密码错误', status: 401 };
         }
 
         const payload = { id: user.id, username: user.username, role: user.role || 'user', sub_token: user.sub_token, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) };

@@ -40,7 +40,7 @@ export const updateNodeSchema = z.object({
 
 // Subscription Schemas
 export const createSubscriptionSchema = z.object({
-    name: z.string().min(1, 'Name is required'),
+    name: z.string().optional(), // Optional, will auto-generate from URL domain if empty
     url: z.string().url('Invalid URL'),
 });
 

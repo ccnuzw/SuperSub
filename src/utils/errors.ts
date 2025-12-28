@@ -26,13 +26,30 @@ export function getErrorMessage(error: unknown): string {
 export function getApiErrorMessage(error: unknown, fallback: string = '请求失败'): string {
   if (error && typeof error === 'object') {
     const err = error as Record<string, unknown>;
+
+    // Handle Axios error with response
     if (err.response && typeof err.response === 'object') {
       const response = err.response as Record<string, unknown>;
       if (response.data && typeof response.data === 'object') {
         const data = response.data as Record<string, unknown>;
-        if (typeof data.message === 'string') {
+        if (typeof data.message === 'string' && data.message) {
           return data.message;
         }
+      }
+      // Check status code for common errors
+      if (response.status === 401) {
+        return '用户名或密码错误';
+      }
+      if (response.status === 404) {
+        return '用户不存在';
+      }
+    }
+
+    // Handle direct message property (for non-Axios errors)
+    if (typeof err.message === 'string' && err.message) {
+      // Don't show internal error messages to user
+      if (!err.message.includes('status code')) {
+        return err.message;
       }
     }
   }

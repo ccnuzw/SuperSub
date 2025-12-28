@@ -201,13 +201,25 @@ export class SubscriptionService {
         return res[0] || null;
     }
 
-    async createSubscription(userId: string, body: { name: string; url: string }) {
+    async createSubscription(userId: string, body: { name?: string; url: string }) {
         const id = crypto.randomUUID();
         const now = new Date().toISOString();
+
+        // Auto-generate name from URL domain if not provided
+        let name = body.name?.trim();
+        if (!name) {
+            try {
+                const urlObj = new URL(body.url);
+                name = urlObj.hostname;
+            } catch {
+                name = body.url.substring(0, 50); // Fallback to first 50 chars of URL
+            }
+        }
+
         await this.db.insert(subscriptions).values({
             id,
             user_id: userId,
-            name: body.name,
+            name,
             url: body.url,
             updated_at: now,
             created_at: now
