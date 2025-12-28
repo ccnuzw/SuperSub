@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import { useMessage } from 'naive-ui';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
@@ -14,7 +13,6 @@ const loading = ref(false);
 const errorMessage = ref('');
 const router = useRouter();
 const authStore = useAuthStore();
-const message = useMessage();
 
 onMounted(() => {
   authStore.checkRegistrationStatus();

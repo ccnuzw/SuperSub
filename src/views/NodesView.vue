@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, h, reactive, computed, watch, onBeforeUnmount } from 'vue';
-import { useMessage, useDialog, NButton, NSpace, NTag, NIcon, NPageHeader, NDataTable, NModal, NForm, NFormItem, NInput, NInputNumber, NSelect, NSpin, NTabs, NTabPane, NDropdown, NCode, NList, NListItem, NThing, NPagination } from 'naive-ui';
+import { useDialog, NButton, NSpace, NTag, NIcon, NPageHeader, NDataTable, NModal, NForm, NFormItem, NInput, NInputNumber, NSelect, NSpin, NTabs, NTabPane, NDropdown, NCode, NList, NListItem, NThing, NPagination } from 'naive-ui';
+import { useNotification } from '@/composables/useNotification';
 import draggable from 'vuedraggable';
 import { debounce } from 'lodash-es';
 import type { DataTableColumns } from 'naive-ui';
@@ -24,7 +25,7 @@ import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 
-const message = useMessage();
+const notify = useNotification();
 const dialog = useDialog();
 const authStore = useAuthStore();
 const groupStore = useGroupStore();
@@ -77,13 +78,13 @@ const handleBatchAction = (action: 'sort' | 'deduplicate' | 'clear') => {
       try {
         const response = await nodesApi.batchAction(action, activeTab.value);
         if (response.data.success) {
-          message.success(response.data.message || '成功');
+          notify.success(response.data.message || `节点${actionText}成功`);
           fetchData();
         } else {
-          message.error(response.data.message || '失败');
+          notify.error(response.data.message || `节点${actionText}失败`);
         }
       } catch (error: any) {
-        message.error(error.message || 'Request failed');
+        notify.actionError.network(error.message);
       }
     },
   });
@@ -142,10 +143,10 @@ const fetchData = async () => {
     if (response.data.success && Array.isArray(response.data.data)) {
       nodes.value = response.data.data || [];
     } else {
-      message.error(response.data.message || '获取节点失败');
+      notify.preset.loadFailed('节点', response.data.message);
     }
   } catch (err: any) {
-    message.error(err.message || '请求失败');
+    notify.actionError.network(err.message);
   } finally {
     loading.value = false;
   }
@@ -154,23 +155,23 @@ const fetchData = async () => {
 const testNode = async (node: Node) => {
   const result = await nodeStatusStore.checkNodesHealth([node.id]);
   if (result.success) {
-    message.info(result.message);
+    notify.info(result.message);
   } else {
-    message.error(result.message);
+    notify.error(result.message);
   }
 };
 
 const testNodes = async (nodesToTest: Node[]) => {
   if (nodesToTest.length === 0) {
-    message.warning('没有可测试的节点');
+    notify.preset.noData('当前分组没有可测试的节点');
     return;
   }
   const nodeIds = nodesToTest.map(n => n.id);
   const result = await nodeStatusStore.checkNodesHealth(nodeIds);
   if (result.success) {
-    message.info(result.message);
+    notify.info(result.message);
   } else {
-    message.error(result.message);
+    notify.error(result.message);
   }
 };
 
@@ -228,7 +229,7 @@ const handleExportGroup = (groupId: string) => {
   const nodesInGroup = nodes.value.filter(n => n.group_id === groupId);
   
   if (nodesInGroup.length === 0) {
-    message.warning('没有可导出的节点');
+    notify.preset.noData('该分组没有可导出的节点');
     return;
   }
 
@@ -244,13 +245,13 @@ const handleExportGroup = (groupId: string) => {
 
 const handleCopyExportUrls = () => {
   if (!exportData.urls) {
-    message.warning('没有可复制内容');
+    notify.preset.noData('没有可复制的内容');
     return;
   }
   navigator.clipboard.writeText(exportData.urls).then(() => {
-    message.success('已复制到剪贴板!');
+    notify.actionSuccess.copy('节点链接');
   }).catch(err => {
-    message.error('复制失败');
+    notify.actionError.copy('浏览器不支持或未授权');
   });
 };
 
@@ -267,13 +268,13 @@ const handleDeduplicateGroup = (groupId: string) => {
             try {
                 const response = await nodesApi.batchAction('deduplicate', groupId);
                 if (response.data.success) {
-                    message.success(response.data.message || '成功');
+                    notify.success(response.data.message || '节点去重成功');
                     fetchData();
                 } else {
-                    message.error(response.data.message || '失败');
+                    notify.error(response.data.message || '节点去重失败');
                 }
             } catch (error: any) {
-                message.error(error.message || '请求失败');
+                notify.actionError.network(error.message);
             }
         },
     });
@@ -299,7 +300,7 @@ const openModal = (node: Node | null = null) => {
 
 const handleSave = async (payload: { name: string; link: string }) => {
   if (!editingNode.value) {
-    message.error('意外错误：未编辑任何节点。');
+    notify.error('意外错误：未选择要编辑的节点');
     return;
   }
 
@@ -308,14 +309,14 @@ const handleSave = async (payload: { name: string; link: string }) => {
     
     const response = await nodesApi.updateNode(editingNode.value.id, payload);
     if (response.data.success) {
-      message.success('更新成功');
+      notify.actionSuccess.update('节点', payload.name);
       showModal.value = false;
       fetchData();
     } else {
-      message.error(response.data.message || '保存失败');
+      notify.actionError.update('节点', response.data.message);
     }
   } catch (err: any) {
-    message.error(err.message || '请求失败');
+    notify.actionError.network(err.message);
   } finally {
     saveLoading.value = false;
   }
@@ -324,21 +325,21 @@ const handleSave = async (payload: { name: string; link: string }) => {
 
 const handleBatchImport = async (payload: { nodes: (ParsedNode & { id: string; raw: string })[]; groupId: string | null }) => {
   if (payload.nodes.length === 0) {
-    message.warning('没有有效的节点可导入');
+    notify.preset.validationError('没有有效的节点可导入，请检查链接格式');
     return;
   }
   addFromLinkLoading.value = true;
   try {
     const response = await nodesApi.importNodes(payload.nodes, payload.groupId || null);
     if (response.data.success) {
-      message.success(response.data.message || `成功导入 ${payload.nodes.length} 个节点`);
+      notify.actionSuccess.import('节点', payload.nodes.length);
       showAddFromLinkModal.value = false;
       fetchData();
     } else {
-      message.error(response.data.message || '导入失败');
+      notify.actionError.import('节点', response.data.message);
     }
   } catch (error: any) {
-    message.error(error.message || '请求失败');
+    notify.actionError.network(error.message);
   } finally {
     addFromLinkLoading.value = false;
   }
@@ -358,13 +359,13 @@ const handleDeleteNode = (row: Node) => {
             try {
                 const response = await nodesApi.deleteNode(row.id);
                 if (response.data.success) {
-                    message.success('删除成功');
+                    notify.actionSuccess.delete('节点');
                     fetchData();
                 } else {
-                    message.error(response.data.message || '删除失败');
+                    notify.actionError.delete('节点', response.data.message);
                 }
             } catch (err: any) {
-                message.error(err.message || '请求失败');
+                notify.actionError.network(err.message);
             }
         }
     });
@@ -376,15 +377,15 @@ const handleSaveOrder = async () => {
     const nodeIds = nodes.value.map(node => node.id);
     const response = await nodesApi.updateOrder(nodeIds);
     if (response.data.success) {
-      message.success('排序已保存');
+      notify.success('节点排序已保存');
       orderChanged.value = false;
       isSorting.value = false;
       fetchData();
     } else {
-      message.error(response.data.message || '保存失败');
+      notify.actionError.save('节点', response.data.message);
     }
   } catch (err: any) {
-    message.error(err.message || '请求失败');
+    notify.actionError.network(err.message);
   } finally {
     saveOrderLoading.value = false;
   }
@@ -394,7 +395,7 @@ const handleSaveOrder = async () => {
 
 const handleBatchDelete = () => {
   if (checkedRowKeys.value.length === 0) {
-    message.warning('请至少选择一个节点');
+    notify.preset.validationError('请至少选择一个节点');
     return;
   }
   dialog.warning({
@@ -406,14 +407,14 @@ const handleBatchDelete = () => {
       try {
         const response = await nodesApi.batchDelete(checkedRowKeys.value);
         if (response.data.success) {
-          message.success('批量删除成功');
+          notify.actionSuccess.delete('节点', checkedRowKeys.value.length);
           fetchData();
           checkedRowKeys.value = [];
         } else {
-          message.error(response.data.message || '批量删除失败');
+          notify.actionError.delete('节点', response.data.message);
         }
       } catch (err: any) {
-        message.error(err.message || '请求失败');
+        notify.actionError.network(err.message);
       }
     }
   });

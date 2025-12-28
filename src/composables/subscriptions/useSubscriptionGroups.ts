@@ -1,5 +1,6 @@
 import { ref, h } from 'vue'
-import { useMessage, useDialog, type MessageReactive } from 'naive-ui'
+import { useDialog } from 'naive-ui'
+import { useNotification } from '@/composables/useNotification'
 import { subscriptionsApi } from '@/api/subscriptions'
 import type { SubscriptionGroup } from '@/stores/subscriptionGroups'
 import type { Ref } from 'vue'
@@ -9,7 +10,7 @@ export function useSubscriptionGroups(
     fetchSubscriptions: () => void,
     activeTab: Ref<string>
 ) {
-    const message = useMessage()
+    const notify = useNotification()
     const dialog = useDialog()
 
     // --- Add Group ---
@@ -20,22 +21,22 @@ export function useSubscriptionGroups(
 
     const handleSaveGroup = async () => {
         if (!newGroupName.value.trim()) {
-            message.warning('分组名称不能为空')
+            notify.preset.validationError('分组名称不能为空')
             return
         }
         addGroupLoading.value = true
         try {
             const response = await subscriptionGroupStore.addGroup(newGroupName.value, newGroupDescription.value)
             if (response.success) {
-                message.success('分组创建成功')
+                notify.actionSuccess.create('分组', newGroupName.value)
                 showAddGroupModal.value = false
                 newGroupName.value = ''
                 newGroupDescription.value = ''
             } else {
-                message.error(response.message || '创建失败')
+                notify.actionError.create('分组', response.message)
             }
         } catch (error: any) {
-            message.error(error.message || '创建失败')
+            notify.actionError.network(error.message)
         } finally {
             addGroupLoading.value = false
         }
@@ -57,20 +58,20 @@ export function useSubscriptionGroups(
 
     const handleUpdateGroup = async () => {
         if (!editingGroup.value || !editingGroupName.value.trim()) {
-            message.warning('分组名称不能为空')
+            notify.preset.validationError('分组名称不能为空')
             return
         }
         editGroupLoading.value = true
         try {
             const response = await subscriptionGroupStore.updateGroup(editingGroup.value.id, editingGroupName.value, editingGroupDescription.value)
             if (response.success) {
-                message.success('分组更新成功')
+                notify.actionSuccess.update('分组', editingGroupName.value)
                 showEditGroupModal.value = false
             } else {
-                message.error(response.message || '更新失败')
+                notify.actionError.update('分组', response.message)
             }
         } catch (error: any) {
-            message.error(error.message || '更新失败')
+            notify.actionError.network(error.message)
         } finally {
             editGroupLoading.value = false
         }
@@ -87,16 +88,16 @@ export function useSubscriptionGroups(
                 try {
                     const response = await subscriptionGroupStore.deleteGroup(group.id)
                     if (response.success) {
-                        message.success('分组删除成功')
+                        notify.actionSuccess.delete('分组')
                         if (activeTab.value === group.id) {
                             activeTab.value = 'all'
                         }
                         fetchSubscriptions()
                     } else {
-                        message.error(response.message || '删除失败')
+                        notify.actionError.delete('分组', response.message)
                     }
                 } catch (error: any) {
-                    message.error(error.message || '删除失败')
+                    notify.actionError.network(error.message)
                 }
             }
         })
@@ -106,7 +107,7 @@ export function useSubscriptionGroups(
         try {
             await subscriptionGroupStore.toggleGroup(groupId)
         } catch (err: any) {
-            message.error(err.message || '操作失败')
+            notify.actionError.action('分组', 'update', err.message)
         }
     }
 
@@ -116,7 +117,7 @@ export function useSubscriptionGroups(
 
     const handleMoveToGroup = async (checkedRowKeys: Ref<string[]>, groupId: string | null) => {
         if (checkedRowKeys.value.length === 0) {
-            message.warning('请至少选择一个订阅')
+            notify.preset.validationError('请至少选择一个订阅')
             return
         }
         moveToGroupLoading.value = true
@@ -126,15 +127,15 @@ export function useSubscriptionGroups(
                 groupId: groupId,
             })
             if (response.data.success) {
-                message.success('订阅分组更新成功')
+                notify.success(`已将 ${checkedRowKeys.value.length} 个订阅移动到新分组`)
                 showMoveToGroupModal.value = false
                 checkedRowKeys.value = []
                 fetchSubscriptions()
             } else {
-                message.error(response.data.message || '移动失败')
+                notify.error(response.data.message || '移动失败')
             }
         } catch (error: any) {
-            message.error(error.message || '请求失败')
+            notify.actionError.network(error.message)
         } finally {
             moveToGroupLoading.value = false
         }
@@ -150,10 +151,10 @@ export function useSubscriptionGroups(
         try {
             const groupIds = groups.map(g => g.id)
             await subscriptionGroupStore.updateGroupOrder(groupIds)
-            message.success('分组顺序已更新')
+            notify.success('分组顺序已更新')
             showSortModal.value = false
         } catch (error: any) {
-            message.error(error.message || '更新分组顺序失败')
+            notify.error(error.message || '更新分组顺序失败')
         } finally {
             sortLoading.value = false
         }
@@ -181,7 +182,7 @@ export function useSubscriptionGroups(
         })
 
         if (idsToDelete.length === 0) {
-            message.info('该分组内没有发现重复的订阅链接。')
+            notify.preset.noData('该分组内没有发现重复的订阅链接')
             return
         }
 
@@ -211,20 +212,20 @@ export function useSubscriptionGroups(
                         const response = await subscriptionsApi.batchDelete(chunk);
                         if (!response.data.success) {
                             hasError = true;
-                            message.error(response.data.message || `一批订阅删除失败`);
+                            notify.error(response.data.message || `一批订阅删除失败`);
                             break;
                         }
                     }
 
                     if (!hasError) {
-                        message.success(`成功删除了 ${duplicatesCount} 个重复订阅。`);
+                        notify.success(`成功删除了 ${duplicatesCount} 个重复订阅`);
                     } else {
-                        message.warning('部分重复订阅删除失败，请刷新后重试。');
+                        notify.warning('部分重复订阅删除失败，请刷新后重试');
                     }
 
                     fetchSubscriptions();
                 } catch (err) {
-                    message.error('请求失败，请稍后重试');
+                    notify.actionError.network();
                 }
             }
         })

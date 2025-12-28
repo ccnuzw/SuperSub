@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive, h, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMessage, useDialog, NButton, NSpace, NTag, NDataTable, NModal, NForm, NFormItem, NInput, NTooltip, NGrid, NGi, NStatistic, NCard, NSwitch, NSelect, NDynamicTags, NRadioGroup, NRadioButton, NInputGroup, NIcon, NTabs, NTabPane, NDropdown, NProgress, NCollapse, NCollapseItem, NInputNumber, NPagination } from 'naive-ui'
+import { useDialog, NButton, NSpace, NTag, NDataTable, NModal, NForm, NFormItem, NInput, NTooltip, NGrid, NGi, NStatistic, NCard, NSwitch, NSelect, NDynamicTags, NRadioGroup, NRadioButton, NInputGroup, NIcon, NTabs, NTabPane, NDropdown, NProgress, NCollapse, NCollapseItem, NInputNumber, NPagination } from 'naive-ui'
+import { useNotification } from '@/composables/useNotification'
 import draggable from 'vuedraggable'
 import { EyeOutline, FilterOutline, CreateOutline, SyncOutline, TrashOutline as TrashIcon, EllipsisVertical as MoreIcon, SettingsOutline, ReorderFourOutline, AddOutline, EllipsisHorizontal, RefreshOutline as RefreshIcon, CheckmarkCircle as CheckmarkCircleIcon, CloseCircle as CloseCircleIcon } from '@vicons/ionicons5'
 import type { DataTableColumns, FormInst, DropdownOption } from 'naive-ui'
@@ -28,7 +29,7 @@ import Card from '@/components/ui/Card.vue'
 import Badge from '@/components/ui/Badge.vue'
 
 const router = useRouter()
-const message = useMessage()
+const notify = useNotification()
 const dialog = useDialog()
 const isMobile = useIsMobile()
 const subscriptionGroupStore = useSubscriptionGroupStore()
@@ -231,10 +232,10 @@ const fetchSubscriptions = async () => {
     if (subsResponse.data.success && subsResponse.data.data) {
       subscriptions.value = subsResponse.data.data
     } else {
-      message.error(subsResponse.data.message || '获取订阅失败')
+      notify.preset.loadFailed('订阅', subsResponse.data.message)
     }
   } catch (err) {
-    message.error('请求失败')
+    notify.actionError.network()
   } finally {
     loading.value = false
   }
@@ -249,14 +250,14 @@ const handleSave = async () => {
       : await subscriptionsApi.addSubscription(payload)
       
     if (response.data.success) {
-      message.success(editingSubscription.value ? '更新成功' : '创建成功')
+      notify.actionSuccess.action('订阅', editingSubscription.value ? 'update' : 'create')
       closeModal()
       fetchSubscriptions()
     } else {
-      message.error(response.data.message || '保存失败')
+      notify.actionError.save('订阅', response.data.message)
     }
   } catch (err) {
-    message.error('请求失败')
+    notify.actionError.network()
   } finally {
     saveLoading.value = false
   }
@@ -272,13 +273,13 @@ const handleDelete = (row: Subscription) => {
       try {
         const response = await subscriptionsApi.deleteSubscription(row.id)
         if (response.data.success) {
-          message.success('删除成功')
+          notify.actionSuccess.delete('订阅')
           fetchSubscriptions()
         } else {
-          message.error(response.data.message || '删除失败')
+          notify.actionError.delete('订阅', response.data.message)
         }
       } catch (err) {
-        message.error('请求失败')
+        notify.actionError.network()
       }
     },
   })
@@ -288,7 +289,7 @@ const handleUpdate = async (row: Subscription, silent = false, signal?: AbortSig
   updatingId.value = row.id
   updatingIds.value.add(row.id)
   if (!silent) {
-    message.info(`正在更新 [${row.name}]...`)
+    notify.info(`正在更新「${row.name}」...`)
   }
   try {
     // Delegate to composable
@@ -297,7 +298,7 @@ const handleUpdate = async (row: Subscription, silent = false, signal?: AbortSig
   } catch (err: any) {
     // Should be handled by handleUpdateSingle, but just incase
      const errorMsg = err.message || '请求失败'
-     if (!silent) message.error(errorMsg)
+     if (!silent) notify.actionError.action('订阅', 'update', errorMsg)
      return { success: false, data: row, error: errorMsg }
   } finally {
     updatingId.value = null
@@ -312,7 +313,7 @@ const openImportModal = () => {
 
 const handleBatchDelete = () => {
   if (checkedRowKeys.value.length === 0) {
-    message.warning('请至少选择一个订阅');
+    notify.preset.validationError('请至少选择一个订阅');
     return;
   }
   dialog.warning({
@@ -324,14 +325,14 @@ const handleBatchDelete = () => {
       try {
         const response = await subscriptionsApi.batchDelete(checkedRowKeys.value);
         if (response.data.success) {
-          message.success('批量删除成功');
+          notify.actionSuccess.delete('订阅', checkedRowKeys.value.length);
           fetchSubscriptions();
           checkedRowKeys.value = [];
         } else {
-          message.error(response.data.message || '批量删除失败');
+          notify.actionError.delete('订阅', response.data.message);
         }
       } catch (err) {
-        message.error('请求失败');
+        notify.actionError.network();
       }
     }
   });
@@ -357,7 +358,7 @@ const handleClearCurrentGroup = () => {
   }
 
   if (subCount === 0) {
-    message.info(`"${groupName}" 中无可清理的订阅。`);
+    notify.preset.noData(`「${groupName}」中没有可清理的订阅`);
     return;
   }
 
@@ -377,13 +378,13 @@ const handleClearCurrentGroup = () => {
         }
 
         if (response.data.success) {
-          message.success(response.data.message || '清空成功');
+          notify.success(response.data.message || `已清空「${groupName}」中的 ${subCount} 个订阅`);
           fetchSubscriptions();
         } else {
-          message.error(response.data.message || '清空失败');
+          notify.error(response.data.message || '清空失败');
         }
       } catch (err) {
-        message.error('请求失败');
+        notify.actionError.network();
       }
     }
   });
@@ -406,7 +407,7 @@ const handleClearAllFailed = () => {
   }
 
   if (failedSubs.length === 0) {
-    message.info(`"${groupName}" 中无无效订阅。`);
+    notify.preset.noData(`「${groupName}」中没有无效订阅`);
     return;
   }
 
@@ -420,13 +421,13 @@ const handleClearAllFailed = () => {
         const groupId = tab === 'all' ? 'all' : (tab === 'ungrouped' ? null : tab);
         const response = await subscriptionsApi.clearFailed(groupId);
         if (response.data.success) {
-          message.success(response.data.message || `已清理 ${failedSubs.length} 个订阅`);
+          notify.success(response.data.message || `已清理 ${failedSubs.length} 个无效订阅`);
           fetchSubscriptions();
         } else {
-          message.error(response.data.message || '清空失败');
+          notify.error(response.data.message || '清理失败');
         }
       } catch (err) {
-        message.error('请求失败');
+        notify.actionError.network();
       }
     }
   });
@@ -509,7 +510,7 @@ const handleExportGroup = (groupId: string) => {
   const group = subscriptionGroupStore.groups.find(g => g.id === groupId)
   const subsInGroup = subscriptions.value.filter(s => s.group_id === groupId)
   if (subsInGroup.length === 0) {
-    message.warning('没有可导出的订阅')
+    notify.preset.noData('该分组没有可导出的订阅')
     return
   }
 
@@ -523,7 +524,7 @@ const handleExportGroup = (groupId: string) => {
 const openBatchReplaceModal = (groupId: string) => {
   const subsInGroupLinkCount = subscriptions.value.filter(s => s.group_id === groupId).length
   if (subsInGroupLinkCount === 0) {
-    message.warning('没有可替换的订阅')
+    notify.preset.noData('该分组没有可替换的订阅')
     return
   }
   batchReplaceGroupId.value = groupId

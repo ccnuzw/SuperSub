@@ -320,10 +320,20 @@ export class SubscriptionService {
         await this.db.delete(subscriptions).where(and(eq(subscriptions.id, id), eq(subscriptions.user_id, userId)));
     }
 
-    async updateSubscription(id: string, userId: string, body: { name: string; url: string }) {
+    async updateSubscription(id: string, userId: string, body: { name?: string; url: string }) {
         const now = new Date().toISOString();
+        const updateData: { url: string; updated_at: string; name?: string } = {
+            url: body.url,
+            updated_at: now
+        };
+
+        // Only update name if provided
+        if (body.name !== undefined) {
+            updateData.name = body.name;
+        }
+
         await this.db.update(subscriptions)
-            .set({ name: body.name, url: body.url, updated_at: now })
+            .set(updateData)
             .where(and(eq(subscriptions.id, id), eq(subscriptions.user_id, userId)));
     }
 

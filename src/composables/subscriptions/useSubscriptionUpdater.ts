@@ -1,5 +1,6 @@
 import { ref, reactive } from 'vue'
-import { useMessage, useDialog } from 'naive-ui'
+import { useDialog } from 'naive-ui'
+import { useNotification } from '@/composables/useNotification'
 import { subscriptionsApi } from '@/api/subscriptions'
 import type { Subscription } from '@/types'
 
@@ -7,7 +8,7 @@ export function useSubscriptionUpdater(
     onUpdateRefreshed: (updatedSub: Subscription) => void,
     onDeleted?: () => void
 ) {
-    const message = useMessage()
+    const notify = useNotification()
     const dialog = useDialog()
 
     // State
@@ -35,7 +36,7 @@ export function useSubscriptionUpdater(
 
     const prepareAndShowUpdateModal = (subs: Subscription[]) => {
         if (subs.length === 0) {
-            message.info('没有需要更新的订阅')
+            notify.preset.noData('没有需要更新的订阅')
             return
         }
         subsToUpdate.value = subs
@@ -49,31 +50,31 @@ export function useSubscriptionUpdater(
         try {
             const response = await subscriptionsApi.updateFromUrl(sub.id, signal)
             if (response.data.success) {
-                if (!silent) message.success(`订阅 "${sub.name}" 更新成功`)
+                if (!silent) notify.preset.subscriptionUpdateSuccess(sub.name, response.data.data?.node_count)
                 if (response.data.data) {
                     onUpdateRefreshed(response.data.data)
                 }
                 return { success: true, data: response.data.data! }
             } else {
-                if (!silent) message.error(response.data.message || `订阅 "${sub.name}" 更新失败`)
+                if (!silent) notify.preset.subscriptionUpdateFailed(sub.name, response.data.message)
                 return { success: false, data: sub, error: response.data.message }
             }
         } catch (error: any) {
             if (error.name === 'AbortError') return { success: false, data: sub, error: '已中止' }
-            if (!silent) message.error(`请求失败: ${error.message}`)
+            if (!silent) notify.actionError.network(error.message)
             return { success: false, data: sub, error: error.message }
         }
     }
 
     const executeSubscriptionUpdates = async () => {
         if (subsToUpdate.value.length === 0) {
-            message.info('没有需要更新的订阅')
+            notify.preset.noData('没有需要更新的订阅')
             return
         }
 
         updateStage.value = 'progress'
         updateLogLoading.value = true
-        message.info(`开始更新 ${subsToUpdate.value.length} 个订阅...`)
+        notify.info(`开始更新 ${subsToUpdate.value.length} 个订阅...`)
 
         updateAbortController = new AbortController()
         const signal = updateAbortController.signal
@@ -164,7 +165,7 @@ export function useSubscriptionUpdater(
     const handleClearFailed = () => {
         const subsToClear = updateLog.value.failed.filter(sub => sub.error !== '已中止');
         if (subsToClear.length === 0) {
-            message.info('没有更新失败的订阅可以清除');
+            notify.preset.noData('没有更新失败的订阅可以清除');
             return;
         }
 
@@ -178,21 +179,13 @@ export function useSubscriptionUpdater(
                 try {
                     const response = await subscriptionsApi.batchDelete(idsToClear);
                     if (response.data.success) {
-                        message.success(`成功清除了 ${idsToClear.length} 个失败订阅`);
+                        notify.actionSuccess.delete('订阅', idsToClear.length);
                         updateLog.value.failed = updateLog.value.failed.filter(sub => !idsToClear.includes(sub.id));
-                        // Refresh needed? onUpdateRefreshed handles single updates. Deleted ones need parent to remove.
-                        // We might need an onDelete callback too?
-                        // For now we rely on fetchSubscriptions in parent if we want full sync, or just ignore.
-                        // The parent can listen to 'success' from modal to refresh if needed.
-                        // But wait, here we are inside composable.
-                        // Ideally we should emit/call back to refresh list.
-                        // The user deleted subs.
-                        // We should probably expose a "onDeleted" callback or just let parent refresh.
                     } else {
-                        message.error(response.data.message || '清除失败');
+                        notify.actionError.delete('订阅', response.data.message);
                     }
                 } catch (err) {
-                    message.error('请求失败，请稍后重试');
+                    notify.actionError.network();
                 }
             }
         });
@@ -203,7 +196,7 @@ export function useSubscriptionUpdater(
         const subsToClear = updateLog.value.expiring;
 
         if (subsToClear.length === 0) {
-            message.info('没有即将到期的订阅可以清除');
+            notify.preset.noData('没有即将到期的订阅可以清除');
             return;
         }
 
@@ -217,14 +210,13 @@ export function useSubscriptionUpdater(
                 try {
                     const response = await subscriptionsApi.batchDelete(idsToClear);
                     if (response.data.success) {
-                        message.success(`成功清除了 ${idsToClear.length} 个即将到期的订阅`);
+                        notify.actionSuccess.delete('订阅', idsToClear.length);
                         updateLog.value.expiring = updateLog.value.expiring.filter(sub => !idsToClear.includes(sub.id));
-                        // Callback or refresh
                     } else {
-                        message.error(response.data.message || '清除失败');
+                        notify.actionError.delete('订阅', response.data.message);
                     }
                 } catch (err) {
-                    message.error('请求失败，请稍后重试');
+                    notify.actionError.network();
                 }
             }
         });

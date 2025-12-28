@@ -2,7 +2,7 @@
 import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import { useMessage } from 'naive-ui';
+import { useNotification } from '@/composables/useNotification';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
@@ -13,12 +13,12 @@ const password = ref('');
 const loading = ref(false);
 const router = useRouter();
 const authStore = useAuthStore();
-const message = useMessage();
+const notify = useNotification();
 
 onMounted(async () => {
   await authStore.checkRegistrationStatus();
   if (!authStore.isRegistrationAllowed) {
-    message.warning('用户注册当前已禁用。');
+    notify.warning('用户注册当前已禁用');
     router.push('/login');
   }
 });
@@ -26,7 +26,7 @@ onMounted(async () => {
 // Watch for changes in case the status is fetched after the initial mount check
 watch(() => authStore.isRegistrationAllowed, (isAllowed) => {
   if (!isAllowed) {
-    message.warning('用户注册当前已禁用。');
+    notify.warning('用户注册当前已禁用');
     router.push('/login');
   }
 });
@@ -35,16 +35,15 @@ const handleRegister = async () => {
   loading.value = true;
   try {
     await authStore.register({ username: username.value, password: password.value });
-    message.success('注册成功！请登录。');
+    notify.preset.registerSuccess();
     router.push('/login');
   } catch (error) {
     console.error('Registration failed:', error);
-    // Check for 409 conflict status
     const err = error as { response?: { status?: number } };
     if (err.response && err.response.status === 409) {
-      message.error('用户名已存在。请选择其他用户名或登录。');
+      notify.error('用户名已存在，请选择其他用户名或登录');
     } else {
-      message.error(getApiErrorMessage(error, '注册失败。请重试。'));
+      notify.error(getApiErrorMessage(error, '注册失败，请重试'));
     }
   } finally {
     loading.value = false;

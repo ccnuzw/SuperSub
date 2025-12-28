@@ -1,10 +1,11 @@
 import { ref, computed } from 'vue'
-import { useMessage, useDialog } from 'naive-ui'
+import { useDialog } from 'naive-ui'
+import { useNotification } from '@/composables/useNotification'
 import { useGroupStore } from '@/stores/groups'
 import { nodesApi } from '@/api/nodes'
 
 export function useNodeGroups() {
-    const message = useMessage()
+    const notify = useNotification()
     const dialog = useDialog()
     const groupStore = useGroupStore()
 
@@ -33,7 +34,7 @@ export function useNodeGroups() {
 
     const submitGroupForm = async () => {
         if (!groupFormName.value.trim()) {
-            message.warning('分组名称不能为空')
+            notify.preset.validationError('分组名称不能为空')
             return
         }
         groupFormLoading.value = true
@@ -47,13 +48,13 @@ export function useNodeGroups() {
             }
 
             if (response.success) {
-                message.success(groupFormMode.value === 'add' ? '分组创建成功' : '分组更新成功')
+                notify.actionSuccess.action('分组', groupFormMode.value === 'add' ? 'create' : 'update')
                 groupFormVisible.value = false
             } else {
-                message.error(response.message || '操作失败')
+                notify.error(response.message || '操作失败')
             }
         } catch (error: any) {
-            message.error(error.message || '操作失败')
+            notify.actionError.network(error.message)
         } finally {
             groupFormLoading.value = false
         }
@@ -72,14 +73,14 @@ export function useNodeGroups() {
         try {
             const response = await nodesApi.batchUpdateGroup(nodeIds, groupId)
             if (response.data.success) {
-                message.success('节点分组更新成功')
+                notify.success(`已将 ${nodeIds.length} 个节点移动到新分组`)
                 moveModalVisible.value = false
                 if (onSuccess) onSuccess()
             } else {
-                message.error(response.data.message || '移动失败')
+                notify.error(response.data.message || '移动失败')
             }
         } catch (error: any) {
-            message.error(error.message || '请求失败')
+            notify.actionError.network(error.message)
         } finally {
             moveModalLoading.value = false
         }
@@ -97,10 +98,10 @@ export function useNodeGroups() {
         sortLoading.value = true
         try {
             await groupStore.updateGroupOrder(sortedIds)
-            message.success('分组顺序已更新')
+            notify.success('分组顺序已更新')
             sortModalVisible.value = false
         } catch (error: any) {
-            message.error(error.message || '更新分组顺序失败')
+            notify.error(error.message || '更新分组顺序失败')
         } finally {
             sortLoading.value = false
         }
@@ -117,13 +118,13 @@ export function useNodeGroups() {
                 try {
                     const response = await groupStore.deleteGroup(group.id)
                     if (response.success) {
-                        message.success('分组删除成功')
+                        notify.actionSuccess.delete('分组')
                         if (onSuccess) onSuccess()
                     } else {
-                        message.error(response.message || '删除失败')
+                        notify.actionError.delete('分组', response.message)
                     }
                 } catch (error: any) {
-                    message.error(error.message || '删除失败')
+                    notify.actionError.network(error.message)
                 }
             }
         })
@@ -133,7 +134,7 @@ export function useNodeGroups() {
         try {
             await groupStore.toggleGroup(id)
         } catch (err: any) {
-            message.error(err.message || '操作失败')
+            notify.error(err.message || '操作失败')
         }
     }
 
