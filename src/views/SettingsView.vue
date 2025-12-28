@@ -9,13 +9,16 @@
       <n-tabs 
         type="line" 
         animated
-        pane-class="p-6"
+        pane-class="p-0"
         tab-style="padding: 16px 24px;"
       >
-        <n-tab-pane name="general" tab="常规设置">
-          <GeneralSettings />
+        <n-tab-pane name="security" tab="账户安全">
+          <SecuritySettings />
         </n-tab-pane>
-        <n-tab-pane name="conversion" tab="订阅转换设置">
+        <n-tab-pane name="notifications" tab="消息通知">
+          <NotificationSettings />
+        </n-tab-pane>
+        <n-tab-pane name="conversion" tab="订阅转换">
           <ConversionSettings />
         </n-tab-pane>
       </n-tabs>
@@ -26,6 +29,7 @@
 <script setup lang="ts">
 import { NTabs, NTabPane } from 'naive-ui';
 import Card from '@/components/ui/Card.vue';
-import GeneralSettings from '@/components/settings/GeneralSettings.vue';
+import SecuritySettings from '@/components/settings/SecuritySettings.vue';
+import NotificationSettings from '@/components/settings/NotificationSettings.vue';
 import ConversionSettings from '@/components/settings/ConversionSettings.vue';
 </script>
