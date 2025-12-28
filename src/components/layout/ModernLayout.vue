@@ -159,7 +159,7 @@ const isActive = (name: string) => route.name === name
     <!-- Main Content -->
     <main class="transition-all duration-300" :class="isMobile ? 'pt-20 px-4 pb-8' : 'pl-64 pr-8 py-8'">
       <!-- Page Content -->
-      <div class="max-w-7xl mx-auto animate-fade-in">
+      <div class="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 animate-fade-in">
         <slot />
       </div>
     </main>
