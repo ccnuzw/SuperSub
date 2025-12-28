@@ -169,7 +169,7 @@ export class NodeService {
 
         if (values.length > 0) {
             // For safety against large imports, simple chunking
-            const CHUNK_SIZE = 100;
+            const CHUNK_SIZE = 1;
             for (let i = 0; i < values.length; i += CHUNK_SIZE) {
                 await this.db.insert(nodes).values(values.slice(i, i + CHUNK_SIZE));
             }

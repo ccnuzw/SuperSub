@@ -144,10 +144,8 @@ export class SubscriptionService {
             subscription_info: subscriptions.subscription_info,
             remaining_traffic: subscriptions.remaining_traffic,
             remaining_days: subscriptions.remaining_days,
-            profile_id: profile_subscriptions.profile_id
         })
             .from(subscriptions)
-            .leftJoin(profile_subscriptions, eq(subscriptions.id, profile_subscriptions.subscription_id))
             .where(eq(subscriptions.user_id, userId))
             .orderBy(desc(subscriptions.created_at));
     }
@@ -332,7 +330,7 @@ export class SubscriptionService {
             created_at: now
         }));
 
-        const CHUNK_SIZE = 50;
+        const CHUNK_SIZE = 5;
         for (let i = 0; i < values.length; i += CHUNK_SIZE) {
             await this.db.insert(subscriptions).values(values.slice(i, i + CHUNK_SIZE));
         }

@@ -157,14 +157,40 @@ export class ProfileService {
 
         // Normalization: Write Nodes
         if (parsedContent.node_ids && parsedContent.node_ids.length > 0) {
-            for (const nodeId of parsedContent.node_ids) {
+            // Validate IDs exist (Chunked)
+            const validIds: string[] = [];
+            const idsToCheck = parsedContent.node_ids;
+            const CHUNK_SIZE = 50;
+
+            for (let i = 0; i < idsToCheck.length; i += CHUNK_SIZE) {
+                const chunk = idsToCheck.slice(i, i + CHUNK_SIZE);
+                const result = await this.db.select({ id: nodes.id })
+                    .from(nodes)
+                    .where(inArray(nodes.id, chunk));
+                validIds.push(...result.map(n => n.id));
+            }
+
+            for (const nodeId of validIds) {
                 await this.db.insert(profile_nodes).values({ profile_id: profileId, node_id: nodeId });
             }
         }
 
         // Normalization: Write Subscriptions
         if (parsedContent.subscription_ids && parsedContent.subscription_ids.length > 0) {
-            for (const subId of parsedContent.subscription_ids) {
+            // Validate IDs exist (Chunked)
+            const validIds: string[] = [];
+            const idsToCheck = parsedContent.subscription_ids;
+            const CHUNK_SIZE = 50;
+
+            for (let i = 0; i < idsToCheck.length; i += CHUNK_SIZE) {
+                const chunk = idsToCheck.slice(i, i + CHUNK_SIZE);
+                const result = await this.db.select({ id: subscriptions.id })
+                    .from(subscriptions)
+                    .where(inArray(subscriptions.id, chunk));
+                validIds.push(...result.map(s => s.id));
+            }
+
+            for (const subId of validIds) {
                 await this.db.insert(profile_subscriptions).values({ profile_id: profileId, subscription_id: subId });
             }
         }
@@ -237,7 +263,19 @@ export class ProfileService {
         // Normalization: Update Nodes
         await this.db.delete(profile_nodes).where(eq(profile_nodes.profile_id, id));
         if (parsedContent.node_ids && parsedContent.node_ids.length > 0) {
-            for (const nodeId of parsedContent.node_ids) {
+            const validIds: string[] = [];
+            const idsToCheck = parsedContent.node_ids;
+            const CHUNK_SIZE = 50;
+
+            for (let i = 0; i < idsToCheck.length; i += CHUNK_SIZE) {
+                const chunk = idsToCheck.slice(i, i + CHUNK_SIZE);
+                const result = await this.db.select({ id: nodes.id })
+                    .from(nodes)
+                    .where(inArray(nodes.id, chunk));
+                validIds.push(...result.map(n => n.id));
+            }
+
+            for (const nodeId of validIds) {
                 await this.db.insert(profile_nodes).values({ profile_id: id, node_id: nodeId }).onConflictDoNothing();
             }
         }
@@ -245,7 +283,19 @@ export class ProfileService {
         // Normalization: Update Subscriptions
         await this.db.delete(profile_subscriptions).where(eq(profile_subscriptions.profile_id, id));
         if (parsedContent.subscription_ids && parsedContent.subscription_ids.length > 0) {
-            for (const subId of parsedContent.subscription_ids) {
+            const validIds: string[] = [];
+            const idsToCheck = parsedContent.subscription_ids;
+            const CHUNK_SIZE = 50;
+
+            for (let i = 0; i < idsToCheck.length; i += CHUNK_SIZE) {
+                const chunk = idsToCheck.slice(i, i + CHUNK_SIZE);
+                const result = await this.db.select({ id: subscriptions.id })
+                    .from(subscriptions)
+                    .where(inArray(subscriptions.id, chunk));
+                validIds.push(...result.map(s => s.id));
+            }
+
+            for (const subId of validIds) {
                 await this.db.insert(profile_subscriptions).values({ profile_id: id, subscription_id: subId }).onConflictDoNothing();
             }
         }

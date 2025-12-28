@@ -31,7 +31,12 @@ const handleBulkImport = async () => {
   for (const line of lines) {
     const parts = line.split(',').map(part => part.trim())
     if (parts.length === 2 && parts[1].startsWith('http')) {
-      subscriptionsToCreate.push({ name: parts[0], url: parts[1] })
+      try {
+        new URL(parts[1]) // Validate URL
+        subscriptionsToCreate.push({ name: parts[0], url: parts[1] })
+      } catch (e) {
+         // Silently ignore or maybe could log a warning, but for now just skip invalid
+      }
     } else if (parts.length === 1 && parts[0].startsWith('http')) {
       try {
         const urlObj = new URL(parts[0])

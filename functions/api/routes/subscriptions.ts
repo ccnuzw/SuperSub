@@ -67,14 +67,23 @@ subscriptions.post('/', zValidator('json', createSubscriptionSchema), async (c) 
     }
 });
 
-subscriptions.post('/batch-import', zValidator('json', batchImportSubscriptionsSchema), async (c) => {
+subscriptions.post('/batch-import', async (c) => {
     const user = c.get('jwtPayload');
-    const { subscriptions: subs, groupId } = c.req.valid('json');
+    const rawBody = await c.req.json();
+    const validation = batchImportSubscriptionsSchema.safeParse(rawBody);
+
+    if (!validation.success) {
+        console.error('Batch import subscriptions validation failed:', JSON.stringify(validation.error, null, 2));
+        return c.json({ success: false, message: 'Validation failed', errors: validation.error }, 400);
+    }
+
+    const { subscriptions: subs, groupId } = validation.data;
     const service = new SubscriptionService(c.env);
     try {
         const count = await service.batchImport(user.id, subs, groupId);
         return c.json({ success: true, data: { message: `Successfully imported ${count} subscriptions.` } });
     } catch (e: any) {
+        console.error('Batch import subscriptions failed:', e);
         return createErrorResponse(e.message, 400);
     }
 });

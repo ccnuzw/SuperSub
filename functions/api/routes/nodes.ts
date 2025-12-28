@@ -43,9 +43,17 @@ nodes.post('/', manualAuthMiddleware, zValidator('json', nodeSchema), async (c) 
     }
 });
 
-nodes.post('/batch-import', manualAuthMiddleware, zValidator('json', batchImportSchema), async (c) => {
+nodes.post('/batch-import', manualAuthMiddleware, async (c) => {
     const user = c.get('jwtPayload');
-    const body = c.req.valid('json');
+    const rawBody = await c.req.json();
+    const validation = batchImportSchema.safeParse(rawBody);
+
+    if (!validation.success) {
+        console.error('Batch import validation failed:', JSON.stringify(validation.error, null, 2));
+        return c.json({ success: false, message: 'Validation failed', errors: validation.error }, 400);
+    }
+
+    const body = validation.data;
     const nodeService = new NodeService(c.env);
     const normalizedBody = {
         ...body,
@@ -55,6 +63,7 @@ nodes.post('/batch-import', manualAuthMiddleware, zValidator('json', batchImport
         const count = await nodeService.batchImport(user.id, normalizedBody);
         return c.json({ success: true, message: `Successfully imported ${count} nodes.` });
     } catch (e: any) {
+        console.error('Batch import failed:', e);
         return createErrorResponse(e.message, 400);
     }
 });
